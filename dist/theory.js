@@ -1,4 +1,4 @@
-export const names=['C','D♭','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+export const names=[['C'],['C♯','D♭'],['D'],['D♯','E♭'],['E'],['F'],['F♯','G♭'],['G'],['G♯','A♭'],['A'],['A♯','B♭'],['B']];
 export const qualities=[{name:'大三和弦',suffix:'',intervals:[0,4,7]},{name:'小三和弦',suffix:'m',intervals:[0,3,7]},{name:'sus4 和弦',suffix:'sus4',intervals:[0,5,7]}];
 export const inversions=['原位','第一转位','第二转位'];
 export const stages=[];
@@ -16,7 +16,10 @@ export function makeRound(stage,cycle=0,rng=Math.random){
     const inv=stage.invs[i%stage.invs.length];
     const q=stage.qs[(pc+i+cycle)%stage.qs.length];
     const roots=positions(pc,q,inv);
-    cards.push({pc,q,inv,root:roots[Math.floor(rng()*roots.length)],label:names[pc]+qualities[q].suffix});
+    const root=roots[Math.floor(rng()*roots.length)];
+    const spellings=names[pc];
+    const name=spellings.length===1?spellings[0]:spellings[rng()<0.5?0:1];
+    cards.push({pc,q,inv,root,label:name+qualities[q].suffix});
   }
   return shuffle(cards,rng);
 }

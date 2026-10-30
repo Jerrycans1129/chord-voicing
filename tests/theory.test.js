@@ -1,5 +1,15 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {stages,makeRound,notes,positions} from '../dist/theory.js';
+test('black-key labels choose sharp or flat at the 50% boundary for every chord type',()=>{
+ const sharp=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+ const flat=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+ for(const [value,expected] of [[0,sharp],[0.499999,sharp],[0.5,flat],[0.999999,flat]]){
+  for(const [q,suffix] of [[0,''],[1,'m'],[2,'sus4']]){
+   const cards=makeRound({qs:[q],invs:[0,1,2]},0,()=>value);
+   for(const card of cards)assert.equal(card.label,expected[card.pc]+suffix);
+  }
+ }
+});
 test('14 stages follow first, second, root ordering',()=>{assert.equal(stages.length,14);for(const start of [0,4,9])assert.deepEqual(stages.slice(start,start+3).map(s=>s.invs[0]),[1,2,0]);});
 test('all rounds balance roots, types, and inversions; every voicing fits C3–C6',()=>{
  for(const stage of stages)for(let cycle=0;cycle<stage.qs.length;cycle++){
