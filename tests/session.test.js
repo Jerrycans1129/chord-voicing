@@ -44,7 +44,8 @@ test('landed chord stays at the keyboard until the next chord lands',()=>{
 test('chords descend continuously between beats and meet the key edge',()=>{
  const {run}=session();run('play();render(0)');
  const y=()=>Number(run('elements[0].style.transform').match(/translateY\((.*)px\)/)[1]);
- const top=y();run('now=250;render(now)');const first=y();
+ const top=y();assert.ok(top+36<=0);
+ run('now=250;render(now)');const first=y();
  run('now=500;render(now)');const second=y();
  assert.ok(first>top);assert.ok(second>first);assert.equal(first-top,second-first);
  run('now=8000;render(now)');assert.equal(y(),264);

@@ -136,7 +136,8 @@ function render(now){
    el.dataset.landed=String(progress>=1);
    // Descend continuously until the 36px label meets the key edge.
    if(!el.hidden){
-    const top=Math.min(44,height*.15),bottom=height-36;
+    // Start fully above the clipped track so labels enter through its top edge.
+    const top=-44,bottom=height-36;
     el.style.transform=`translateY(${top+Math.min(progress,1)*(bottom-top)}px)`;
    }
   });
