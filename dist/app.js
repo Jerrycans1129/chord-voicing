@@ -9,6 +9,24 @@ bpm=Math.max(40,Math.min(120,Math.round(bpm/10)*10));
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0,baseCycle=0,completedBatches=0;
 const MAX_SECONDS=30*60;
+let screenLock=null,screenLockGeneration=0;
+function releaseScreenLock(){
+ screenLockGeneration++;
+ const lock=screenLock;screenLock=null;
+ if(lock)void lock.release().catch(()=>{});
+}
+async function keepScreenAwake(){
+ const wakeLock=globalThis.navigator?.wakeLock;
+ if(!running||document.hidden||!wakeLock)return;
+ const generation=++screenLockGeneration;
+ try{
+  const lock=await wakeLock.request('screen');
+  // A request may finish after pause, restart, or leaving the page.
+  if(generation!==screenLockGeneration||!running||document.hidden){await lock.release();return;}
+  screenLock=lock;
+  lock.addEventListener('release',()=>{if(screenLock===lock)screenLock=null;});
+ }catch{/* Unsupported or denied wake locks must not interrupt practice. */}
+}
 let metronomeOn=read('voicing-metronome',true)!==false;
 let audioContext=null,nextAudioBeat=null;
 const clicks=new Set();
@@ -84,16 +102,16 @@ function appendBatch(){
  }
 }
 function reset(){
- stopMetronome();
+ releaseScreenLock();stopMetronome();
  running=false;started=false;finished=false;elapsed=0;previous=0;sessionSeconds=0;completedBatches=0;
  baseCycle=Number.isSafeInteger(cycles[stageIndex])?cycles[stageIndex]:0;
  cards=[];elements=[];$('falling').replaceChildren();appendBatch();updateTimer();
  $('stage-number').textContent=`${stageIndex+1} / 14`;
  showOverlay('准备训练','标签平滑下落，触及琴键时弹奏，背景竖线随拍亮起。轻点任意位置暂停，最长 30 分钟。','开始训练 →');
 }
-function pause(){if(!running)return;advance(performance.now());if(finished)return;running=false;stopMetronome();showOverlay('训练已暂停','进度已保留，准备好后继续。','继续训练 →');$('status').textContent='已暂停 · 切换阶段将重新开始一轮';}
-function play(){if(running){pause();return;}if(finished)reset();running=true;started=true;previous=performance.now();unlockAudio();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';}
-function complete(){stopMetronome();running=false;finished=true;elements.forEach(el=>{el.hidden=true;});showOverlay('本轮已完成','本次训练已持续 30:00。可以重新开始，或选择其他训练阶段。','再练一轮 →');}
+function pause(){if(!running)return;advance(performance.now());if(finished)return;running=false;releaseScreenLock();stopMetronome();showOverlay('训练已暂停','进度已保留，准备好后继续。','继续训练 →');$('status').textContent='已暂停 · 切换阶段将重新开始一轮';}
+function play(){if(running){pause();return;}if(finished)reset();running=true;started=true;previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';}
+function complete(){releaseScreenLock();stopMetronome();running=false;finished=true;elements.forEach(el=>{el.hidden=true;});showOverlay('本轮已完成','本次训练已持续 30:00。可以重新开始，或选择其他训练阶段。','再练一轮 →');}
 function advance(now){
  if(running){const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);sessionSeconds+=dt;elapsed+=dt*bpm/240;updateTimer();
   const batches=Math.floor(Math.max(0,Math.floor(elapsed-2)+1)/36);

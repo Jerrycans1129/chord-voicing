@@ -78,3 +78,24 @@ test('metronome schedules accented clicks, cancels on pause and skips missed bea
  run('now=20000;render(now)');assert.ok(scheduled.length<=4);
  run('metronomeOn=false;stopMetronome();now=21000;render(now)');assert.ok(scheduled.length<=4);
 });
+
+test('screen wake lock is acquired for training and released on pause and completion',async()=>{
+ const locks=[];
+ const {run}=session({navigator:{wakeLock:{async request(type){
+  assert.equal(type,'screen');const lock={released:false,async release(){this.released=true;},addEventListener(){}};locks.push(lock);return lock;
+ }}}});
+ run('play()');await new Promise(setImmediate);assert.equal(locks.length,1);
+ run('pause()');assert.equal(locks[0].released,true);
+ run('play()');await new Promise(setImmediate);assert.equal(locks.length,2);
+ run('complete()');assert.equal(locks[1].released,true);
+});
+test('late wake lock requests are released after pausing',async()=>{
+ let resolve;const lock={released:false,async release(){this.released=true;},addEventListener(){}};
+ const {run}=session({navigator:{wakeLock:{request(){return new Promise(done=>{resolve=done;});}}}});
+ run('play();pause()');resolve(lock);await new Promise(setImmediate);
+ assert.equal(lock.released,true);assert.equal(run('screenLock'),null);
+});
+test('wake lock rejection does not interrupt training',async()=>{
+ const {run}=session({navigator:{wakeLock:{async request(){throw new Error('Denied');}}}});
+ run('play()');await new Promise(setImmediate);assert.equal(run('running'),true);assert.equal(run('screenLock'),null);
+});
