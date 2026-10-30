@@ -1,0 +1,9 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111a1b"><title>Voicing — 和弦转位训练</title><link rel="stylesheet" href="./style.css"></head><body>
+<main><section class="instrument" aria-label="和弦掉落区和 C3 至 C6 参照键盘">
+<div id="lanes"></div><div id="falling"></div><div id="timer" class="training-hint" aria-label="本次训练时长">00:00</div>
+<section id="overlay" aria-label="训练设置"><div class="panel-heading"><div><span class="eyebrow">VOICING · 和弦转位训练</span><h1>准备训练</h1></div><div class="counter"><strong id="count">00:00</strong><span> / 30:00</span></div></div>
+<div class="settings"><div class="stage-control"><label for="stage">训练阶段 <span id="stage-number"></span></label><select id="stage"></select></div><div class="tempo"><label for="speed">速度（每分钟拍数） <output id="speed-value">60 BPM</output></label><select id="speed"><option value="40">40 BPM</option><option value="50">50 BPM</option><option value="60" selected>60 BPM</option><option value="70">70 BPM</option><option value="80">80 BPM</option><option value="90">90 BPM</option><option value="100">100 BPM</option><option value="110">110 BPM</option><option value="120">120 BPM</option></select></div></div>
+<div class="panel-bottom"><div class="legend"><span><i class="swatch left"></i>第一转位</span><span><i class="swatch both"></i>第二转位</span><span><i class="swatch right"></i>原位</span></div><div class="actions"><button id="restart" class="secondary">重新开始</button><button id="overlay-action" class="primary">开始训练 →</button></div></div>
+<p id="status" role="status">标记落到琴键上沿时，在实体乐器上弹奏。</p></section>
+<div id="strike"></div><div id="keyboard" aria-label="无音名标记的钢琴参照键盘"></div>
+</section></main><aside id="rotate"><span>↻</span><h2>横过来，更好练。</h2><p>请将手机或平板旋转为横屏。<br>琴键是位置参照，请在实体乐器上弹奏。</p></aside><script type="module" src="./app.js"></script></body></html>
