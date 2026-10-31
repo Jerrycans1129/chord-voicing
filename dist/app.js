@@ -1,4 +1,4 @@
-import {stages,makeRound} from './theory.js';
+import {stages,makeRound,notes} from './theory.js';
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
@@ -73,19 +73,36 @@ function scheduleMetronome(){
 }
 updateMetronome();
 function updateTimer(){const seconds=Math.floor(sessionSeconds);const value=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;$('timer').textContent=value;$('count').textContent=value;}
-const whitePC=[0,2,4,5,7,9,11],centers=new Map(),keyBounds=new Map();let whiteCount=0;
+const whitePC=[0,2,4,5,7,9,11],centers=new Map(),keyBounds=new Map(),answerDots=new Map();let whiteCount=0;
 for(let midi=48;midi<=84;midi++){
  const white=whitePC.includes(midi%12),x=white?(whiteCount+.5)/22:whiteCount/22;
  centers.set(midi,x);
  const width=(white?1:.58)/22,left=x-width/2;
  keyBounds.set(midi,{left,right:left+width});
  const key=document.createElement('div');key.className=`key ${white?'white':'black'}`;key.style.left=`${left*100}%`;key.style.width=`${width*100}%`;
+ const dot=document.createElement('span');dot.className='answer-dot';dot.hidden=true;dot.setAttribute('aria-hidden','true');key.append(dot);answerDots.set(midi,dot);
  $('keyboard').append(key);
  if(white){const lane=document.createElement('div');lane.className=`lane ${midi%12===0?'octave':''}`;lane.style.left=`${whiteCount/22*100}%`;$('lanes').append(lane);whiteCount++;}
 }
 stages.forEach((s,i)=>{const option=document.createElement('option');option.value=i;option.textContent=`${String(i+1).padStart(2,'0')}  ${s.name}`;$('stage').append(option);});
 $('stage').value=stageIndex;$('speed').value=bpm;$('speed-value').textContent=`${bpm} BPM`;
-function showOverlay(title,description,button){$('overlay').hidden=false;$('overlay').querySelector('h1').textContent=title;$('status').textContent=description;$('overlay-action').textContent=button;}
+function hidePauseControls(){
+ $('settings-toggle').hidden=true;
+ for(const dot of answerDots.values())dot.hidden=true;
+}
+function showAnswer(){
+ // Keep the answer for the landed chord until the next one lands. During
+ // the opening lead-in, reveal the first approaching chord.
+ const card=cards[Math.max(0,Math.floor(elapsed-2))];
+ const pitches=card?notes(card.root,card.q,card.inv):[];
+ for(const [midi,dot] of answerDots)dot.hidden=!pitches.includes(midi);
+}
+function openSettings(){
+ if(running||!started||finished)return;
+ hidePauseControls();
+ showOverlay('训练设置','进度已保留 · 切换阶段将重新开始一轮','继续训练 →');
+}
+function showOverlay(title,description,button){hidePauseControls();$('overlay').hidden=false;$('overlay').querySelector('h1').textContent=title;$('status').textContent=description;$('overlay-action').textContent=button;}
 function appendBatch(){
  const batch=makeRound(stages[stageIndex],baseCycle+cards.length/36);
  for(const card of batch){
@@ -107,10 +124,15 @@ function reset(){
  baseCycle=Number.isSafeInteger(cycles[stageIndex])?cycles[stageIndex]:0;
  cards=[];elements=[];$('falling').replaceChildren();appendBatch();updateTimer();
  $('stage-number').textContent=`${stageIndex+1} / 14`;
- showOverlay('准备训练','标签平滑下落，触及琴键时弹奏，背景竖线随拍亮起。轻点任意位置暂停，最长 30 分钟。','开始训练 →');
+ showOverlay('准备训练','标签平滑下落，触及琴键时弹奏，背景竖线随拍亮起。轻点屏幕暂停并查看答案，再点继续；暂停后可打开右上角设置。最长 30 分钟。','开始训练 →');
 }
-function pause(){if(!running)return;advance(performance.now());if(finished)return;running=false;releaseScreenLock();stopMetronome();showOverlay('训练已暂停','进度已保留，准备好后继续。','继续训练 →');$('status').textContent='已暂停 · 切换阶段将重新开始一轮';}
-function play(){if(running){pause();return;}if(finished)reset();running=true;started=true;previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';}
+function pause(){
+ if(!running)return;advance(performance.now());if(finished)return;
+ running=false;releaseScreenLock();stopMetronome();
+ while(elapsed+2>=cards.length)appendBatch();
+ $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();
+}
+function play(){if(running){pause();return;}if(finished)reset();hidePauseControls();running=true;started=true;previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';}
 function complete(){releaseScreenLock();stopMetronome();running=false;finished=true;elements.forEach(el=>{el.hidden=true;});showOverlay('本轮已完成','本次训练已持续 30:00。可以重新开始，或选择其他训练阶段。','再练一轮 →');}
 function advance(now){
  if(running){const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);sessionSeconds+=dt;elapsed+=dt*bpm/240;updateTimer();
@@ -150,9 +172,12 @@ $('metronome').addEventListener('click',e=>{
  stopMetronome();if(metronomeOn)unlockAudio();updateMetronome();
 });
 $('overlay-action').addEventListener('click',e=>{e.stopPropagation();play();});$('restart').addEventListener('click',e=>{e.stopPropagation();reset();play();});
-document.addEventListener('click',()=>{if(running)pause();});
-// Direct touch handling also supports non-interactive surfaces in mobile Safari.
-document.addEventListener('pointerup',e=>{if(e.pointerType==='touch'&&running)pause();});
+$('settings-toggle').addEventListener('click',e=>{e.stopPropagation();openSettings();});
+$('overlay').addEventListener('click',e=>e.stopPropagation());
+// One click path for mouse and touch avoids a pointerup + click double toggle.
+document.addEventListener('click',()=>{
+ if(running)pause();else if(started&&!finished&&$('overlay').hidden)play();
+});
 $('stage').addEventListener('change',()=>{stageIndex=Number($('stage').value);save('voicing-stage',stageIndex);reset();});
 $('speed').addEventListener('change',()=>{advance(performance.now());stopMetronome();bpm=Number($('speed').value);$('speed-value').textContent=`${bpm} BPM`;save('voicing-bpm',bpm);});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});

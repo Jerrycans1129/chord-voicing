@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-import {stages,makeRound} from '../dist/theory.js';
+import {stages,makeRound,notes} from '../dist/theory.js';
 function session(extras={}){
- const nodes=new Map();
- const element=()=>({style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},append(){},replaceChildren(){},addEventListener(){},querySelector(){return this;}});
+ const nodes=new Map(),documentHandlers={};
+ const element=()=>({style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},append(){},replaceChildren(){},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},querySelector(){return this;}});
  const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
- const context=vm.createContext({stages,makeRound,now:0,document:{getElementById:get,createElement:element,addEventListener(){}},localStorage:{getItem(){return null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
+ const context=vm.createContext({stages,makeRound,notes,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(){return null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/,''),context);
- return {run:code=>vm.runInContext(code,context),nodes};
+ return {run:code=>vm.runInContext(code,context),nodes,documentHandlers};
 }
 test('continuous training crosses 36 questions and stops at 30 minutes',()=>{
  const {run,nodes}=session();run('play();now=160000;render(now)');
@@ -99,4 +99,36 @@ test('late wake lock requests are released after pausing',async()=>{
 test('wake lock rejection does not interrupt training',async()=>{
  const {run}=session({navigator:{wakeLock:{async request(){throw new Error('Denied');}}}});
  run('play()');await new Promise(setImmediate);assert.equal(run('running'),true);assert.equal(run('screenLock'),null);
+});
+
+
+test('screen clicks pause with the landed answer, open settings separately, and resume',()=>{
+ const {run,nodes,documentHandlers}=session();
+ const visible=()=>run('JSON.stringify([...answerDots].filter(([,dot])=>!dot.hidden).map(([midi])=>midi))');
+ run('play();now=10000;render(now)');documentHandlers.click();
+ assert.equal(run('running'),false);
+ assert.equal(nodes.get('overlay').hidden,true);
+ assert.equal(nodes.get('settings-toggle').hidden,false);
+ assert.equal(visible(),run('JSON.stringify(notes(cards[0].root,cards[0].q,cards[0].inv))'));
+ let stopped=false;
+ nodes.get('settings-toggle').handlers.click({stopPropagation(){stopped=true;}});
+ assert.equal(stopped,true);assert.equal(run('running'),false);
+ assert.equal(nodes.get('overlay').hidden,false);
+ assert.equal(nodes.get('settings-toggle').hidden,true);
+ documentHandlers.click();assert.equal(run('running'),false);
+ nodes.get('overlay-action').handlers.click({stopPropagation(){}});
+ assert.equal(run('running'),true);assert.equal(visible(),'[]');
+ run('now=12000;render(now)');documentHandlers.click();
+ assert.equal(visible(),run('JSON.stringify(notes(cards[1].root,cards[1].q,cards[1].inv))'));
+ documentHandlers.click();assert.equal(run('running'),true);
+ assert.equal(nodes.get('settings-toggle').hidden,true);
+ assert.equal(visible(),'[]');
+ assert.equal(documentHandlers.pointerup,undefined);
+});
+test('opening lead-in reveals first answer and reset clears pause UI',()=>{
+ const {run,nodes}=session();run('play();now=1000;pause()');
+ assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),3);
+ run('reset()');
+ assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),0);
+ assert.equal(nodes.get('settings-toggle').hidden,true);
 });
