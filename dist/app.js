@@ -220,6 +220,15 @@ function appendBatch(){
  for(const card of batch){
   const el=document.createElement('div');el.className='card';el.dataset.inv=card.inv;
   el.style.left=`${centers.get(card.root)*100}%`;el.hidden=true;
+  if(card.kind!=='note'){
+   const bounds=keyBounds.get(card.root);
+   const halo=document.createElement('span');halo.className='halo';
+   // Keep the label centered while anchoring the halo to the actual key edge.
+   const halfKeyWidth=(bounds.right-bounds.left)*50;
+   if(card.inv===0)halo.style.left=`calc(50% - ${halfKeyWidth}cqw)`;
+   if(card.inv===1)halo.style.right=`calc(50% - ${halfKeyWidth}cqw)`;
+   el.append(halo);
+  }
   const chord=document.createElement('span');chord.className='chord';chord.textContent=card.label;
   el.append(chord);$('falling').append(el);elements.push(el);cards.push(card);
  }
