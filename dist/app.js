@@ -27,10 +27,23 @@ async function keepScreenAwake(){
   lock.addEventListener('release',()=>{if(screenLock===lock)screenLock=null;});
  }catch{/* Unsupported or denied wake locks must not interrupt practice. */}
 }
+// Prefer explicit phone signals; screen size (not window size) avoids treating
+// a narrow tablet or desktop window as a phone. The fallback is touch-only.
+function isPhoneDevice(){
+ const nav=globalThis.navigator||{},ua=nav.userAgent||'';
+ if(/iPad/i.test(ua)||(/Macintosh/i.test(ua)&&nav.maxTouchPoints>1))return false;
+ if(nav.userAgentData?.mobile||/iPhone|iPod|Android.*Mobile/i.test(ua))return true;
+ const screen=globalThis.screen;
+ return !!(screen&&Math.min(screen.width,screen.height)>0&&Math.min(screen.width,screen.height)<=500&&matchMedia('(pointer: coarse)').matches);
+}
+const phoneLayout=isPhoneDevice();
+$('instrument').dataset.phone=String(phoneLayout);
 let keyboardBlurOn=read('voicing-keyboard-blur',true)!==false;
 function updateKeyboardBlur(){
- $('keyboard').dataset.obscured=String(running&&keyboardBlurOn);
- $('keyboard-frost').hidden=!(running&&keyboardBlurOn);
+ $('instrument').dataset.running=String(running);
+ $('keyboard').dataset.obscured=String(running&&keyboardBlurOn&&!phoneLayout);
+ $('keyboard-frost').hidden=!(running&&keyboardBlurOn&&!phoneLayout);
+ $('keyboard-blur-setting').hidden=phoneLayout;
  $('keyboard-blur').checked=keyboardBlurOn;
 }
 let metronomeOn=read('voicing-metronome',true)!==false;

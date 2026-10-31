@@ -31,3 +31,16 @@ body{cursor:pointer;touch-action:manipulation}
 #keyboard[data-obscured="true"]{filter:blur(24px);clip-path:inset(0)}
 #keyboard-frost{position:absolute;bottom:0;left:0;right:0;height:var(--key-h);z-index:3;pointer-events:none;background:linear-gradient(135deg,rgb(22 34 34 / .94),rgb(26 39 38 / .96));box-shadow:inset 0 1px 0 #a2b7a014}
 #keyboard-frost[hidden]{display:none}
+
+/* Phone camera movement: keep the full-height track geometry unchanged and
+   translate the whole scene by exactly the height of the revealed keyboard. */
+.keyboard-blur-setting[hidden]{display:none}
+.instrument[data-phone="true"] #falling,.instrument[data-phone="true"] #lanes{bottom:0;transform:translateY(calc(-1 * var(--key-h)));transition:transform 320ms cubic-bezier(.22,.68,0,1)}
+.instrument[data-phone="true"] #keyboard{z-index:3;transition:transform 320ms cubic-bezier(.22,.68,0,1)}
+.instrument[data-phone="true"] #strike{z-index:4;transition:transform 320ms cubic-bezier(.22,.68,0,1)}
+.instrument[data-phone="true"][data-running="true"] #falling,.instrument[data-phone="true"][data-running="true"] #lanes{transform:translateY(0)}
+.instrument[data-phone="true"][data-running="true"] #keyboard{transform:translateY(100%);pointer-events:none}
+.instrument[data-phone="true"][data-running="true"] #strike{transform:translateY(var(--key-h))}
+@media(prefers-reduced-motion:reduce){
+ .instrument[data-phone="true"] #falling,.instrument[data-phone="true"] #lanes,.instrument[data-phone="true"] #keyboard,.instrument[data-phone="true"] #strike{transition:none}
+}

@@ -164,3 +164,45 @@ test('keyboard blur preference persists and disabling it keeps training keys cle
  reload.run('play()');assert.equal(reload.nodes.get('keyboard').dataset.obscured,'true');
  assert.equal(stored.get('voicing-keyboard-blur'),'true');
 });
+
+test('phone mode hides keyboard during training and reveals answers without changing card spacing',()=>{
+ const {run,nodes,documentHandlers}=session({navigator:{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'}});
+ assert.equal(nodes.get('instrument').dataset.phone,'true');
+ assert.equal(nodes.get('keyboard-blur-setting').hidden,true);
+ assert.equal(nodes.get('instrument').dataset.running,'false');
+ run('play();now=10000;render(now)');
+ assert.equal(nodes.get('instrument').dataset.running,'true');
+ assert.equal(nodes.get('keyboard').dataset.obscured,'false');
+ assert.equal(nodes.get('keyboard-frost').hidden,true);
+ const positions=run('JSON.stringify(elements.slice(0,3).map(el=>el.style.transform))');
+ const progress=run('elapsed');
+ documentHandlers.click();run('now=50000;render(now)');
+ assert.equal(nodes.get('instrument').dataset.running,'false');
+ assert.equal(run('JSON.stringify(elements.slice(0,3).map(el=>el.style.transform))'),positions);
+ assert.equal(run('elapsed'),progress);
+ assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),3);
+ run('openSettings()');assert.equal(nodes.get('instrument').dataset.running,'false');
+ run('play();render(now)');assert.equal(nodes.get('instrument').dataset.running,'true');
+ assert.equal(run('elapsed'),progress);
+ assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),0);
+ run('complete()');assert.equal(nodes.get('instrument').dataset.running,'false');
+});
+test('phone detection preserves tablet and desktop layouts, including desktop-style iPad UA',()=>{
+ const cases=[
+  {ua:'Mozilla/5.0 (Linux; Android 15; Pixel 9) Mobile',width:412,height:915,touch:5,coarse:true,phone:true},
+  {ua:'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) Mobile',width:768,height:1024,touch:5,coarse:true,phone:false},
+  {ua:'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Safari',width:820,height:1180,touch:5,coarse:true,phone:false},
+  {ua:'Mozilla/5.0 (Linux; Android 15; Tablet) Safari',width:800,height:1280,touch:5,coarse:true,phone:false},
+  {ua:'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Safari',width:1440,height:900,touch:0,coarse:false,phone:false},
+  {ua:'',width:390,height:844,touch:5,coarse:true,phone:true},
+  {ua:'',width:844,height:390,touch:5,coarse:true,phone:true},
+  {ua:'',width:400,height:900,touch:0,coarse:false,phone:false}
+ ];
+ for(const c of cases){
+  const {run,nodes}=session({navigator:{userAgent:c.ua,maxTouchPoints:c.touch},screen:{width:c.width,height:c.height},matchMedia:()=>({matches:c.coarse,addEventListener(){}})});
+  assert.equal(nodes.get('instrument').dataset.phone,String(c.phone),c.ua);
+  run('play()');
+  assert.equal(nodes.get('keyboard').dataset.obscured,String(!c.phone),c.ua);
+  assert.equal(nodes.get('keyboard-blur-setting').hidden,c.phone,c.ua);
+ }
+});
