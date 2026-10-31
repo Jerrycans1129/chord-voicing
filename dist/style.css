@@ -49,3 +49,13 @@ body{cursor:pointer;touch-action:manipulation}
 
 #note-range{display:flex;flex-wrap:wrap;gap:10px 24px;border:0;padding:0;margin:0}#note-range[hidden]{display:none}#note-range legend{font-size:12px;color:var(--muted);margin-bottom:8px}#note-range label{display:flex;align-items:center;gap:8px;margin:0;color:#d3ddd4;cursor:pointer}#note-range input{width:18px;height:18px;margin:0;accent-color:var(--accent)}
 .panel-bottom{justify-content:flex-end}
+
+/* Actual MIDI key presses stay distinct from the green answer dots. */
+.instrument[data-running="false"] .white[data-midi-pressed="true"]{background:linear-gradient(#6fbdd5,#b1eaff 85%,#68b6ce);box-shadow:inset 0 -4px 0 #3388aa}
+.instrument[data-running="false"] .black[data-midi-pressed="true"]{background:linear-gradient(#286a91,#55b8e4);border-bottom-color:#1e658a}
+.midi-settings{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:11px;color:#b4cbd0;flex-shrink:0}
+.midi-actions{display:flex;gap:8px}.midi-actions button{font-size:12px;padding:8px 12px}
+#midi-status{overflow-wrap:anywhere}#midi-notes{flex-basis:100%;color:var(--muted)}
+#midi-live{position:absolute;top:12px;left:12px;right:calc(50% + 40px);z-index:4;font-size:11px;color:#91d9f5;pointer-events:none;overflow-wrap:anywhere}
+.instrument[data-running="true"] #midi-live{display:none}
+#overlay{justify-content:flex-start}

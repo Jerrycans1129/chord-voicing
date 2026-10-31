@@ -96,7 +96,7 @@ function scheduleMetronome(){
 }
 updateMetronome();
 function updateTimer(){const seconds=Math.floor(sessionSeconds);const value=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;$('timer').textContent=value;$('count').textContent=value;}
-const whitePC=[0,2,4,5,7,9,11],centers=new Map(),keyBounds=new Map(),answerDots=new Map();let whiteCount=0;
+const whitePC=[0,2,4,5,7,9,11],centers=new Map(),keyBounds=new Map(),answerDots=new Map(),midiKeys=new Map();let whiteCount=0;
 for(let midi=48;midi<=84;midi++){
  const white=whitePC.includes(midi%12),x=white?(whiteCount+.5)/22:whiteCount/22;
  centers.set(midi,x);
@@ -104,9 +104,73 @@ for(let midi=48;midi<=84;midi++){
  keyBounds.set(midi,{left,right:left+width});
  const key=document.createElement('div');key.className=`key ${white?'white':'black'}`;key.style.left=`${left*100}%`;key.style.width=`${width*100}%`;
  const dot=document.createElement('span');dot.className='answer-dot';dot.hidden=true;dot.setAttribute('aria-hidden','true');key.append(dot);answerDots.set(midi,dot);
+ key.dataset.midi=String(midi);midiKeys.set(midi,key);
  $('keyboard').append(key);
  if(white){const lane=document.createElement('div');lane.className=`lane ${midi%12===0?'octave':''}`;lane.style.left=`${whiteCount/22*100}%`;$('lanes').append(lane);whiteCount++;}
 }
+// MIDI is input-only: track physical keys separately for each device/channel.
+// Sustain does not keep a released physical key highlighted.
+let midiAccess=null,midiConnecting=false;
+const midiInputs=new Map(),midiHeld=new Map();
+function paintMidi(){
+ const held=new Set([...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys])));
+ for(const [note,key] of midiKeys)key.dataset.midiPressed=String(held.has(note));
+ const outside=[...held].filter(note=>!midiKeys.has(note)).length;
+ $('midi-notes').textContent=held.size?`按下 ${held.size} 键${outside?` · ${outside} 键超出 C3–C6`:''}`:'等待演奏 · 蓝色为输入，绿点为答案';
+ $('midi-live').textContent=midiAccess?`MIDI · ${midiInputs.size?$('midi-notes').textContent:'等待连接设备'}`:'';
+}
+function clearMidi(){midiHeld.clear();paintMidi();}
+function receiveMidi(id,event){
+ if(document.hidden||!midiInputs.has(id))return;
+ const data=event.data;
+ if(!data||!data.length)return;
+ const [status,note,velocity]=data;
+ if(status===0xff){clearMidi();return;}
+ if(data.length<3||status<0x80||status>=0xf0||note>127||velocity>127)return;
+ const command=status&0xf0,channel=status&0x0f;
+ if(![0x80,0x90,0xb0].includes(command))return;
+ let channels=midiHeld.get(id);if(!channels){channels=new Map();midiHeld.set(id,channels);}
+ let keys=channels.get(channel);if(!keys){keys=new Set();channels.set(channel,keys);}
+ if(command===0x90&&velocity>0)keys.add(note);
+ else if(command===0x80||command===0x90)keys.delete(note);
+ else if(note===120||note===123||(note>=124&&note<=127))keys.clear();
+ else return;
+ paintMidi();
+}
+function syncMidiInputs(){
+ const connected=new Map([...midiAccess.inputs.values()].filter(input=>input.state!=='disconnected').map(input=>[input.id,input]));
+ for(const [id,input] of midiInputs){
+  if(connected.get(id)!==input){input.onmidimessage=null;midiInputs.delete(id);midiHeld.delete(id);}
+ }
+ for(const [id,input] of connected){
+  if(midiInputs.has(id))continue;
+  midiInputs.set(id,input);input.onmidimessage=event=>receiveMidi(id,event);
+ }
+ $('midi-status').textContent=midiInputs.size?`已连接：${[...midiInputs.values()].map(input=>input.name||'MIDI 输入设备').join('、')}`:'已启用 · 未发现 MIDI 输入，请连接键盘';
+ paintMidi();
+}
+function midiAvailability(){
+ if(globalThis.isSecureContext===false)return 'MIDI 需要 HTTPS 或本机 localhost，局域网 HTTP 不支持';
+ if(typeof globalThis.navigator?.requestMIDIAccess!=='function')return '当前浏览器未提供 Web MIDI，请使用支持 MIDI 的浏览器或扩展';
+ return '';
+}
+async function connectMidi(){
+ if(midiConnecting)return;
+ const unavailable=midiAvailability();
+ if(unavailable){$('midi-status').textContent=unavailable;return;}
+ midiConnecting=true;$('midi-connect').disabled=true;$('midi-status').textContent='正在请求 MIDI 访问…';
+ try{
+  midiAccess=await navigator.requestMIDIAccess({sysex:false});
+  midiAccess.onstatechange=syncMidiInputs;syncMidiInputs();
+  $('midi-connect').textContent='刷新 MIDI 设备';
+ }catch(error){
+  $('midi-status').textContent=error.name==='NotAllowedError'||error.name==='SecurityError'?'MIDI 访问未获允许，请检查网站权限后重试':'无法连接 MIDI，请检查设备后重试';
+ }finally{midiConnecting=false;$('midi-connect').disabled=false;}
+}
+$('midi-connect').addEventListener('click',event=>{event.stopPropagation();void connectMidi();});
+$('midi-clear').addEventListener('click',event=>{event.stopPropagation();clearMidi();});
+$('midi-status').textContent=midiAvailability()||'尚未启用 · 点击连接 MIDI 并允许浏览器访问';
+paintMidi();
 const noteOption=document.createElement('option');noteOption.value=-1;noteOption.textContent='00  音名识别';$('stage').append(noteOption);
 stages.forEach((s,i)=>{const option=document.createElement('option');option.value=i;option.textContent=`${String(i+1).padStart(2,'0')}  ${s.name}`;$('stage').append(option);});
 $('stage').value=stageIndex;$('speed').value=bpm;$('speed-value').textContent=`${bpm} BPM`;
@@ -207,7 +271,7 @@ for(const id of ['note-all','note-black'])$(id).addEventListener('change',()=>{
  blackOnly=id==='note-black';save('voicing-note-black-only',blackOnly);reset();
 });
 $('speed').addEventListener('change',()=>{advance(performance.now());stopMetronome();bpm=Number($('speed').value);$('speed-value').textContent=`${bpm} BPM`;save('voicing-bpm',bpm);});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();clearMidi();}});
 const portrait=matchMedia('(orientation: portrait) and (max-width: 1100px) and (any-pointer: coarse)');portrait.addEventListener('change',e=>{if(e.matches)pause();});
 document.addEventListener('keydown',e=>{if(e.code==='Space'&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement.tagName)){e.preventDefault();play();}});
 reset();requestAnimationFrame(render);

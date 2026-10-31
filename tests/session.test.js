@@ -240,3 +240,71 @@ test('black key range resets, persists, and uses 15-question batches across boun
  assert.equal(nodes.get('note-range').hidden,true);
  assert.equal(run('cards.every(c=>c.q===0&&c.inv===1)'),true);
 });
+
+function midiSession(extras={}){
+ const input={id:'keyboard-a',name:'Test keyboard',state:'connected'};
+ const access={inputs:new Map([[input.id,input]])};
+ const app=session({isSecureContext:true,navigator:{async requestMIDIAccess(options){assert.equal(options.sysex,false);return access;}},...extras});
+ return {...app,input,access,send:(data,port=input)=>port.onmidimessage({data:Uint8Array.from(data)})};
+}
+test('MIDI chords display while paused without changing the answer or training progress',async()=>{
+ const {run,nodes,send}=midiSession();await run('connectMidi()');
+ run('play();now=10000;pause()');
+ const answer=run('JSON.stringify([...answerDots].filter(([,dot])=>!dot.hidden).map(([note])=>note))');
+ send([0x90,60,100]);send([0x90,64,80]);send([0x90,67,90]);
+ assert.equal(run('midiKeys.get(60).dataset.midiPressed'),'true');
+ assert.equal(run('midiKeys.get(64).dataset.midiPressed'),'true');
+ assert.equal(run('running'),false);assert.equal(run('sessionSeconds'),10);
+ assert.equal(run('JSON.stringify([...answerDots].filter(([,dot])=>!dot.hidden).map(([note])=>note))'),answer);
+ send([0x80,60,64]);send([0x90,64,0]);
+ assert.equal(run('midiKeys.get(60).dataset.midiPressed'),'false');
+ assert.equal(run('midiKeys.get(64).dataset.midiPressed'),'false');
+ send([0xb0,64,127]);send([0x80,67,0]);
+ assert.equal(run('midiKeys.get(67).dataset.midiPressed'),'false');
+ send([0x90,20,100]);assert.match(nodes.get('midi-notes').textContent,/1 键超出/);
+ send([0xf8]);send([0x90,60]);assert.equal(run('midiKeys.get(60).dataset.midiPressed'),'false');
+});
+test('MIDI tracks overlapping devices/channels and clears disconnected inputs and background keys',async()=>{
+ const {run,send,input,access,documentHandlers}=midiSession();await run('connectMidi()');
+ const second={id:'keyboard-b',name:'Second',state:'connected'};
+ access.inputs.set(second.id,second);access.onstatechange();
+ send([0x90,60,100]);send([0x91,60,100]);send([0x90,60,100],second);
+ send([0x80,60,0]);send([0xb1,123,0]);
+ assert.equal(run('midiKeys.get(60).dataset.midiPressed'),'true');
+ second.state='disconnected';access.onstatechange();
+ assert.equal(second.onmidimessage,null);assert.equal(run('midiKeys.get(60).dataset.midiPressed'),'false');
+ send([0x90,61,100]);run('play();pause()');assert.equal(run('midiKeys.get(61).dataset.midiPressed'),'true');
+ run('document.hidden=true');documentHandlers.visibilitychange();
+ assert.equal(run('midiKeys.get(61).dataset.midiPressed'),'false');
+ send([0x90,60,100]);assert.equal(run('midiKeys.get(60).dataset.midiPressed'),'false');
+ run('document.hidden=false');send([0x90,62,100]);send([0xb0,120,0]);
+ assert.equal(run('midiKeys.get(62).dataset.midiPressed'),'false');
+ input.state='disconnected';access.onstatechange();assert.equal(run('midiInputs.size'),0);
+ input.state='connected';access.onstatechange();send([0x90,63,100]);
+ assert.equal(run('midiKeys.get(63).dataset.midiPressed'),'true');
+ run('clearMidi()');assert.equal(run('midiKeys.get(63).dataset.midiPressed'),'false');
+});
+test('MIDI capability and permission failures stay recoverable without disrupting training',async()=>{
+ for(const extras of [{isSecureContext:false},{navigator:{}},{navigator:{async requestMIDIAccess(){throw Object.assign(new Error(),{name:'NotAllowedError'});}}}]){
+  const {run,nodes}=midiSession(extras);await run('connectMidi()');
+  assert.match(nodes.get('midi-status').textContent,/HTTPS|未提供|未获允许/);
+  assert.notEqual(nodes.get('midi-connect').disabled,true);
+  run('play()');assert.equal(run('running'),true);
+ }
+ const {run,nodes}=midiSession();
+ run("navigator.requestMIDIAccess=async()=>{throw new Error('unavailable')}");await run('connectMidi()');
+ assert.match(nodes.get('midi-status').textContent,/无法连接/);
+ run('navigator.requestMIDIAccess=async()=>({inputs:new Map()})');await run('connectMidi()');
+ assert.match(nodes.get('midi-status').textContent,/未发现/);
+});
+test('MIDI capability works on phone and iPad browser identities and connection clicks do not resume',async()=>{
+ for(const userAgent of ['iPhone','iPad','Macintosh Safari']){
+  const input={id:'browser-test',state:'connected'};
+  const access={inputs:new Map([[input.id,input]])};
+  const {run,nodes}=session({isSecureContext:true,navigator:{userAgent,async requestMIDIAccess(){return access;}}});
+  let stopped=false;nodes.get('midi-connect').handlers.click({stopPropagation(){stopped=true;}});
+  await new Promise(setImmediate);assert.equal(stopped,true);assert.equal(typeof access.onstatechange,'function');
+  input.onmidimessage({data:[0x90,60,100]});
+  assert.equal(run('midiKeys.get(60).dataset.midiPressed'),'true');assert.equal(run('running'),false);
+ }
+});
