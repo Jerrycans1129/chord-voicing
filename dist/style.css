@@ -56,6 +56,6 @@ body{cursor:pointer;touch-action:manipulation}
 .midi-settings{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:11px;color:#b4cbd0;flex-shrink:0}
 .midi-actions{display:flex;gap:8px}.midi-actions button{font-size:12px;padding:8px 12px}
 #midi-status{overflow-wrap:anywhere}#midi-notes{flex-basis:100%;color:var(--muted)}
-#midi-live{position:absolute;top:12px;left:12px;right:calc(50% + 40px);z-index:4;font-size:11px;color:#91d9f5;pointer-events:none;overflow-wrap:anywhere}
-.instrument[data-running="true"] #midi-live{display:none}
 #overlay{justify-content:flex-start}
+
+.card[data-feedback="wrong"] .chord{color:#ff7070}

@@ -12,6 +12,8 @@ bpm=Math.max(40,Math.min(120,Math.round(bpm/10)*10));
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0,baseCycle=0,completedBatches=0;
 const MAX_SECONDS=30*60;
+// Ignore all note attacks within 180ms on either side of a label handoff.
+const MIDI_GRACE_SECONDS=.18;
 let screenLock=null,screenLockGeneration=0;
 function releaseScreenLock(){
  screenLockGeneration++;
@@ -117,7 +119,6 @@ function paintMidi(){
  for(const [note,key] of midiKeys)key.dataset.midiPressed=String(held.has(note));
  const outside=[...held].filter(note=>!midiKeys.has(note)).length;
  $('midi-notes').textContent=held.size?`按下 ${held.size} 键${outside?` · ${outside} 键超出 C3–C6`:''}`:'等待演奏 · 蓝色为输入，绿点为答案';
- $('midi-live').textContent=midiAccess?`MIDI · ${midiInputs.size?$('midi-notes').textContent:'等待连接设备'}`:'';
 }
 function clearMidi(){midiHeld.clear();paintMidi();}
 function receiveMidi(id,event){
@@ -131,11 +132,34 @@ function receiveMidi(id,event){
  if(![0x80,0x90,0xb0].includes(command))return;
  let channels=midiHeld.get(id);if(!channels){channels=new Map();midiHeld.set(id,channels);}
  let keys=channels.get(channel);if(!keys){keys=new Set();channels.set(channel,keys);}
- if(command===0x90&&velocity>0)keys.add(note);
+ if(command===0x90&&velocity>0){keys.add(note);judgeMidi(note);}
  else if(command===0x80||command===0x90)keys.delete(note);
  else if(note===120||note===123||(note>=124&&note<=127))keys.clear();
  else return;
  paintMidi();
+}
+function paintFeedback(index){
+ const card=cards[index],el=elements[index];
+ el.dataset.feedback=card.feedback||'waiting';
+ // Use training progress so pausing freezes the fade and tempo changes stay aligned.
+ el.style.opacity=card.feedback==='wrong'?'1'
+  :String(Math.max(0,Math.min(1,index+3-elapsed)));
+}
+function judgeMidi(note){
+ if(!running)return;
+ // MIDI can arrive between animation frames; judge against the current clock.
+ advance(performance.now());
+ if(!running)return;
+ while(elapsed+2>=cards.length)appendBatch();
+ const index=Math.floor(elapsed-2),phase=elapsed-2-index;
+ const grace=MIDI_GRACE_SECONDS*bpm/240;
+ if(index<0||phase<=grace||1-phase<=grace)return;
+ const card=cards[index];
+ if(card.feedback==='wrong')return;
+ const pitches=card.kind==='note'?[card.root]:notes(card.root,card.q,card.inv);
+ if(!pitches.includes(note))card.feedback='wrong';
+ else card.feedback='correct';
+ paintFeedback(index);
 }
 function syncMidiInputs(){
  const connected=new Map([...midiAccess.inputs.values()].filter(input=>input.state!=='disconnected').map(input=>[input.id,input]));
@@ -240,6 +264,7 @@ function render(now){
    const progress=(elapsed-i)/2;const el=elements[i];
    el.hidden=progress<0||i<landedIndex;
    el.dataset.landed=String(progress>=1);
+   if(!el.hidden)paintFeedback(i);
    // Descend continuously until the 36px label meets the key edge.
    if(!el.hidden){
     // Start fully above the clipped track so labels enter through its top edge.

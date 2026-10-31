@@ -308,3 +308,77 @@ test('MIDI capability works on phone and iPad browser identities and connection 
   assert.equal(run('midiKeys.get(60).dataset.midiPressed'),'true');assert.equal(run('running'),false);
  }
 });
+
+test('correct MIDI notes fade until handoff; any later wrong note restores a permanent red label',async()=>{
+ const {run,send}=midiSession();await run('connectMidi()');
+ run('play();now=8300;render(now)');
+ assert.ok(Number(run('elements[0].style.opacity'))<1);
+ const pitches=JSON.parse(run('JSON.stringify(notes(cards[0].root,cards[0].q,cards[0].inv))'));
+ send([0x90,pitches[0],100]);
+ assert.equal(run('elements[0].dataset.feedback'),'correct');
+ run('now=10000;render(now)');
+ const opacity=Number(run('elements[0].style.opacity'));assert.ok(opacity>0&&opacity<1);
+ send([0x90,pitches[1],100]);send([0x90,pitches[2],100]);
+ assert.equal(Number(run('elements[0].style.opacity')),opacity);
+ send([0x90,0,100]);
+ assert.equal(run('elements[0].dataset.feedback'),'wrong');
+ assert.equal(run('elements[0].style.opacity'),'1');
+ send([0x90,pitches[0],100]);run('now=11999;render(now)');
+ assert.equal(run('elements[0].dataset.feedback'),'wrong');
+ assert.equal(run('elements[0].style.opacity'),'1');
+ run('now=12000;render(now)');assert.equal(run('elements[0].hidden'),true);
+ assert.equal(run('elements[1].dataset.feedback'),'waiting');
+});
+
+test('first wrong attack is sticky; note-off and pedal never judge; restart clears feedback',async()=>{
+ const {run,send}=midiSession();await run('connectMidi()');run('play();now=9000');
+ send([0x80,0,100]);send([0x90,0,0]);send([0xb0,64,127]);
+ assert.equal(run('cards[0].feedback'),undefined);
+ send([0x90,0,100]);assert.equal(run('cards[0].feedback'),'wrong');
+ send([0x90,run('cards[0].root'),100]);assert.equal(run('cards[0].feedback'),'wrong');
+ run('reset()');assert.equal(run('cards[0].feedback'),undefined);
+});
+
+test('handoff grace ignores every attack on both sides at all supported tempos',async()=>{
+ for(const tempo of [40,60,120]){
+  const {run,send}=midiSession();await run('connectMidi()');run(`bpm=${tempo};play()`);
+  const touch=720000/tempo;
+  for(const offset of [-179,-1,0,1,179]){
+   run(`now=${touch+offset}`);send([0x90,0,100]);
+   assert.equal(run('cards[0].feedback'),undefined);
+   assert.equal(run('cards[1].feedback'),undefined);
+  }
+  run(`now=${touch+181}`);send([0x90,0,100]);assert.equal(run('cards[1].feedback'),'wrong');
+ }
+});
+
+test('single-note practice requires exact pitch, freezes while paused, and hides a faded label at handoff',async()=>{
+ const {run,send}=midiSession();await run('connectMidi()');run('stageIndex=-1;reset();play();now=8300');
+ const root=run('cards[0].root');send([0x90,root,100]);
+ assert.equal(run('cards[0].feedback'),'correct');
+ run('now=10000;render(now);pause()');const opacity=run('elements[0].style.opacity');
+ send([0x90,0,100]);run('now=70000;render(now)');
+ assert.equal(run('elements[0].style.opacity'),opacity);assert.equal(run('cards[0].feedback'),'correct');
+ run('play();now=71999;render(now)');assert.ok(Number(run('elements[0].style.opacity'))<.001);
+ run('now=72000;render(now)');assert.equal(run('elements[0].hidden'),true);
+ run('now=72300');send([0x90,run('cards[1].root')+12,100]);
+ assert.equal(run('cards[1].feedback'),'wrong');
+});
+
+test('grace before next touch leaves prior judgment unchanged, and lead-in attacks do not count',async()=>{
+ const {run,send}=midiSession();await run('connectMidi()');run('play();now=7000');send([0x90,0,100]);
+ assert.equal(run('cards[0].feedback'),undefined);
+ run('now=8000');send([0x90,run('cards[0].root'),100]);assert.equal(run('cards[0].feedback'),undefined);
+ run('now=11819');send([0x90,run('cards[0].root'),100]);assert.equal(run('cards[0].feedback'),'correct');
+ run('now=11821');send([0x90,0,100]);assert.equal(run('cards[0].feedback'),'correct');
+});
+
+ test('unplayed labels fade from touch until the next touch',()=>{
+ const {run}=session();run('play();now=8000;render(now)');
+ assert.equal(run('elements[0].style.opacity'),'1');
+ run('now=10000;render(now)');assert.equal(run('elements[0].style.opacity'),'0.5');
+ assert.equal(run('cards[0].feedback'),undefined);
+ run('now=11999;render(now)');assert.ok(Number(run('elements[0].style.opacity'))<.001);
+ run('now=12000;render(now)');assert.equal(run('elements[0].hidden'),true);
+ assert.equal(run('elements[1].style.opacity'),'1');
+ });
