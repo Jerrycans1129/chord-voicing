@@ -63,3 +63,7 @@ body{cursor:pointer;touch-action:manipulation}
 /* Chord inversion halos; note-name labels have no halo element. */
 .halo{position:absolute;top:0;height:36px;width:calc(100% + 100cqw / 22 * 2);pointer-events:none}.card[data-inv="0"] .halo{left:0;background:linear-gradient(90deg,#b9e39352 calc(100% - 100cqw / 22 * 2),transparent)}.card[data-inv="1"] .halo{right:0;background:linear-gradient(270deg,#b9e39352 calc(100% - 100cqw / 22 * 2),transparent)}.card[data-inv="2"] .halo{width:calc(100% + 100cqw / 22 * 4);left:calc(-100cqw / 22 * 2);background:linear-gradient(90deg,transparent,#b9e39352 calc(100cqw / 22 * 2),#b9e39352 calc(100% - 100cqw / 22 * 2),transparent)}
 .card[data-landed="true"] .halo{opacity:.7}
+
+/* Pause reveals the current label at its original brightness. */
+.instrument[data-running="false"] .card:not([data-feedback="wrong"]) .chord{color:#e2f4cf}
+.instrument[data-running="false"] .card .halo{opacity:1}

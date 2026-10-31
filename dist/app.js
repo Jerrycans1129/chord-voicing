@@ -142,7 +142,7 @@ function paintFeedback(index){
  const card=cards[index],el=elements[index];
  el.dataset.feedback=card.feedback||'waiting';
  // Use training progress so pausing freezes the fade and tempo changes stay aligned.
- el.style.opacity=card.feedback==='wrong'?'1'
+ el.style.opacity=!running||card.feedback==='wrong'?'1'
   :String(Math.max(0,Math.min(1,index+3-elapsed)));
 }
 function judgeMidi(note){
@@ -247,9 +247,9 @@ function pause(){
  if(!running)return;advance(performance.now());if(finished)return;
  running=false;updateKeyboardBlur();releaseScreenLock();stopMetronome();
  while(elapsed+2>=cards.length)appendBatch();
- $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();
+ $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();paintScene();
 }
-function play(){if(running){pause();return;}if(finished)reset();hidePauseControls();running=true;updateKeyboardBlur();started=true;previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';}
+function play(){if(running){pause();return;}if(finished)reset();hidePauseControls();running=true;updateKeyboardBlur();started=true;previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';paintScene();}
 function complete(){releaseScreenLock();stopMetronome();running=false;finished=true;elements.forEach(el=>{el.hidden=true;});showOverlay('本轮已完成','本次训练已持续 30:00。可以重新开始，或选择其他训练阶段。','再练一轮 →');}
 function advance(now){
  if(running){const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);sessionSeconds+=dt;elapsed+=dt*bpm/240;updateTimer();
@@ -259,9 +259,7 @@ function advance(now){
  }
  previous=now;
 }
-function render(now){
- advance(now);
- scheduleMetronome();
+function paintScene(){
  if(started&&!finished){
   while(elapsed+2>=cards.length)appendBatch();
   const height=$('falling').clientHeight;
@@ -271,7 +269,7 @@ function render(now){
   const landedIndex=Math.floor(elapsed-2);
   cards.forEach((_,i)=>{
    const progress=(elapsed-i)/2;const el=elements[i];
-   el.hidden=progress<0||i<landedIndex;
+   el.hidden=running?(progress<0||i<landedIndex):i!==Math.max(0,landedIndex);
    el.dataset.landed=String(progress>=1);
    if(!el.hidden)paintFeedback(i);
    // Descend continuously until the 36px label meets the key edge.
@@ -282,6 +280,11 @@ function render(now){
    }
   });
  }
+}
+function render(now){
+ advance(now);
+ scheduleMetronome();
+ paintScene();
  requestAnimationFrame(render);
 }
 $('keyboard-blur').addEventListener('change',()=>{

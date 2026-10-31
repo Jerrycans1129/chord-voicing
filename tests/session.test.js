@@ -357,6 +357,7 @@ test('single-note practice requires exact pitch, freezes while paused, and hides
  const root=run('cards[0].root');send([0x90,root,100]);
  assert.equal(run('cards[0].feedback'),'correct');
  run('now=10000;render(now);pause()');const opacity=run('elements[0].style.opacity');
+ assert.equal(opacity,'1');
  send([0x90,0,100]);run('now=70000;render(now)');
  assert.equal(run('elements[0].style.opacity'),opacity);assert.equal(run('cards[0].feedback'),'correct');
  run('play();now=71999;render(now)');assert.ok(Number(run('elements[0].style.opacity'))<.001);
@@ -382,3 +383,28 @@ test('grace before next touch leaves prior judgment unchanged, and lead-in attac
  run('now=12000;render(now)');assert.equal(run('elements[0].hidden'),true);
  assert.equal(run('elements[1].style.opacity'),'1');
  });
+
+test('pause shows only the current label at full brightness and resume restores the scene',()=>{
+ for(const stage of [-1,0]){
+  const {run}=session();run(`stageIndex=${stage};reset();play();now=10000;render(now)`);
+  assert.equal(run('elements[0].style.opacity'),'0.5');
+  const positions=run('JSON.stringify(elements.slice(0,3).map(el=>el.style.transform))');
+  assert.equal(run('elements[1].hidden'),false);
+  run('pause()');assert.equal(run('elements[0].style.opacity'),'1');
+  assert.equal(run('elements.filter(el=>!el.hidden).length'),1);
+  assert.equal(run('elements[0].hidden'),false);
+  run('now=70000;render(now);play()');
+  assert.equal(run('elements[0].style.opacity'),'0.5');
+  assert.equal(run('elements[1].hidden'),false);
+  assert.equal(run('JSON.stringify(elements.slice(0,3).map(el=>el.style.transform))'),positions);
+ }
+});
+test('opening pause keeps the first label only; wrong feedback survives pause and resume',()=>{
+ const {run}=session();run('play();now=5000;pause()');
+ assert.equal(run('elements.filter(el=>!el.hidden).length'),1);
+ assert.equal(run('elements[0].hidden'),false);
+ run("play();now=10000;render(now);cards[0].feedback='wrong';pause()");
+ assert.equal(run('elements[0].dataset.feedback'),'wrong');
+ assert.equal(run('elements[0].style.opacity'),'1');
+ run('play()');assert.equal(run('elements[0].dataset.feedback'),'wrong');
+});
