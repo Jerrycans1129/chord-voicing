@@ -132,3 +132,35 @@ test('opening lead-in reveals first answer and reset clears pause UI',()=>{
  assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),0);
  assert.equal(nodes.get('settings-toggle').hidden,true);
 });
+
+test('keyboard frost defaults on only during training and reveals paused answers',()=>{
+ const {run,nodes,documentHandlers}=session();
+ const obscured=()=>nodes.get('keyboard').dataset.obscured;
+ assert.equal(nodes.get('keyboard-blur').checked,true);
+ assert.equal(obscured(),'false');assert.equal(nodes.get('keyboard-frost').hidden,true);
+ run('play()');assert.equal(obscured(),'true');assert.equal(nodes.get('keyboard-frost').hidden,false);
+ run('now=10000;render(now)');documentHandlers.click();
+ assert.equal(obscured(),'false');assert.equal(nodes.get('keyboard-frost').hidden,true);
+ assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),3);
+ run('openSettings()');assert.equal(obscured(),'false');
+ run('play()');assert.equal(obscured(),'true');
+ run('complete()');assert.equal(obscured(),'false');
+ run('play();reset()');assert.equal(obscured(),'false');
+});
+test('keyboard blur preference persists and disabling it keeps training keys clear',()=>{
+ const stored=new Map();
+ const localStorage={getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,value)};
+ const {run,nodes}=session({localStorage});
+ nodes.get('keyboard-blur').checked=false;nodes.get('keyboard-blur').handlers.change();
+ assert.equal(stored.get('voicing-keyboard-blur'),'false');
+ run('play()');assert.equal(nodes.get('keyboard').dataset.obscured,'false');
+ assert.equal(nodes.get('keyboard-frost').hidden,true);
+ const reload=session({localStorage});
+ assert.equal(reload.nodes.get('keyboard-blur').checked,false);
+ reload.run('play()');assert.equal(reload.nodes.get('keyboard').dataset.obscured,'false');
+ reload.run('pause();openSettings()');
+ reload.nodes.get('keyboard-blur').checked=true;reload.nodes.get('keyboard-blur').handlers.change();
+ assert.equal(reload.nodes.get('keyboard').dataset.obscured,'false');
+ reload.run('play()');assert.equal(reload.nodes.get('keyboard').dataset.obscured,'true');
+ assert.equal(stored.get('voicing-keyboard-blur'),'true');
+});

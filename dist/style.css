@@ -25,3 +25,9 @@ body{cursor:pointer;touch-action:manipulation}
 .answer-dot{position:absolute;left:50%;bottom:18%;width:10px;height:10px;transform:translateX(-50%);border-radius:50%;background:#9fe66c;box-shadow:0 0 0 2px #254b2e,0 0 9px #9fe66c66;pointer-events:none}
 .answer-dot[hidden],#settings-toggle[hidden]{display:none}
 #settings-toggle{position:absolute;top:12px;right:12px;z-index:6;width:44px;height:44px;padding:10px;color:var(--accent);display:grid;place-items:center}
+
+.keyboard-blur-setting{display:flex;align-items:center;gap:8px;width:fit-content;min-height:28px;margin:0;color:#d3ddd4;cursor:pointer}
+.keyboard-blur-setting input{width:18px;height:18px;margin:0;accent-color:var(--accent);cursor:pointer}
+#keyboard[data-obscured="true"]{filter:blur(24px);clip-path:inset(0)}
+#keyboard-frost{position:absolute;bottom:0;left:0;right:0;height:var(--key-h);z-index:3;pointer-events:none;background:linear-gradient(135deg,rgb(22 34 34 / .94),rgb(26 39 38 / .96));box-shadow:inset 0 1px 0 #a2b7a014}
+#keyboard-frost[hidden]{display:none}

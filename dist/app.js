@@ -27,6 +27,12 @@ async function keepScreenAwake(){
   lock.addEventListener('release',()=>{if(screenLock===lock)screenLock=null;});
  }catch{/* Unsupported or denied wake locks must not interrupt practice. */}
 }
+let keyboardBlurOn=read('voicing-keyboard-blur',true)!==false;
+function updateKeyboardBlur(){
+ $('keyboard').dataset.obscured=String(running&&keyboardBlurOn);
+ $('keyboard-frost').hidden=!(running&&keyboardBlurOn);
+ $('keyboard-blur').checked=keyboardBlurOn;
+}
 let metronomeOn=read('voicing-metronome',true)!==false;
 let audioContext=null,nextAudioBeat=null;
 const clicks=new Set();
@@ -102,7 +108,7 @@ function openSettings(){
  hidePauseControls();
  showOverlay('训练设置','进度已保留 · 切换阶段将重新开始一轮','继续训练 →');
 }
-function showOverlay(title,description,button){hidePauseControls();$('overlay').hidden=false;$('overlay').querySelector('h1').textContent=title;$('status').textContent=description;$('overlay-action').textContent=button;}
+function showOverlay(title,description,button){updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('overlay').querySelector('h1').textContent=title;$('status').textContent=description;$('overlay-action').textContent=button;}
 function appendBatch(){
  const batch=makeRound(stages[stageIndex],baseCycle+cards.length/36);
  for(const card of batch){
@@ -128,11 +134,11 @@ function reset(){
 }
 function pause(){
  if(!running)return;advance(performance.now());if(finished)return;
- running=false;releaseScreenLock();stopMetronome();
+ running=false;updateKeyboardBlur();releaseScreenLock();stopMetronome();
  while(elapsed+2>=cards.length)appendBatch();
  $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();
 }
-function play(){if(running){pause();return;}if(finished)reset();hidePauseControls();running=true;started=true;previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';}
+function play(){if(running){pause();return;}if(finished)reset();hidePauseControls();running=true;updateKeyboardBlur();started=true;previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';}
 function complete(){releaseScreenLock();stopMetronome();running=false;finished=true;elements.forEach(el=>{el.hidden=true;});showOverlay('本轮已完成','本次训练已持续 30:00。可以重新开始，或选择其他训练阶段。','再练一轮 →');}
 function advance(now){
  if(running){const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);sessionSeconds+=dt;elapsed+=dt*bpm/240;updateTimer();
@@ -166,6 +172,9 @@ function render(now){
  }
  requestAnimationFrame(render);
 }
+$('keyboard-blur').addEventListener('change',()=>{
+ keyboardBlurOn=$('keyboard-blur').checked;save('voicing-keyboard-blur',keyboardBlurOn);updateKeyboardBlur();
+});
 $('metronome').addEventListener('pointerup',e=>e.stopPropagation());
 $('metronome').addEventListener('click',e=>{
  e.stopPropagation();metronomeOn=!metronomeOn;save('voicing-metronome',metronomeOn);
