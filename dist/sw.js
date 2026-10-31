@@ -1,7 +1,7 @@
 // Bump this version whenever app assets change. Updates activate after all
 // existing app windows close, so an active training session is not interrupted.
 const CACHE_PREFIX = `voicing-${self.registration.scope}-`;
-const CACHE_NAME = `${CACHE_PREFIX}v5`;
+const CACHE_NAME = `${CACHE_PREFIX}v6`;
 const ASSETS = ['./', './index.html', './style.css', './app.js', './theory.js',
   './pwa.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 const assetURLs = new Set(ASSETS.map(path => new URL(path, self.registration.scope).href));

@@ -7,7 +7,7 @@ function session(extras={}){
  const nodes=new Map(),documentHandlers={};
  const element=()=>({style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},append(){},replaceChildren(){},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},querySelector(){return this;}});
  const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
- const context=vm.createContext({stages,makeRound,notes,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(){return null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
+ const context=vm.createContext({stages,makeRound,notes,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/,''),context);
  return {run:code=>vm.runInContext(code,context),nodes,documentHandlers};
 }
@@ -208,4 +208,35 @@ test('phone detection preserves tablet and desktop layouts, including desktop-st
   assert.equal(nodes.get('keyboard').dataset.obscured,String(!c.phone),c.ua);
   assert.equal(nodes.get('keyboard-blur-setting').hidden,c.phone,c.ua);
  }
+});
+
+
+test('new users start with note recognition and pause reveals exactly its target key',()=>{
+ const {run,nodes}=session({localStorage:{getItem(){return null;},setItem(){}}});
+ assert.equal(run('stageIndex'),-1);
+ assert.equal(nodes.get('note-range').hidden,false);
+ assert.equal(run('cards.length'),36);
+ run('play();now=10000;render(now);pause()');
+ assert.equal(run('JSON.stringify([...answerDots].filter(([,dot])=>!dot.hidden).map(([midi])=>midi))'),run('JSON.stringify([cards[0].root])'));
+ run('play()');assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),0);
+});
+test('black key range resets, persists, and uses 15-question batches across boundaries',()=>{
+ const stored=new Map();
+ const localStorage={getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,value)};
+ const {run,nodes}=session({localStorage});
+ nodes.get('note-black').checked=true;nodes.get('note-black').handlers.change();
+ assert.equal(stored.get('voicing-note-black-only'),'true');
+ assert.equal(nodes.get('note-all').checked,false);
+ assert.equal(run('cards.length'),15);
+ run('play();now=68000;render(now);pause()');
+ assert.equal(run('completedBatches'),1);
+ assert.ok(run('cards.length')>15);
+ assert.equal(run('cards.every(c=>[1,3,6,8,10].includes(c.pc))'),true);
+ assert.equal(run('JSON.stringify([...answerDots].filter(([,dot])=>!dot.hidden).map(([midi])=>midi))'),run('JSON.stringify([cards[15].root])'));
+ const reload=session({localStorage});assert.equal(reload.nodes.get('note-black').checked,true);
+ nodes.get('note-all').checked=true;nodes.get('note-all').handlers.change();
+ assert.equal(run('cards.length'),36);assert.equal(run('sessionSeconds'),0);
+ nodes.get('stage').value='0';nodes.get('stage').handlers.change();
+ assert.equal(nodes.get('note-range').hidden,true);
+ assert.equal(run('cards.every(c=>c.q===0&&c.inv===1)'),true);
 });

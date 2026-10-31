@@ -24,3 +24,17 @@ test('mixed stages cover all combinations over 2 or 3 completed rounds',()=>{
  for(const idx of [8,13]){const stage=stages[idx],seen=new Set();for(let i=0;i<stage.qs.length;i++)for(const c of makeRound(stage,i))seen.add(`${c.pc}:${c.q}:${c.inv}`);assert.equal(seen.size,12*3*stage.qs.length);}
 });
 test('root anchors represent conventional close-position inversions',()=>{assert.deepEqual(notes(60,0,0),[60,64,67]);assert.deepEqual(notes(60,0,1),[52,55,60]);assert.deepEqual(notes(60,0,2),[55,60,64]);for(let pc=0;pc<12;pc++)for(let q=0;q<3;q++)for(let inv=0;inv<3;inv++)assert.ok(positions(pc,q,inv).length);});
+
+
+test('note rounds balance all or black keys, keep pitches in range, and support both spellings',()=>{
+ for(const blackOnly of [false,true])for(const value of [0,.999999]){
+  const cards=makeRound({kind:'note',blackOnly},0,()=>value);
+  const pcs=blackOnly?[1,3,6,8,10]:Array.from({length:12},(_,i)=>i);
+  assert.equal(cards.length,pcs.length*3);
+  for(const pc of pcs)assert.equal(cards.filter(c=>c.pc===pc).length,3);
+  for(const c of cards){
+   assert.equal(c.kind,'note');assert.equal(c.root%12,c.pc);assert.ok(c.root>=48&&c.root<=84);
+   if([1,3,6,8,10].includes(c.pc))assert.ok(c.label.includes(value===0?'♯':'♭'));
+  }
+ }
+});

@@ -12,6 +12,16 @@ export function positions(pc,q,inv){return Array.from({length:37},(_,i)=>i+48).f
 export function shuffle(items,rng=Math.random){for(let i=items.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[items[i],items[j]]=[items[j],items[i]];}return items;}
 export function makeRound(stage,cycle=0,rng=Math.random){
   const cards=[];
+  if(stage.kind==='note'){
+    const pcs=stage.blackOnly?[1,3,6,8,10]:Array.from({length:12},(_,i)=>i);
+    for(const pc of pcs)for(let i=0;i<3;i++){
+      const roots=Array.from({length:37},(_,n)=>n+48).filter(n=>n%12===pc);
+      const root=roots[Math.floor(rng()*roots.length)];
+      const spellings=names[pc];
+      cards.push({kind:'note',pc,root,label:spellings.length===1?spellings[0]:spellings[rng()<.5?0:1]});
+    }
+    return shuffle(cards,rng);
+  }
   for(let pc=0;pc<12;pc++)for(let i=0;i<3;i++){
     const inv=stage.invs[i%stage.invs.length];
     const q=stage.qs[(pc+i+cycle)%stage.qs.length];
