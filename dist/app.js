@@ -42,7 +42,8 @@ let keyboardBlurOn=read('voicing-keyboard-blur',true)!==false;
 function updateKeyboardBlur(){
  $('instrument').dataset.running=String(running);
  $('keyboard').dataset.obscured=String(running&&keyboardBlurOn&&!phoneLayout);
- $('keyboard-frost').hidden=!(running&&keyboardBlurOn&&!phoneLayout);
+ $('keyboard-frost').hidden=phoneLayout||!keyboardBlurOn;
+ $('keyboard-frost').dataset.obscured=String(running&&keyboardBlurOn&&!phoneLayout);
  $('keyboard-blur-setting').hidden=phoneLayout;
  $('keyboard-blur').checked=keyboardBlurOn;
 }

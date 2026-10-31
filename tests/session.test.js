@@ -137,10 +137,13 @@ test('keyboard frost defaults on only during training and reveals paused answers
  const {run,nodes,documentHandlers}=session();
  const obscured=()=>nodes.get('keyboard').dataset.obscured;
  assert.equal(nodes.get('keyboard-blur').checked,true);
- assert.equal(obscured(),'false');assert.equal(nodes.get('keyboard-frost').hidden,true);
+ assert.equal(obscured(),'false');assert.equal(nodes.get('keyboard-frost').hidden,false);
+ assert.equal(nodes.get('keyboard-frost').dataset.obscured,'false');
  run('play()');assert.equal(obscured(),'true');assert.equal(nodes.get('keyboard-frost').hidden,false);
+ assert.equal(nodes.get('keyboard-frost').dataset.obscured,'true');
  run('now=10000;render(now)');documentHandlers.click();
- assert.equal(obscured(),'false');assert.equal(nodes.get('keyboard-frost').hidden,true);
+ assert.equal(obscured(),'false');assert.equal(nodes.get('keyboard-frost').hidden,false);
+ assert.equal(nodes.get('keyboard-frost').dataset.obscured,'false');
  assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),3);
  run('openSettings()');assert.equal(obscured(),'false');
  run('play()');assert.equal(obscured(),'true');
