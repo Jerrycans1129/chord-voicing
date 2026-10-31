@@ -1,8 +1,8 @@
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {networkInterfaces} from 'node:os';
-const files = {'/':'index.html','/index.html':'index.html','/style.css':'style.css','/app.js':'app.js','/theory.js':'theory.js'};
-const types = {html:'text/html',css:'text/css',js:'text/javascript'};
+const files = {'/':'index.html','/index.html':'index.html','/style.css':'style.css','/app.js':'app.js','/theory.js':'theory.js','/pwa.js':'pwa.js','/sw.js':'sw.js','/manifest.webmanifest':'manifest.webmanifest','/icon-192.png':'icon-192.png','/icon-512.png':'icon-512.png'};
+const types = {html:'text/html',css:'text/css',js:'text/javascript',webmanifest:'application/manifest+json',png:'image/png'};
 const port = Number(process.env.PORT || 8000);
 http.createServer(async (req,res) => {
   const file = files[new URL(req.url,'http://localhost').pathname];

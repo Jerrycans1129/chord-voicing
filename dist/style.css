@@ -15,3 +15,6 @@
 .tempo-controls{display:flex;align-items:center;gap:8px}.tempo-controls select{flex:1;min-width:0}
 #metronome{flex:none;min-height:44px;padding:6px 10px;font-size:11px;background:#26362e;color:#c9ddbb;border:1px solid #425148}
 #metronome[aria-pressed="true"]{color:#d4f3ad;border:1px solid #829e65}
+.install-row{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--muted)}
+.install-row:has(button[hidden]):has(span:empty){display:none}
+#install-app[hidden]{display:none}
