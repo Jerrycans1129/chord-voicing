@@ -1,40 +1,31 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {stages,makeRound,notes,positions} from '../dist/theory.js';
-test('black-key labels choose sharp or flat at the 50% boundary for every chord type',()=>{
- const sharp=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
- const flat=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
- for(const [value,expected] of [[0,sharp],[0.499999,sharp],[0.5,flat],[0.999999,flat]]){
-  for(const [q,suffix] of [[0,''],[1,'m'],[2,'sus4']]){
-   const cards=makeRound({qs:[q],invs:[0,1,2]},0,()=>value);
-   for(const card of cards)assert.equal(card.label,expected[card.pc]+suffix);
+import {stages,trainingItems,notes,positions,initialStage} from '../dist/theory.js';
+test('22-stage route starts with specified note groups and accumulates only learned voicings',()=>{
+ assert.equal(stages.length,22);
+ assert.deepEqual(stages.slice(0,5).map(s=>s.pcs),[[1,3],[6,8,10],[1,3,6,8,10],[0,2,4,5,7,9,11],Array.from({length:12},(_,i)=>i)]);
+ const learned=[];
+ for(const stage of stages.slice(5)){
+  if(!stage.mixed)learned.push(...stage.combos);
+  else assert.deepEqual(stage.combos,learned);
+ }
+ assert.deepEqual(learned,[0,1,2].flatMap(q=>[1,2,0].map(inv=>({q,inv}))));
+ assert.equal(stages[21].combos.length,9);
+});
+test('both spellings are independent items in every stage and all positions fit the keyboard',()=>{
+ assert.deepEqual(stages.slice(0,5).map(s=>trainingItems(s).length),[4,6,10,7,17]);
+ for(const stage of stages){
+  const items=trainingItems(stage);assert.equal(new Set(items.map(i=>i.id)).size,items.length);
+  for(const i of items){
+   const roots=positions(i.pc,i.q,i.inv);assert.ok(roots.length);
+   for(const root of roots){assert.equal(root%12,i.pc);assert.ok((i.kind==='note'?[root]:notes(root,i.q,i.inv)).every(n=>n>=48&&n<=84));}
   }
  }
+ assert.equal(trainingItems(stages[21]).length,153);
+ assert.deepEqual(positions(0),[48,60,72,84]);
 });
-test('14 stages follow first, second, root ordering',()=>{assert.equal(stages.length,14);for(const start of [0,4,9])assert.deepEqual(stages.slice(start,start+3).map(s=>s.invs[0]),[1,2,0]);});
-test('all rounds balance roots, types, and inversions; every voicing fits C3–C6',()=>{
- for(const stage of stages)for(let cycle=0;cycle<stage.qs.length;cycle++){
- const cards=makeRound(stage,cycle);assert.equal(cards.length,36);
- for(let pc=0;pc<12;pc++)assert.equal(cards.filter(c=>c.pc===pc).length,3);
- for(const q of stage.qs)assert.equal(cards.filter(c=>c.q===q).length,36/stage.qs.length);
- for(const inv of stage.invs)assert.equal(cards.filter(c=>c.inv===inv).length,36/stage.invs.length);
- for(const c of cards){assert.equal(c.root%12,c.pc);assert.ok(notes(c.root,c.q,c.inv).every(n=>n>=48&&n<=84));}
- }
-});
-test('mixed stages cover all combinations over 2 or 3 completed rounds',()=>{
- for(const idx of [8,13]){const stage=stages[idx],seen=new Set();for(let i=0;i<stage.qs.length;i++)for(const c of makeRound(stage,i))seen.add(`${c.pc}:${c.q}:${c.inv}`);assert.equal(seen.size,12*3*stage.qs.length);}
-});
-test('root anchors represent conventional close-position inversions',()=>{assert.deepEqual(notes(60,0,0),[60,64,67]);assert.deepEqual(notes(60,0,1),[52,55,60]);assert.deepEqual(notes(60,0,2),[55,60,64]);for(let pc=0;pc<12;pc++)for(let q=0;q<3;q++)for(let inv=0;inv<3;inv++)assert.ok(positions(pc,q,inv).length);});
-
-
-test('note rounds balance all or black keys, keep pitches in range, and support both spellings',()=>{
- for(const blackOnly of [false,true])for(const value of [0,.999999]){
-  const cards=makeRound({kind:'note',blackOnly},0,()=>value);
-  const pcs=blackOnly?[1,3,6,8,10]:Array.from({length:12},(_,i)=>i);
-  assert.equal(cards.length,pcs.length*3);
-  for(const pc of pcs)assert.equal(cards.filter(c=>c.pc===pc).length,3);
-  for(const c of cards){
-   assert.equal(c.kind,'note');assert.equal(c.root%12,c.pc);assert.ok(c.root>=48&&c.root<=84);
-   if([1,3,6,8,10].includes(c.pc))assert.ok(c.label.includes(value===0?'♯':'♭'));
-  }
- }
+test('close-position voicings and legacy preferences migrate without reinterpreting progress',()=>{
+ assert.deepEqual(notes(60,0,0),[60,64,67]);assert.deepEqual(notes(60,0,1),[52,55,60]);assert.deepEqual(notes(60,0,2),[55,60,64]);
+ assert.equal(initialStage(null,null),0);assert.equal(initialStage(null,0),5);
+ assert.equal(initialStage(null,-1,true),2);assert.equal(initialStage(null,-1,false),4);
+ assert.equal(initialStage('notes-white',0),3);assert.equal(initialStage('unknown',999),0);
 });

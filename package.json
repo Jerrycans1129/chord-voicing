@@ -1,1 +1,1 @@
-{"name":"chord-voicing","private":true,"type":"module","scripts":{"start":"node server.mjs","test":"node --test"},"version":"0.0.2"}
+{"name":"chord-voicing","private":true,"type":"module","scripts":{"start":"node server.mjs","test":"node --test","test:simulation":"node scripts/simulate-scheduler.mjs","test:scoring":"node scripts/simulate-scoring.mjs"},"version":"0.2.0"}

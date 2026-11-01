@@ -1,19 +1,18 @@
-import {stages,makeRound,notes} from './theory.js';
+import {stages,notes,initialStage,names,qualities,inversions} from './theory.js';
+import {Scheduler,cleanLevels} from './scheduler.js';
+import {VERSION,SPEEDS,TOTAL_SECONDS,normalizeBpm,createRun,recordConditions,calculateScore,cleanResults} from './scoring.js';
+import {prepareAttempt,stampBoundaries,attackTargets,applyAttack,isCorrect,canSettle} from './judgment.js';
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
-// Keep existing chord stage indices and saved progress stable.
-let stageIndex=Number(read('voicing-stage',-1));if(!Number.isInteger(stageIndex)||(stageIndex!==-1&&!stages[stageIndex]))stageIndex=-1;
-let blackOnly=read('voicing-note-black-only',false)===true;
-const batchSize=()=>stageIndex===-1&&blackOnly?15:36;
-let cycles=read('voicing-cycles',{});if(!cycles||typeof cycles!=='object'||Array.isArray(cycles))cycles={};
-let bpm=Number(read('voicing-bpm',60));if(!Number.isFinite(bpm))bpm=60;
-bpm=Math.max(40,Math.min(120,Math.round(bpm/10)*10));
+let stageIndex=initialStage(read('voicing-route-stage',null),read('voicing-stage',null),read('voicing-note-black-only',false));
+const levels=cleanLevels(read('voicing-weakness-v1',{}));
+const results=cleanResults(read('voicing-results-v1',{}),stages.map(s=>s.id));
+let scheduler,settled=0,run=createRun();
+let bpm=normalizeBpm(read('voicing-bpm',90));
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
-let sessionSeconds=0,baseCycle=0,completedBatches=0;
-const MAX_SECONDS=30*60;
-// Ignore all note attacks within 180ms on either side of a label handoff.
-const MIDI_GRACE_SECONDS=.18;
+let sessionSeconds=0;
+const MAX_SECONDS=TOTAL_SECONDS;
 let screenLock=null,screenLockGeneration=0;
 function releaseScreenLock(){
  screenLockGeneration++;
@@ -46,10 +45,11 @@ $('instrument').dataset.phone=String(phoneLayout);
 let keyboardBlurOn=read('voicing-keyboard-blur',true)!==false;
 function updateKeyboardBlur(){
  $('instrument').dataset.running=String(running);
+ $('instrument').dataset.hideKeys=String(phoneLayout&&keyboardBlurOn);
  $('keyboard').dataset.obscured=String(running&&keyboardBlurOn&&!phoneLayout);
  $('keyboard-frost').hidden=phoneLayout||!keyboardBlurOn;
  $('keyboard-frost').dataset.obscured=String(running&&keyboardBlurOn&&!phoneLayout);
- $('keyboard-blur-setting').hidden=phoneLayout;
+ $('keyboard-blur-setting').hidden=false;
  $('keyboard-blur').checked=keyboardBlurOn;
 }
 let metronomeOn=read('voicing-metronome',true)!==false;
@@ -97,7 +97,13 @@ function scheduleMetronome(){
  }
 }
 updateMetronome();
-function updateTimer(){const seconds=Math.floor(sessionSeconds);const value=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;$('timer').textContent=value;$('count').textContent=value;}
+function updateTimer(){
+ const seconds=Math.floor(sessionSeconds);
+ $('count').textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')} / 30:00`;
+ $('answer-count').textContent=`${run.correct} / ${run.total}`;
+ $('accuracy').textContent=run.total?`${(100*run.correct/run.total).toFixed(1)}%`:'—';
+}
+
 const whitePC=[0,2,4,5,7,9,11],centers=new Map(),keyBounds=new Map(),answerDots=new Map(),midiKeys=new Map();let whiteCount=0;
 for(let midi=48;midi<=84;midi++){
  const white=whitePC.includes(midi%12),x=white?(whiteCount+.5)/22:whiteCount/22;
@@ -132,7 +138,7 @@ function receiveMidi(id,event){
  if(![0x80,0x90,0xb0].includes(command))return;
  let channels=midiHeld.get(id);if(!channels){channels=new Map();midiHeld.set(id,channels);}
  let keys=channels.get(channel);if(!keys){keys=new Set();channels.set(channel,keys);}
- if(command===0x90&&velocity>0){keys.add(note);judgeMidi(note);}
+ if(command===0x90&&velocity>0){const fresh=!keys.has(note);keys.add(note);if(fresh)judgeMidi(note);}
  else if(command===0x80||command===0x90)keys.delete(note);
  else if(note===120||note===123||(note>=124&&note<=127))keys.clear();
  else return;
@@ -150,26 +156,26 @@ function judgeMidi(note){
  // MIDI can arrive between animation frames; judge against the current clock.
  advance(performance.now());
  if(!running)return;
- while(elapsed+2>=cards.length)appendBatch();
- const index=Math.floor(elapsed-2),phase=elapsed-2-index;
- const grace=MIDI_GRACE_SECONDS*bpm/240;
- if(index<0||phase<=grace||1-phase<=grace)return;
- const card=cards[index];
- if(card.feedback==='wrong')return;
- const pitches=card.kind==='note'?[card.root]:notes(card.root,card.q,card.inv);
- if(!pitches.includes(note))card.feedback='wrong';
- else card.feedback='correct';
- paintFeedback(index);
+ while(elapsed>=cards.length)appendCard();
+ const {indices,tolerant}=attackTargets(cards,elapsed,sessionSeconds,bpm);
+ for(const index of indices){
+  const card=cards[index];applyAttack(card,note,tolerant);
+  if(card.wrong&&!card.errorRecorded){card.errorRecorded=true;if(scheduler.record(card.id,'wrong'))save('voicing-weakness-v1',levels);}
+  paintFeedback(index);
+ }
 }
+
 function syncMidiInputs(){
+ const hadInputs=midiInputs.size>0;
  const connected=new Map([...midiAccess.inputs.values()].filter(input=>input.state!=='disconnected').map(input=>[input.id,input]));
  for(const [id,input] of midiInputs){
-  if(connected.get(id)!==input){input.onmidimessage=null;midiInputs.delete(id);midiHeld.delete(id);}
+  if(connected.get(id)!==input){input.onmidimessage=null;midiInputs.delete(id);midiHeld.delete(id);const active=cards[Math.floor(elapsed-2)];if(active)active.assisted=true;}
  }
  for(const [id,input] of connected){
   if(midiInputs.has(id))continue;
   midiInputs.set(id,input);input.onmidimessage=event=>receiveMidi(id,event);
  }
+ if(hadInputs&&started&&!finished&&running&&!midiInputs.size)pause();
  $('midi-status').textContent=midiInputs.size?`已连接：${[...midiInputs.values()].map(input=>input.name||'MIDI 输入设备').join('、')}`:'已启用 · 未发现 MIDI 输入，请连接键盘';
  paintMidi();
 }
@@ -192,12 +198,71 @@ async function connectMidi(){
  }finally{midiConnecting=false;$('midi-connect').disabled=false;}
 }
 $('midi-connect').addEventListener('click',event=>{event.stopPropagation();void connectMidi();});
+$('midi-warning').addEventListener('click',event=>event.stopPropagation());
+$('midi-warning-close').addEventListener('click',event=>{event.stopPropagation();$('midi-warning').close();});
+$('midi-warning-connect').addEventListener('click',event=>{event.stopPropagation();$('midi-warning').close();openSettings();void connectMidi();});
 $('midi-clear').addEventListener('click',event=>{event.stopPropagation();clearMidi();});
 void connectMidi();
 paintMidi();
-const noteOption=document.createElement('option');noteOption.value=-1;noteOption.textContent='00  音名识别';$('stage').append(noteOption);
-stages.forEach((s,i)=>{const option=document.createElement('option');option.value=i;option.textContent=`${String(i+1).padStart(2,'0')}  ${s.name}`;$('stage').append(option);});
-$('stage').value=stageIndex;$('speed').value=bpm;$('speed-value').textContent=`${bpm} BPM`;
+const routeNodes=[];
+function setStars(element,value){
+ element.replaceChildren();element.setAttribute('role','img');element.setAttribute('aria-label',value===undefined?'':`${value} 星`);
+ if(value===undefined)return;
+ const base=document.createElement('span');base.className='stars-base';base.textContent='★★★';base.setAttribute('aria-hidden','true');
+ const fill=document.createElement('span');fill.className='stars-fill';fill.textContent='★★★';fill.setAttribute('aria-hidden','true');fill.style.width=`${value/3*100}%`;
+ element.append(base,fill);
+}
+stages.forEach((stage,i)=>{
+ const node=document.createElement('button');node.type='button';node.className='route-node';node.dataset.mixed=String(!!stage.mixed);
+ node.setAttribute('aria-label',`第 ${i+1} 关 · ${stage.name}`);
+ for(const [className,text] of [['route-chapter',i===0||stage.chapter!==stages[i-1].chapter?stage.chapter:''],['route-dot',String(i+1).padStart(2,'0')],['route-kind',stage.mixed?'综合':'专项'],['route-name',stage.name],['stars','']]){
+  const span=document.createElement('span');span.className=className;span.textContent=text;node.append(span);
+ }
+ node.addEventListener('click',()=>selectStage(i));routeNodes.push(node);$('route').append(node);
+});
+function updateRoute(){
+ routeNodes.forEach((node,i)=>{
+  node.setAttribute('aria-current',i===stageIndex?'step':'false');setStars(node.querySelector('.stars'),results[stages[i].id]?.best.stars);
+ });
+ const stage=stages[stageIndex];
+ $('selected-stage').textContent=`${String(stageIndex+1).padStart(2,'0')} · ${stage.name}`;
+ const scope=stage.kind==='note'?(stage.detail||stage.pcs.map(pc=>names[pc].join(' / ')).join(' · ')):stage.combos.map(({q,inv})=>`${qualities[q].name} · ${inversions[inv]}`).join('、');
+ $('stage-detail').textContent=`${scope} · C3–C6 全音域`;
+ const last=results[stage.id]?.last;
+ $('last-result').textContent=last?`上次 ${last.correct}/${last.total}（${(last.accuracy*100).toFixed(1)}%）· 综合分 ${formatScore(last.score)} · ${last.stars} 星`:'';
+ $('last-result').hidden=!last;
+}
+// Truncate display so a score below a threshold is not displayed at that threshold.
+function formatScore(score){return (Math.floor(score*10+1e-10)/10).toFixed(1);}
+function focusCurrentStage(){routeNodes[stageIndex]?.scrollIntoView?.({block:'nearest',inline:'center',behavior:'auto'});}
+function selectStage(index){
+ if(started&&!finished||!Number.isInteger(index)||!stages[index])return;
+ stageIndex=index;save('voicing-route-stage',stages[index].id);reset();focusCurrentStage();
+}
+$('version').textContent=`v${VERSION}`;
+for(const speed of SPEEDS){const option=document.createElement('option');option.value=speed.bpm;option.textContent=`${speed.name} · ${speed.bpm} BPM`;$('speed').append(option);}
+$('speed').value=bpm;
+// Native touch scrolling; mouse dragging captures only after a real drag.
+let routeDrag=null,suppressRouteClick=false;
+$('route').addEventListener('pointerdown',e=>{
+ suppressRouteClick=false;
+ if(e.pointerType!=='mouse'||e.button!==0)return;
+ routeDrag={id:e.pointerId,x:e.clientX,left:$('route').scrollLeft,moved:false};
+});
+$('route').addEventListener('pointermove',e=>{
+ if(!routeDrag||routeDrag.id!==e.pointerId)return;
+ const dx=e.clientX-routeDrag.x;
+ if(!routeDrag.moved&&Math.abs(dx)>6){routeDrag.moved=true;$('route').setPointerCapture(e.pointerId);$('route').dataset.dragging='true';}
+ if(routeDrag.moved){e.preventDefault();$('route').scrollLeft=routeDrag.left-dx;}
+});
+function endRouteDrag(e){
+ if(!routeDrag||routeDrag.id!==e.pointerId)return;
+ suppressRouteClick=routeDrag.moved;routeDrag=null;$('route').dataset.dragging='false';
+ if($('route').hasPointerCapture(e.pointerId))$('route').releasePointerCapture(e.pointerId);
+}
+$('route').addEventListener('pointerup',endRouteDrag);$('route').addEventListener('pointercancel',endRouteDrag);
+$('route').addEventListener('click',e=>{if(suppressRouteClick&&e.detail!==0){e.preventDefault();e.stopPropagation();suppressRouteClick=false;}},true);
+document.addEventListener('dragstart',e=>e.preventDefault());
 function hidePauseControls(){
  $('settings-toggle').hidden=true;
  for(const dot of answerDots.values())dot.hidden=true;
@@ -206,18 +271,20 @@ function showAnswer(){
  // Keep the answer for the landed chord until the next one lands. During
  // the opening lead-in, reveal the first approaching chord.
  const card=cards[Math.max(0,Math.floor(elapsed-2))];
+ if(card)card.assisted=true;
  const pitches=card?(card.kind==='note'?[card.root]:notes(card.root,card.q,card.inv)):[];
  for(const [midi,dot] of answerDots)dot.hidden=!pitches.includes(midi);
 }
 function openSettings(){
- if(running||!started||finished)return;
- hidePauseControls();
- showOverlay('训练设置','进度已保留 · 切换阶段将重新开始一轮','继续训练 →');
+ if(running||$('settings-dialog').open)return;
+ updateTimer();$('session-stats').hidden=!started||finished;$('exit-training').hidden=!started||finished;
+ $('settings-dialog').showModal();
 }
-function showOverlay(title,description,button){updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('overlay').querySelector('h1').textContent=title;$('status').textContent=description;$('overlay-action').textContent=button;}
-function appendBatch(){
- const batch=makeRound(stageIndex===-1?{kind:'note',blackOnly}:stages[stageIndex],baseCycle+cards.length/batchSize());
- for(const card of batch){
+function showHome(){
+ updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('settings-toggle').hidden=false;updateRoute();
+}
+function appendCard(){
+ const card=prepareAttempt(scheduler.next());
   const el=document.createElement('div');el.className='card';el.dataset.inv=card.inv;
   el.style.left=`${centers.get(card.root)*100}%`;el.hidden=true;
   if(card.kind!=='note'){
@@ -231,43 +298,64 @@ function appendBatch(){
   }
   const chord=document.createElement('span');chord.className='chord';chord.textContent=card.label;
   el.append(chord);$('falling').append(el);elements.push(el);cards.push(card);
- }
 }
 function reset(){
  releaseScreenLock();stopMetronome();
- running=false;started=false;finished=false;elapsed=0;previous=0;sessionSeconds=0;completedBatches=0;
- baseCycle=Number.isSafeInteger(cycles[stageIndex])?cycles[stageIndex]:0;
- cards=[];elements=[];$('falling').replaceChildren();appendBatch();updateTimer();
- $('stage-number').textContent=stageIndex===-1?'前置关卡':`${stageIndex+1} / 14`;
- $('note-range').hidden=stageIndex!==-1;
- $('note-all').checked=!blackOnly;$('note-black').checked=blackOnly;
- showOverlay('准备训练','标签平滑下落，触及琴键时弹奏，背景竖线随拍亮起。轻点屏幕暂停并查看答案，再点继续；暂停后可打开右上角设置。最长 30 分钟。','开始训练 →');
+ running=false;started=false;finished=false;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
+ scheduler=new Scheduler(stages[stageIndex],{levels});
+ cards=[];elements=[];$('falling').replaceChildren();appendCard();updateTimer();showHome();
 }
 function pause(){
  if(!running)return;advance(performance.now());if(finished)return;
- running=false;updateKeyboardBlur();releaseScreenLock();stopMetronome();
- while(elapsed+2>=cards.length)appendBatch();
+ running=false;recordConditions(run,{paused:true,visible:true});updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();paintScene();
 }
 function canStartTraining(){
+ if($('midi-warning').open||$('settings-dialog').open)return false;
  if([...midiInputs.values()].some(input=>input.state!=='disconnected')||midiStartWarnings>=5)return true;
- midiStartWarnings++;
- alert('请先连接 MIDI 设备，再开始训练。');
- return false;
+ midiStartWarnings++;$('midi-warning').showModal();return false;
 }
-function play(restart=false){if(running&&!restart){pause();return;}if(!canStartTraining())return;if(restart||finished)reset();hidePauseControls();running=true;updateKeyboardBlur();started=true;previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';paintScene();}
-function complete(){releaseScreenLock();stopMetronome();running=false;finished=true;elements.forEach(el=>{el.hidden=true;});showOverlay('本轮已完成','本次训练已持续 30:00。可以重新开始，或选择其他训练阶段。','再练一轮 →');}
+function play(){
+ if(running){pause();return;}
+ if(!canStartTraining())return;
+ if(finished)reset();
+ run.started=true;started=true;running=true;
+ recordConditions(run,{visible:!keyboardBlurOn});
+ hidePauseControls();updateKeyboardBlur();previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;paintScene();
+}
+function complete(){
+ if(!started||finished)return;
+ running=false;finished=true;releaseScreenLock();stopMetronome();
+ const result=calculateScore(run),id=stages[stageIndex].id;
+ results[id]={last:result,best:!results[id]||result.score>results[id].best.score?result:results[id].best};
+ save('voicing-results-v1',results);
+ if($('settings-dialog').open)$('settings-dialog').close();
+ elements.forEach(el=>{el.hidden=true;});showHome();focusCurrentStage();
+}
+function settleAnswers(){
+ while(settled<cards.length&&canSettle(cards[settled],sessionSeconds)){
+  const card=cards[settled++];card.ended=true;run.total++;
+  if(isCorrect(card)){
+   run.correct++;
+   if(!card.assisted&&scheduler.record(card.id,'correct'))save('voicing-weakness-v1',levels);
+  }
+ }
+}
 function advance(now){
- if(running){const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);sessionSeconds+=dt;elapsed+=dt*bpm/240;updateTimer();
-  const batches=Math.floor(Math.max(0,Math.floor(elapsed-2)+1)/batchSize());
-  if(batches>completedBatches){completedBatches=batches;cycles[stageIndex]=baseCycle+batches;save('voicing-cycles',cycles);}
+ if(running){
+  const fromSeconds=sessionSeconds,fromProgress=elapsed;
+  const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);
+  sessionSeconds+=dt;elapsed+=dt*bpm/240;
+  recordConditions(run,{seconds:dt,bpm,visible:!keyboardBlurOn});
+  while(elapsed>=cards.length)appendCard();
+  stampBoundaries(cards,fromProgress,elapsed,fromSeconds,bpm);settleAnswers();updateTimer();
   if(sessionSeconds>=MAX_SECONDS)complete();
  }
  previous=now;
 }
 function paintScene(){
  if(started&&!finished){
-  while(elapsed+2>=cards.length)appendBatch();
+  while(elapsed>=cards.length)appendCard();
   const height=$('falling').clientHeight;
   const beats=elapsed*4,beatIndex=Math.floor(beats),phase=beats-beatIndex;
   const pulse=Math.pow(Math.max(0,1-phase/.7),2);
@@ -295,26 +383,29 @@ function render(now){
 }
 $('keyboard-blur').addEventListener('change',()=>{
  keyboardBlurOn=$('keyboard-blur').checked;save('voicing-keyboard-blur',keyboardBlurOn);updateKeyboardBlur();
+ if(started&&!finished&&!keyboardBlurOn)recordConditions(run,{visible:true});
 });
-$('metronome').addEventListener('pointerup',e=>e.stopPropagation());
 $('metronome').addEventListener('click',e=>{
  e.stopPropagation();metronomeOn=!metronomeOn;save('voicing-metronome',metronomeOn);
  stopMetronome();if(metronomeOn)unlockAudio();updateMetronome();
 });
-$('overlay-action').addEventListener('click',e=>{e.stopPropagation();play();});$('restart').addEventListener('click',e=>{e.stopPropagation();play(true);});
+$('overlay-action').addEventListener('click',e=>{e.stopPropagation();play();});
 $('settings-toggle').addEventListener('click',e=>{e.stopPropagation();openSettings();});
+$('settings-dialog').addEventListener('click',e=>e.stopPropagation());
+$('settings-close').addEventListener('click',e=>{e.stopPropagation();$('settings-dialog').close();});
+$('exit-training').addEventListener('click',e=>{e.stopPropagation();complete();});
 $('overlay').addEventListener('click',e=>e.stopPropagation());
-// One click path for mouse and touch avoids a pointerup + click double toggle.
 document.addEventListener('click',()=>{
+ if($('midi-warning').open||$('settings-dialog').open)return;
  if(running)pause();else if(started&&!finished&&$('overlay').hidden)play();
 });
-$('stage').addEventListener('change',()=>{stageIndex=Number($('stage').value);save('voicing-stage',stageIndex);reset();});
-for(const id of ['note-all','note-black'])$(id).addEventListener('change',()=>{
- if(!$(id).checked)return;
- blackOnly=id==='note-black';save('voicing-note-black-only',blackOnly);reset();
+$('speed').addEventListener('change',()=>{
+ advance(performance.now());stopMetronome();bpm=normalizeBpm($('speed').value);$('speed').value=bpm;save('voicing-bpm',bpm);
 });
-$('speed').addEventListener('change',()=>{advance(performance.now());stopMetronome();bpm=Number($('speed').value);$('speed-value').textContent=`${bpm} BPM`;save('voicing-bpm',bpm);});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();clearMidi();}});
 const portrait=matchMedia('(orientation: portrait) and (max-width: 1100px) and (any-pointer: coarse)');portrait.addEventListener('change',e=>{if(e.matches)pause();});
-document.addEventListener('keydown',e=>{if(e.code==='Space'&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement.tagName)){e.preventDefault();play();}});
-reset();requestAnimationFrame(render);
+document.addEventListener('keydown',e=>{
+ if($('midi-warning').open||$('settings-dialog').open)return;
+ if(e.code==='Space'&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement?.tagName)){e.preventDefault();play();}
+});
+reset();focusCurrentStage();requestAnimationFrame(render);

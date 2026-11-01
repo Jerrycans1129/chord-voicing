@@ -2,25 +2,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-import {stages,makeRound,notes} from '../dist/theory.js';
+import {stages,notes,initialStage,names,qualities,inversions} from '../dist/theory.js';
+import {Scheduler,cleanLevels} from '../dist/scheduler.js';
+import * as scoring from '../dist/scoring.js';
+import * as judgment from '../dist/judgment.js';
 function session(extras={},connected=true){
  const nodes=new Map(),documentHandlers={},alerts=[];
- const element=()=>({style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},append(){},replaceChildren(){},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},querySelector(){return this;}});
+ const element=()=>({open:false,showModal(){this.open=true;},close(){this.open=false;},style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},children:[],append(...items){this.children.push(...items);},replaceChildren(){this.children=[];},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},queries:new Map(),querySelector(selector){if(!this.queries.has(selector))this.queries.set(selector,element());return this.queries.get(selector);},scrollLeft:0,scrollIntoView(){},setPointerCapture(){},hasPointerCapture(){return false;},releasePointerCapture(){}});
  const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
- const context=vm.createContext({alert:message=>alerts.push(message),stages,makeRound,notes,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
- vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/,''),context);
+ const context=vm.createContext({alert:message=>alerts.push(message),stages,notes,initialStage,names,qualities,inversions,Scheduler,cleanLevels,...scoring,...judgment,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
+ vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
  if(connected)vm.runInContext("midiInputs.set('fixture',{state:'connected'})",context);
  return {run:code=>vm.runInContext(code,context),nodes,documentHandlers,alerts};
 }
 test('continuous training crosses 36 questions and stops at 30 minutes',()=>{
  const {run,nodes}=session();run('play();now=160000;render(now)');
- assert.equal(run('running'),true);assert.ok(run('cards.length')>36);assert.equal(nodes.get('timer').textContent,'02:40');
- run('now=1801000;render(now)');assert.equal(run('finished'),true);assert.equal(run('running'),false);assert.equal(nodes.get('timer').textContent,'30:00');assert.equal(nodes.get('overlay-action').textContent,'再练一轮 →');
+ assert.equal(run('running'),true);assert.ok(run('cards.length')>36);assert.equal(nodes.get('count').textContent,'02:40 / 30:00');
+ run('now=1801000;render(now)');assert.equal(run('finished'),true);assert.equal(run('running'),false);assert.equal(nodes.get('count').textContent,'30:00 / 30:00');assert.equal(nodes.get('overlay').hidden,false);
 });
 test('pause excludes elapsed wall time, tempo changes preserve timer, restart resets',()=>{
- const {run,nodes}=session();run('play();now=10000;pause();now=70000;render(now)');assert.equal(nodes.get('timer').textContent,'00:10');
- run('bpm=120;play();now=75000;render(now)');assert.equal(nodes.get('timer').textContent,'00:15');
- run('reset()');assert.equal(nodes.get('timer').textContent,'00:00');assert.equal(run('elapsed'),0);
+ const {run,nodes}=session();run('play();now=10000;pause();now=70000;render(now)');assert.equal(nodes.get('count').textContent,'00:10 / 30:00');
+ run('bpm=120;play();now=75000;render(now)');assert.equal(nodes.get('count').textContent,'00:15 / 30:00');
+ run('reset()');assert.equal(nodes.get('count').textContent,'00:00 / 30:00');assert.equal(run('elapsed'),0);
 });
 test('landed chord stays at the keyboard until the next chord lands',()=>{
  const {run}=session();run('play();now=8000;render(now)');
@@ -103,35 +106,13 @@ test('wake lock rejection does not interrupt training',async()=>{
 });
 
 
-test('screen clicks pause with the landed answer, open settings separately, and resume',()=>{
- const {run,nodes,documentHandlers}=session();
- const visible=()=>run('JSON.stringify([...answerDots].filter(([,dot])=>!dot.hidden).map(([midi])=>midi))');
- run('play();now=10000;render(now)');documentHandlers.click();
- assert.equal(run('running'),false);
- assert.equal(nodes.get('overlay').hidden,true);
- assert.equal(nodes.get('settings-toggle').hidden,false);
- assert.equal(visible(),run('JSON.stringify(notes(cards[0].root,cards[0].q,cards[0].inv))'));
- let stopped=false;
- nodes.get('settings-toggle').handlers.click({stopPropagation(){stopped=true;}});
- assert.equal(stopped,true);assert.equal(run('running'),false);
- assert.equal(nodes.get('overlay').hidden,false);
- assert.equal(nodes.get('settings-toggle').hidden,true);
- documentHandlers.click();assert.equal(run('running'),false);
- nodes.get('overlay-action').handlers.click({stopPropagation(){}});
- assert.equal(run('running'),true);assert.equal(visible(),'[]');
- run('now=12000;render(now)');documentHandlers.click();
- assert.equal(visible(),run('JSON.stringify(notes(cards[1].root,cards[1].q,cards[1].inv))'));
- documentHandlers.click();assert.equal(run('running'),true);
- assert.equal(nodes.get('settings-toggle').hidden,true);
- assert.equal(visible(),'[]');
- assert.equal(documentHandlers.pointerup,undefined);
-});
+
 test('opening lead-in reveals first answer and reset clears pause UI',()=>{
  const {run,nodes}=session();run('play();now=1000;pause()');
  assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),3);
  run('reset()');
  assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),0);
- assert.equal(nodes.get('settings-toggle').hidden,true);
+ assert.equal(nodes.get('settings-toggle').hidden,false);
 });
 
 test('keyboard frost defaults on only during training and reveals paused answers',()=>{
@@ -147,7 +128,7 @@ test('keyboard frost defaults on only during training and reveals paused answers
  assert.equal(nodes.get('keyboard-frost').dataset.obscured,'false');
  assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),3);
  run('openSettings()');assert.equal(obscured(),'false');
- run('play()');assert.equal(obscured(),'true');
+ run("$('settings-dialog').close();play()");assert.equal(obscured(),'true');
  run('complete()');assert.equal(obscured(),'false');
  run('play();reset()');assert.equal(obscured(),'false');
 });
@@ -165,14 +146,14 @@ test('keyboard blur preference persists and disabling it keeps training keys cle
  reload.run('pause();openSettings()');
  reload.nodes.get('keyboard-blur').checked=true;reload.nodes.get('keyboard-blur').handlers.change();
  assert.equal(reload.nodes.get('keyboard').dataset.obscured,'false');
- reload.run('play()');assert.equal(reload.nodes.get('keyboard').dataset.obscured,'true');
+ reload.run("$('settings-dialog').close();play()");assert.equal(reload.nodes.get('keyboard').dataset.obscured,'true');
  assert.equal(stored.get('voicing-keyboard-blur'),'true');
 });
 
 test('phone mode hides keyboard during training and reveals answers without changing card spacing',()=>{
  const {run,nodes,documentHandlers}=session({navigator:{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)'}});
  assert.equal(nodes.get('instrument').dataset.phone,'true');
- assert.equal(nodes.get('keyboard-blur-setting').hidden,true);
+ assert.equal(nodes.get('keyboard-blur-setting').hidden,false);
  assert.equal(nodes.get('instrument').dataset.running,'false');
  run('play();now=10000;render(now)');
  assert.equal(nodes.get('instrument').dataset.running,'true');
@@ -186,7 +167,7 @@ test('phone mode hides keyboard during training and reveals answers without chan
  assert.equal(run('elapsed'),progress);
  assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),3);
  run('openSettings()');assert.equal(nodes.get('instrument').dataset.running,'false');
- run('play();render(now)');assert.equal(nodes.get('instrument').dataset.running,'true');
+ run("$('settings-dialog').close();play();render(now)");assert.equal(nodes.get('instrument').dataset.running,'true');
  assert.equal(run('elapsed'),progress);
  assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),0);
  run('complete()');assert.equal(nodes.get('instrument').dataset.running,'false');
@@ -207,40 +188,13 @@ test('phone detection preserves tablet and desktop layouts, including desktop-st
   assert.equal(nodes.get('instrument').dataset.phone,String(c.phone),c.ua);
   run('play()');
   assert.equal(nodes.get('keyboard').dataset.obscured,String(!c.phone),c.ua);
-  assert.equal(nodes.get('keyboard-blur-setting').hidden,c.phone,c.ua);
+  assert.equal(nodes.get('keyboard-blur-setting').hidden,false,c.ua);
  }
 });
 
 
-test('new users start with note recognition and pause reveals exactly its target key',()=>{
- const {run,nodes}=session({localStorage:{getItem(){return null;},setItem(){}}});
- assert.equal(run('stageIndex'),-1);
- assert.equal(nodes.get('note-range').hidden,false);
- assert.equal(run('cards.length'),36);
- run('play();now=10000;render(now);pause()');
- assert.equal(run('JSON.stringify([...answerDots].filter(([,dot])=>!dot.hidden).map(([midi])=>midi))'),run('JSON.stringify([cards[0].root])'));
- run('play()');assert.equal(run('[...answerDots.values()].filter(dot=>!dot.hidden).length'),0);
-});
-test('black key range resets, persists, and uses 15-question batches across boundaries',()=>{
- const stored=new Map();
- const localStorage={getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,value)};
- const {run,nodes}=session({localStorage});
- nodes.get('note-black').checked=true;nodes.get('note-black').handlers.change();
- assert.equal(stored.get('voicing-note-black-only'),'true');
- assert.equal(nodes.get('note-all').checked,false);
- assert.equal(run('cards.length'),15);
- run('play();now=68000;render(now);pause()');
- assert.equal(run('completedBatches'),1);
- assert.ok(run('cards.length')>15);
- assert.equal(run('cards.every(c=>[1,3,6,8,10].includes(c.pc))'),true);
- assert.equal(run('JSON.stringify([...answerDots].filter(([,dot])=>!dot.hidden).map(([midi])=>midi))'),run('JSON.stringify([cards[15].root])'));
- const reload=session({localStorage});assert.equal(reload.nodes.get('note-black').checked,true);
- nodes.get('note-all').checked=true;nodes.get('note-all').handlers.change();
- assert.equal(run('cards.length'),36);assert.equal(run('sessionSeconds'),0);
- nodes.get('stage').value='0';nodes.get('stage').handlers.change();
- assert.equal(nodes.get('note-range').hidden,true);
- assert.equal(run('cards.every(c=>c.q===0&&c.inv===1)'),true);
-});
+
+
 
 function midiSession(extras={}){
  const input={id:'keyboard-a',name:'Test keyboard',state:'connected'};
@@ -317,7 +271,7 @@ test('correct MIDI notes fade until handoff; any later wrong note restores a per
  assert.ok(Number(run('elements[0].style.opacity'))<1);
  const pitches=JSON.parse(run('JSON.stringify(notes(cards[0].root,cards[0].q,cards[0].inv))'));
  send([0x90,pitches[0],100]);
- assert.equal(run('elements[0].dataset.feedback'),'correct');
+ assert.equal(run('elements[0].dataset.feedback'),'waiting');
  run('now=10000;render(now)');
  const opacity=Number(run('elements[0].style.opacity'));assert.ok(opacity>0&&opacity<1);
  send([0x90,pitches[1],100]);send([0x90,pitches[2],100]);
@@ -341,21 +295,10 @@ test('first wrong attack is sticky; note-off and pedal never judge; restart clea
  run('reset()');assert.equal(run('cards[0].feedback'),undefined);
 });
 
-test('handoff grace ignores every attack on both sides at all supported tempos',async()=>{
- for(const tempo of [40,60,120]){
-  const {run,send}=midiSession();await run('connectMidi()');run(`bpm=${tempo};play()`);
-  const touch=720000/tempo;
-  for(const offset of [-179,-1,0,1,179]){
-   run(`now=${touch+offset}`);send([0x90,0,100]);
-   assert.equal(run('cards[0].feedback'),undefined);
-   assert.equal(run('cards[1].feedback'),undefined);
-  }
-  run(`now=${touch+181}`);send([0x90,0,100]);assert.equal(run('cards[1].feedback'),'wrong');
- }
-});
+
 
 test('single-note practice requires exact pitch, freezes while paused, and hides a faded label at handoff',async()=>{
- const {run,send}=midiSession();await run('connectMidi()');run('stageIndex=-1;reset();play();now=8300');
+ const {run,send}=midiSession();await run('connectMidi()');run('stageIndex=0;reset();play();now=8300');
  const root=run('cards[0].root');send([0x90,root,100]);
  assert.equal(run('cards[0].feedback'),'correct');
  run('now=10000;render(now);pause()');const opacity=run('elements[0].style.opacity');
@@ -368,13 +311,7 @@ test('single-note practice requires exact pitch, freezes while paused, and hides
  assert.equal(run('cards[1].feedback'),'wrong');
 });
 
-test('grace before next touch leaves prior judgment unchanged, and lead-in attacks do not count',async()=>{
- const {run,send}=midiSession();await run('connectMidi()');run('play();now=7000');send([0x90,0,100]);
- assert.equal(run('cards[0].feedback'),undefined);
- run('now=8000');send([0x90,run('cards[0].root'),100]);assert.equal(run('cards[0].feedback'),undefined);
- run('now=11819');send([0x90,run('cards[0].root'),100]);assert.equal(run('cards[0].feedback'),'correct');
- run('now=11821');send([0x90,0,100]);assert.equal(run('cards[0].feedback'),'correct');
-});
+
 
  test('unplayed labels fade from touch until the next touch',()=>{
  const {run}=session();run('play();now=8000;render(now)');
@@ -387,7 +324,7 @@ test('grace before next touch leaves prior judgment unchanged, and lead-in attac
  });
 
 test('pause shows only the current label at full brightness and resume restores the scene',()=>{
- for(const stage of [-1,0]){
+ for(const stage of [0,5]){
   const {run}=session();run(`stageIndex=${stage};reset();play();now=10000;render(now)`);
   assert.equal(run('elements[0].style.opacity'),'0.5');
   const positions=run('JSON.stringify(elements.slice(0,3).map(el=>el.style.transform))');
@@ -411,52 +348,134 @@ test('opening pause keeps the first label only; wrong feedback survives pause an
  run('play()');assert.equal(run('elements[0].dataset.feedback'),'wrong');
 });
 
-test('training entry points require MIDI until five warnings have been shown, and reload restores the gate',()=>{
- const {run,nodes,alerts,documentHandlers}=session({},false);
- const click=id=>nodes.get(id).handlers.click({stopPropagation(){}});
- for(let i=0;i<5;i++){
-  if(i%2)click('restart');else click('overlay-action');
-  assert.equal(run('running'),false);
-  assert.equal(run('started'),false);
-  assert.equal(alerts.length,i+1);
-  assert.match(alerts[i],/请先连接 MIDI/);
- }
- click('overlay-action');assert.equal(run('running'),true);
- run('now=10000;pause()');documentHandlers.click();assert.equal(run('running'),true);
- click('restart');assert.equal(run('running'),true);assert.equal(run('sessionSeconds'),0);
- run('complete()');click('overlay-action');assert.equal(run('running'),true);
- assert.equal(alerts.length,5);
- const reload=session({},false);reload.run('play()');assert.equal(reload.run('running'),false);
-});
+
 
 test('automatic connection waits for an input; manual retry enables training without starting it',async()=>{
  let resolveAccess;
  const access={inputs:new Map()};
  const {run,nodes,alerts}=session({navigator:{requestMIDIAccess(){return new Promise(resolve=>{resolveAccess=resolve;});}}},false);
  assert.equal(typeof resolveAccess,'function');
- run('play()');assert.equal(run('running'),false);
+ run('play()');assert.equal(run('running'),false);run("$('midi-warning').close()");
  resolveAccess(access);await new Promise(setImmediate);
- run('play()');assert.equal(run('running'),false);
+ run('play()');assert.equal(run('running'),false);run("$('midi-warning').close()");
  nodes.get('midi-connect').handlers.click({stopPropagation(){}});
  access.inputs.set('keyboard',{id:'keyboard',state:'connected'});
  resolveAccess(access);await new Promise(setImmediate);
  assert.equal(run('running'),false);
- run('play()');assert.equal(run('running'),true);assert.equal(alerts.length,2);
+ run('play()');assert.equal(run('running'),true);assert.equal(run('midiStartWarnings'),2);assert.equal(alerts.length,0);
 });
 
-test('disconnected inputs block resume, keyboard shortcuts and restart without losing progress',async()=>{
- const {run,nodes,input,access,alerts,documentHandlers}=midiSession();
- await new Promise(setImmediate);
- run('play();now=10000;pause()');
- input.state='disconnected';access.onstatechange();
+
+
+test('wrong feedback updates once immediately and preserves already visible cards',async()=>{
+ const {run,send}=midiSession();await run('connectMidi()');run('selectStage(0);play();now=9000;render(now)');
+ const before=run('JSON.stringify(cards.map(c=>[c.id,c.root]))');
+ send([0x90,0,100]);send([0x90,0,100]);send([0x90,1,100]);
+ assert.equal(run('levels[cards[0].id]'),1);assert.equal(run('JSON.stringify(cards.map(c=>[c.id,c.root]))'),before);
+ run('now=13000;render(now)');assert.equal(run('cards.length'),4);
+ assert.equal(run('levels[cards[0].id]'),1);
+});
+
+
+test('weakness persists across reloads and is shared with later cumulative stages',()=>{
+ const stored=new Map();const localStorage={getItem:k=>stored.get(k)??null,setItem:(k,v)=>stored.set(k,v)};
+ const first=session({localStorage});first.run('bpm=60;play();now=9000;judgeMidi(0)');
+ const id=first.run('cards[0].id');assert.equal(JSON.parse(stored.get('voicing-weakness-v1'))[id],1);
+ const second=session({localStorage});second.run('selectStage(4)');assert.equal(second.run(`levels[${JSON.stringify(id)}]`),1);
+});
+
+test('page MIDI dialog blocks repeated starts and background shortcuts without browser alerts',()=>{
+ const {run,nodes,alerts,documentHandlers}=session({},false);
+ run('play()');assert.equal(nodes.get('midi-warning').open,true);
+ for(let i=0;i<10;i++){
+  run('play();play(true)');documentHandlers.click();
+  documentHandlers.keydown({code:'Space',preventDefault(){}});
+ }
+ assert.equal(run('midiStartWarnings'),1);assert.equal(run('running'),false);
+ assert.equal(run('started'),false);assert.equal(alerts.length,0);
+ let stopped=false;nodes.get('midi-warning-close').handlers.click({stopPropagation(){stopped=true;}});
+ assert.equal(stopped,true);assert.equal(nodes.get('midi-warning').open,false);assert.equal(run('running'),false);
+ run('play()');assert.equal(run('midiStartWarnings'),2);
+ nodes.get('midi-warning-connect').handlers.click({stopPropagation(){}});
+ assert.equal(nodes.get('midi-warning').open,false);assert.equal(run('running'),false);
+});
+
+test('home settings are a separate modal; closing paused settings never resumes training',()=>{
+ const {run,nodes,documentHandlers}=session();
+ run('openSettings()');assert.equal(nodes.get('settings-dialog').open,true);assert.equal(nodes.get('session-stats').hidden,true);
+ nodes.get('settings-close').handlers.click({stopPropagation(){}});assert.equal(run('started'),false);
+ run('play();now=10000;pause();openSettings()');assert.equal(nodes.get('session-stats').hidden,false);assert.equal(nodes.get('exit-training').hidden,false);
  documentHandlers.click();assert.equal(run('running'),false);
- run("document.activeElement={tagName:'BODY'}");
- documentHandlers.keydown({code:'Space',preventDefault(){}});assert.equal(run('running'),false);
- nodes.get('restart').handlers.click({stopPropagation(){}});
- assert.equal(run('sessionSeconds'),10);assert.equal(run('started'),true);
- run('openSettings()');nodes.get('overlay-action').handlers.click({stopPropagation(){}});
- assert.equal(run('running'),false);assert.equal(alerts.length,4);
- input.state='connected';access.onstatechange();
- nodes.get('overlay-action').handlers.click({stopPropagation(){}});
- assert.equal(run('running'),true);assert.equal(run('sessionSeconds'),10);
+ nodes.get('settings-close').handlers.click({stopPropagation(){}});assert.equal(run('running'),false);assert.equal(nodes.get('overlay').hidden,true);
+ documentHandlers.click();assert.equal(run('running'),true);
+});
+test('phone keyboard visibility setting remains available and applies in both directions',()=>{
+ const {run,nodes}=session({navigator:{userAgent:'iPhone'}});
+ assert.equal(nodes.get('keyboard-blur-setting').hidden,false);run('play()');assert.equal(nodes.get('instrument').dataset.hideKeys,'true');
+ run('pause();openSettings()');nodes.get('keyboard-blur').checked=false;nodes.get('keyboard-blur').handlers.change();
+ run("$('settings-dialog').close();play()");assert.equal(nodes.get('instrument').dataset.hideKeys,'false');assert.equal(run('run.shownKeyboard'),true);
+ run('pause()');nodes.get('keyboard-blur').checked=true;nodes.get('keyboard-blur').handlers.change();run('play()');assert.equal(nodes.get('instrument').dataset.hideKeys,'true');assert.equal(run('run.shownKeyboard'),true);
+});
+test('actual running speed is latched, homepage choices and transient paused choices are not',()=>{
+ const {run,nodes}=session();nodes.get('speed').value=40;nodes.get('speed').handlers.change();nodes.get('speed').value=120;nodes.get('speed').handlers.change();
+ run('play();now=1000;render(now);pause();openSettings()');assert.equal(run('run.minBpm'),120);
+ for(const speed of [40,60,140]){nodes.get('speed').value=speed;nodes.get('speed').handlers.change();}
+ run("$('settings-dialog').close();play();now=2000;render(now)");assert.equal(run('run.minBpm'),120);
+ run('pause()');nodes.get('speed').value=60;nodes.get('speed').handlers.change();run('play();now=3000;render(now)');assert.equal(run('run.minBpm'),60);
+});
+test('zero-question exit creates a zero-star result; best rating survives later worse attempts and reload',()=>{
+ const stored=new Map();const localStorage={getItem:k=>stored.get(k)??null,setItem:(k,v)=>stored.set(k,v)};
+ const {run,nodes}=session({localStorage});assert.equal(nodes.get('last-result').hidden,true);
+ run('play();pause();openSettings()');nodes.get('exit-training').handlers.click({stopPropagation(){}});
+ assert.equal(run("results['notes-two'].last.stars"),0);assert.equal(run('run.total'),0);assert.equal(nodes.get('last-result').hidden,false);
+ run('play();run.seconds=1800;run.total=100;run.correct=95;run.minBpm=90;complete()');assert.equal(run("results['notes-two'].best.stars"),3);
+ run('play();pause();complete()');assert.equal(run("results['notes-two'].last.stars"),0);assert.equal(run("results['notes-two'].best.stars"),3);
+ const reload=session({localStorage});assert.equal(reload.run("results['notes-two'].best.stars"),3);
+});
+test('blocked MIDI launch never produces a rating; five dismissed prompts preserve the existing override',()=>{
+ const {run,nodes,alerts}=session({},false);
+ for(let i=0;i<5;i++){run('play()');assert.equal(run('run.started'),false);assert.equal(run('Object.keys(results).length'),0);nodes.get('midi-warning-close').handlers.click({stopPropagation(){}});}
+ run('play();complete()');assert.equal(run('Object.keys(results).length'),1);assert.equal(alerts.length,0);
+});
+test('complete arpeggio counts correct at trailing settlement and lowers chord weakness exactly once',async()=>{
+ const {run,send}=midiSession();await run('connectMidi()');run('selectStage(21);play();now=9000;render(now);levels[cards[0].id]=2');
+ for(const note of JSON.parse(run('JSON.stringify(cards[0].targets)'))){send([0x90,note,100]);send([0x80,note,0]);}
+ assert.equal(run('run.correct'),0);assert.equal(run('levels[cards[0].id]'),2);
+ run('now=12180;render(now)');assert.equal(run('run.total'),0);
+ run('now=12181;render(now)');assert.equal(run('run.total'),1);assert.equal(run('run.correct'),1);assert.equal(run('levels[cards[0].id]'),1);
+ run('now=13000;render(now)');assert.equal(run('levels[cards[0].id]'),1);
+});
+test('silent, partial, wrong, and assisted responses have separate accuracy, weakness, and color outcomes',async()=>{
+ for(const mode of ['silent','partial','wrong','assisted']){
+  const {run,send}=midiSession();await run('connectMidi()');run('selectStage(21);play();now=9000;render(now);levels[cards[0].id]=2');
+  const targets=JSON.parse(run('JSON.stringify(cards[0].targets)'));
+  if(mode!=='silent')for(const note of mode==='partial'?targets.slice(0,1):targets){send([0x90,note,100]);send([0x80,note,0]);}
+  if(mode==='wrong'){send([0x90,0,100]);send([0x80,0,0]);send([0x90,0,100]);}
+  if(mode==='assisted')run('pause();play()');
+  run('now=12181;render(now)');assert.equal(run('run.total'),1,mode);assert.equal(run('run.correct'),mode==='assisted'?1:0,mode);
+  assert.equal(run('cards[0].wrong'),mode==='wrong',mode);assert.equal(run('levels[cards[0].id]'),mode==='wrong'?3:2,mode);
+ }
+});
+test('MIDI overlap credits shared fresh attacks to both questions but held notes and note-offs never answer',async()=>{
+ const {run,send}=midiSession();await run('connectMidi()');run("selectStage(21);play();while(cards.length<2)appendCard();cards[0]=prepareAttempt({kind:'chord',id:'chord:C:0:0',root:60,q:0,inv:0});cards[1]=prepareAttempt({kind:'chord',id:'chord:A:1:0',root:57,q:1,inv:0});now=11900");
+ for(const note of [60,64,67,57,66]){send([0x90,note,100]);send([0x80,note,0]);}
+ assert.equal(run('cards[0].feedback'),'correct');assert.equal(run('cards[1].feedback'),'correct');
+ run('now=12181;render(now)');assert.equal(run('run.correct'),1);
+ // A key pressed before the next ordinary interval is not a new attack while held.
+ send([0x90,60,100]);run('cards[1].hits.clear();now=13000');send([0x90,60,100]);assert.equal(run('cards[1].hits.size'),0);
+ send([0x90,60,0]);send([0x90,60,100]);assert.equal(run('cards[1].hits.has(60)'),true);
+});
+test('disconnect pauses immediately and a partial last question is not settled on exit',async()=>{
+ const {run,input,access}=midiSession();await run('connectMidi()');run('play();now=10000;render(now)');input.state='disconnected';access.onstatechange();assert.equal(run('running'),false);
+ run('complete()');assert.equal(run('run.total'),0);
+});
+test('mouse drag scrolls without selecting; click and keyboard activation still select',()=>{
+ const {run,nodes}=session();const route=nodes.get('route');
+ route.handlers.pointerdown({pointerType:'mouse',button:0,pointerId:1,clientX:300});route.handlers.pointermove({pointerId:1,clientX:100,preventDefault(){}});route.handlers.pointerup({pointerId:1});
+ assert.equal(route.scrollLeft,200);let prevented=false;route.handlers.click({detail:1,preventDefault(){prevented=true;},stopPropagation(){}});assert.equal(prevented,true);
+ run('routeNodes[1].handlers.click()');assert.equal(run('stageIndex'),1);
+});
+
+test('refreshing an empty MIDI device list does not pause an authorized no-MIDI session',()=>{
+ const {run}=session({},false);run('midiStartWarnings=5;play();midiAccess={inputs:new Map()};syncMidiInputs()');assert.equal(run('running'),true);
 });
