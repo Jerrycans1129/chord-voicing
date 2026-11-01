@@ -112,7 +112,7 @@ for(let midi=48;midi<=84;midi++){
 }
 // MIDI is input-only: track physical keys separately for each device/channel.
 // Sustain does not keep a released physical key highlighted.
-let midiAccess=null,midiConnecting=false;
+let midiAccess=null,midiConnecting=false,midiStartWarnings=0;
 const midiInputs=new Map(),midiHeld=new Map();
 function paintMidi(){
  const held=new Set([...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys])));
@@ -193,7 +193,7 @@ async function connectMidi(){
 }
 $('midi-connect').addEventListener('click',event=>{event.stopPropagation();void connectMidi();});
 $('midi-clear').addEventListener('click',event=>{event.stopPropagation();clearMidi();});
-$('midi-status').textContent=midiAvailability()||'尚未启用 · 点击连接 MIDI 并允许浏览器访问';
+void connectMidi();
 paintMidi();
 const noteOption=document.createElement('option');noteOption.value=-1;noteOption.textContent='00  音名识别';$('stage').append(noteOption);
 stages.forEach((s,i)=>{const option=document.createElement('option');option.value=i;option.textContent=`${String(i+1).padStart(2,'0')}  ${s.name}`;$('stage').append(option);});
@@ -249,7 +249,13 @@ function pause(){
  while(elapsed+2>=cards.length)appendBatch();
  $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();paintScene();
 }
-function play(){if(running){pause();return;}if(finished)reset();hidePauseControls();running=true;updateKeyboardBlur();started=true;previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';paintScene();}
+function canStartTraining(){
+ if([...midiInputs.values()].some(input=>input.state!=='disconnected')||midiStartWarnings>=5)return true;
+ midiStartWarnings++;
+ alert('请先连接 MIDI 设备，再开始训练。');
+ return false;
+}
+function play(restart=false){if(running&&!restart){pause();return;}if(!canStartTraining())return;if(restart||finished)reset();hidePauseControls();running=true;updateKeyboardBlur();started=true;previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;$('status').textContent='训练中 · 标记到达琴键上沿时弹奏';paintScene();}
 function complete(){releaseScreenLock();stopMetronome();running=false;finished=true;elements.forEach(el=>{el.hidden=true;});showOverlay('本轮已完成','本次训练已持续 30:00。可以重新开始，或选择其他训练阶段。','再练一轮 →');}
 function advance(now){
  if(running){const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);sessionSeconds+=dt;elapsed+=dt*bpm/240;updateTimer();
@@ -295,7 +301,7 @@ $('metronome').addEventListener('click',e=>{
  e.stopPropagation();metronomeOn=!metronomeOn;save('voicing-metronome',metronomeOn);
  stopMetronome();if(metronomeOn)unlockAudio();updateMetronome();
 });
-$('overlay-action').addEventListener('click',e=>{e.stopPropagation();play();});$('restart').addEventListener('click',e=>{e.stopPropagation();reset();play();});
+$('overlay-action').addEventListener('click',e=>{e.stopPropagation();play();});$('restart').addEventListener('click',e=>{e.stopPropagation();play(true);});
 $('settings-toggle').addEventListener('click',e=>{e.stopPropagation();openSettings();});
 $('overlay').addEventListener('click',e=>e.stopPropagation());
 // One click path for mouse and touch avoids a pointerup + click double toggle.

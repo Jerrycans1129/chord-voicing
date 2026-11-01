@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {stages,makeRound,notes} from '../dist/theory.js';
-function session(extras={}){
- const nodes=new Map(),documentHandlers={};
+function session(extras={},connected=true){
+ const nodes=new Map(),documentHandlers={},alerts=[];
  const element=()=>({style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},append(){},replaceChildren(){},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},querySelector(){return this;}});
  const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
- const context=vm.createContext({stages,makeRound,notes,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
+ const context=vm.createContext({alert:message=>alerts.push(message),stages,makeRound,notes,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/,''),context);
- return {run:code=>vm.runInContext(code,context),nodes,documentHandlers};
+ if(connected)vm.runInContext("midiInputs.set('fixture',{state:'connected'})",context);
+ return {run:code=>vm.runInContext(code,context),nodes,documentHandlers,alerts};
 }
 test('continuous training crosses 36 questions and stops at 30 minutes',()=>{
  const {run,nodes}=session();run('play();now=160000;render(now)');
@@ -244,7 +245,7 @@ test('black key range resets, persists, and uses 15-question batches across boun
 function midiSession(extras={}){
  const input={id:'keyboard-a',name:'Test keyboard',state:'connected'};
  const access={inputs:new Map([[input.id,input]])};
- const app=session({isSecureContext:true,navigator:{async requestMIDIAccess(options){assert.equal(options.sysex,false);return access;}},...extras});
+ const app=session({isSecureContext:true,navigator:{async requestMIDIAccess(options){assert.equal(options.sysex,false);return access;}},...extras},false);
  return {...app,input,access,send:(data,port=input)=>port.onmidimessage({data:Uint8Array.from(data)})};
 }
 test('MIDI chords display while paused without changing the answer or training progress',async()=>{
@@ -284,14 +285,15 @@ test('MIDI tracks overlapping devices/channels and clears disconnected inputs an
  assert.equal(run('midiKeys.get(63).dataset.midiPressed'),'true');
  run('clearMidi()');assert.equal(run('midiKeys.get(63).dataset.midiPressed'),'false');
 });
-test('MIDI capability and permission failures stay recoverable without disrupting training',async()=>{
+test('MIDI capability and permission failures block training and stay recoverable',async()=>{
  for(const extras of [{isSecureContext:false},{navigator:{}},{navigator:{async requestMIDIAccess(){throw Object.assign(new Error(),{name:'NotAllowedError'});}}}]){
   const {run,nodes}=midiSession(extras);await run('connectMidi()');
   assert.match(nodes.get('midi-status').textContent,/HTTPS|未提供|未获允许/);
   assert.notEqual(nodes.get('midi-connect').disabled,true);
-  run('play()');assert.equal(run('running'),true);
+  run('play()');assert.equal(run('running'),false);
  }
  const {run,nodes}=midiSession();
+ await new Promise(setImmediate);
  run("navigator.requestMIDIAccess=async()=>{throw new Error('unavailable')}");await run('connectMidi()');
  assert.match(nodes.get('midi-status').textContent,/无法连接/);
  run('navigator.requestMIDIAccess=async()=>({inputs:new Map()})');await run('connectMidi()');
@@ -407,4 +409,54 @@ test('opening pause keeps the first label only; wrong feedback survives pause an
  assert.equal(run('elements[0].dataset.feedback'),'wrong');
  assert.equal(run('elements[0].style.opacity'),'1');
  run('play()');assert.equal(run('elements[0].dataset.feedback'),'wrong');
+});
+
+test('training entry points require MIDI until five warnings have been shown, and reload restores the gate',()=>{
+ const {run,nodes,alerts,documentHandlers}=session({},false);
+ const click=id=>nodes.get(id).handlers.click({stopPropagation(){}});
+ for(let i=0;i<5;i++){
+  if(i%2)click('restart');else click('overlay-action');
+  assert.equal(run('running'),false);
+  assert.equal(run('started'),false);
+  assert.equal(alerts.length,i+1);
+  assert.match(alerts[i],/请先连接 MIDI/);
+ }
+ click('overlay-action');assert.equal(run('running'),true);
+ run('now=10000;pause()');documentHandlers.click();assert.equal(run('running'),true);
+ click('restart');assert.equal(run('running'),true);assert.equal(run('sessionSeconds'),0);
+ run('complete()');click('overlay-action');assert.equal(run('running'),true);
+ assert.equal(alerts.length,5);
+ const reload=session({},false);reload.run('play()');assert.equal(reload.run('running'),false);
+});
+
+test('automatic connection waits for an input; manual retry enables training without starting it',async()=>{
+ let resolveAccess;
+ const access={inputs:new Map()};
+ const {run,nodes,alerts}=session({navigator:{requestMIDIAccess(){return new Promise(resolve=>{resolveAccess=resolve;});}}},false);
+ assert.equal(typeof resolveAccess,'function');
+ run('play()');assert.equal(run('running'),false);
+ resolveAccess(access);await new Promise(setImmediate);
+ run('play()');assert.equal(run('running'),false);
+ nodes.get('midi-connect').handlers.click({stopPropagation(){}});
+ access.inputs.set('keyboard',{id:'keyboard',state:'connected'});
+ resolveAccess(access);await new Promise(setImmediate);
+ assert.equal(run('running'),false);
+ run('play()');assert.equal(run('running'),true);assert.equal(alerts.length,2);
+});
+
+test('disconnected inputs block resume, keyboard shortcuts and restart without losing progress',async()=>{
+ const {run,nodes,input,access,alerts,documentHandlers}=midiSession();
+ await new Promise(setImmediate);
+ run('play();now=10000;pause()');
+ input.state='disconnected';access.onstatechange();
+ documentHandlers.click();assert.equal(run('running'),false);
+ run("document.activeElement={tagName:'BODY'}");
+ documentHandlers.keydown({code:'Space',preventDefault(){}});assert.equal(run('running'),false);
+ nodes.get('restart').handlers.click({stopPropagation(){}});
+ assert.equal(run('sessionSeconds'),10);assert.equal(run('started'),true);
+ run('openSettings()');nodes.get('overlay-action').handlers.click({stopPropagation(){}});
+ assert.equal(run('running'),false);assert.equal(alerts.length,4);
+ input.state='connected';access.onstatechange();
+ nodes.get('overlay-action').handlers.click({stopPropagation(){}});
+ assert.equal(run('running'),true);assert.equal(run('sessionSeconds'),10);
 });
