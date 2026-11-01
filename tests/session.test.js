@@ -6,11 +6,12 @@ import {stages,notes,initialStage,names,qualities,inversions} from '../dist/theo
 import {Scheduler,cleanLevels} from '../dist/scheduler.js';
 import * as scoring from '../dist/scoring.js';
 import * as judgment from '../dist/judgment.js';
+import * as timing from '../dist/timing.js';
 function session(extras={},connected=true){
  const nodes=new Map(),documentHandlers={},alerts=[];
- const element=()=>({open:false,showModal(){this.open=true;},close(){this.open=false;},style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},children:[],append(...items){this.children.push(...items);},replaceChildren(){this.children=[];},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},queries:new Map(),querySelector(selector){if(!this.queries.has(selector))this.queries.set(selector,element());return this.queries.get(selector);},scrollLeft:0,scrollIntoView(){},setPointerCapture(){},hasPointerCapture(){return false;},releasePointerCapture(){}});
+ const element=()=>({open:false,click(){this.clicked=true;},showModal(){this.open=true;},close(){this.open=false;},style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},children:[],append(...items){this.children.push(...items);},replaceChildren(){this.children=[];},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},queries:new Map(),querySelector(selector){if(!this.queries.has(selector))this.queries.set(selector,element());return this.queries.get(selector);},scrollLeft:0,scrollIntoView(){},setPointerCapture(){},hasPointerCapture(){return false;},releasePointerCapture(){}});
  const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
- const context=vm.createContext({alert:message=>alerts.push(message),stages,notes,initialStage,names,qualities,inversions,Scheduler,cleanLevels,...scoring,...judgment,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
+ const context=vm.createContext({alert:message=>alerts.push(message),stages,notes,initialStage,names,qualities,inversions,Scheduler,cleanLevels,...scoring,...judgment,...timing,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
  if(connected)vm.runInContext("midiInputs.set('fixture',{state:'connected'})",context);
  return {run:code=>vm.runInContext(code,context),nodes,documentHandlers,alerts};
@@ -268,14 +269,15 @@ test('MIDI capability works on phone and iPad browser identities and connection 
 test('correct MIDI notes fade until handoff; any later wrong note restores a permanent red label',async()=>{
  const {run,send}=midiSession();await run('connectMidi()');
  run('play();now=8300;render(now)');
- assert.ok(Number(run('elements[0].style.opacity'))<1);
+ assert.equal(run('elements[0].style.opacity'),'1');
  const pitches=JSON.parse(run('JSON.stringify(notes(cards[0].root,cards[0].q,cards[0].inv))'));
  send([0x90,pitches[0],100]);
  assert.equal(run('elements[0].dataset.feedback'),'waiting');
  run('now=10000;render(now)');
- const opacity=Number(run('elements[0].style.opacity'));assert.ok(opacity>0&&opacity<1);
+ assert.equal(run('elements[0].style.opacity'),'1');
  send([0x90,pitches[1],100]);send([0x90,pitches[2],100]);
- assert.equal(Number(run('elements[0].style.opacity')),opacity);
+ assert.equal(run('elements[0].dataset.feedback'),'correct');
+ assert.equal(run('elements[0].style.opacity'),'0.5');
  send([0x90,0,100]);
  assert.equal(run('elements[0].dataset.feedback'),'wrong');
  assert.equal(run('elements[0].style.opacity'),'1');
@@ -284,6 +286,40 @@ test('correct MIDI notes fade until handoff; any later wrong note restores a per
  assert.equal(run('elements[0].style.opacity'),'1');
  run('now=12000;render(now)');assert.equal(run('elements[0].hidden'),true);
  assert.equal(run('elements[1].dataset.feedback'),'waiting');
+});
+
+
+test('answers completed in the advance window fade only after visual touch',async()=>{
+ for(const stage of [0,5]){
+  const {run,send}=midiSession();await run('connectMidi()');
+  run(`stageIndex=${stage};reset();play();now=7820;render(now)`);
+  const targets=JSON.parse(run('JSON.stringify(cards[0].targets)'));
+  for(const pitch of targets)send([0x90,pitch,100]);
+  assert.equal(run('cards[0].feedback'),'correct');
+  assert.ok(Math.abs(Number(run('elements[0].style.opacity'))-1)<1e-9);
+  run('now=8000;render(now)');assert.ok(Math.abs(Number(run('elements[0].style.opacity'))-1)<1e-9);
+  run('now=10000;render(now)');assert.ok(Math.abs(Number(run('elements[0].style.opacity'))-.5)<1e-9);
+ }
+});
+
+test('partial chords stay opaque through settlement and disappear only at visual handoff',async()=>{
+ for(const count of [1,2]){
+  const {run,send}=midiSession();await run('connectMidi()');
+  run('play();now=7820;render(now)');
+  const targets=JSON.parse(run('JSON.stringify(cards[0].targets)'));
+  for(const pitch of targets.slice(0,count)){
+   send([0x90,pitch,100]);send([0x80,pitch,0]);
+  }
+  for(const time of [8000,10000,11820,11999]){
+   run(`now=${time};render(now)`);
+   assert.equal(run('elements[0].dataset.feedback'),'waiting');
+   assert.equal(run('elements[0].style.opacity'),'1');
+   assert.equal(run('elements[0].hidden'),false);
+  }
+  assert.equal(run('cards[0].ended'),true);
+  assert.equal(run('run.correct'),0);
+  run('now=12000;render(now)');assert.equal(run('elements[0].hidden'),true);
+ }
 });
 
 test('first wrong attack is sticky; note-off and pedal never judge; restart clears feedback',async()=>{
@@ -307,25 +343,26 @@ test('single-note practice requires exact pitch, freezes while paused, and hides
  assert.equal(run('elements[0].style.opacity'),opacity);assert.equal(run('cards[0].feedback'),'correct');
  run('play();now=71999;render(now)');assert.ok(Number(run('elements[0].style.opacity'))<.001);
  run('now=72000;render(now)');assert.equal(run('elements[0].hidden'),true);
- run('now=72300');send([0x90,run('cards[1].root')+12,100]);
+ // Release the first target: the next octave-error note may equal that held key.
+ send([0x80,root,0]);run('now=72300');send([0x90,run('cards[1].root')+12,100]);
  assert.equal(run('cards[1].feedback'),'wrong');
 });
 
 
 
- test('unplayed labels fade from touch until the next touch',()=>{
+ test('unplayed labels stay opaque from touch until the next touch',()=>{
  const {run}=session();run('play();now=8000;render(now)');
  assert.equal(run('elements[0].style.opacity'),'1');
- run('now=10000;render(now)');assert.equal(run('elements[0].style.opacity'),'0.5');
+ run('now=10000;render(now)');assert.equal(run('elements[0].style.opacity'),'1');
  assert.equal(run('cards[0].feedback'),undefined);
- run('now=11999;render(now)');assert.ok(Number(run('elements[0].style.opacity'))<.001);
+ run('now=11999;render(now)');assert.equal(run('elements[0].style.opacity'),'1');
  run('now=12000;render(now)');assert.equal(run('elements[0].hidden'),true);
  assert.equal(run('elements[1].style.opacity'),'1');
  });
 
 test('pause shows only the current label at full brightness and resume restores the scene',()=>{
  for(const stage of [0,5]){
-  const {run}=session();run(`stageIndex=${stage};reset();play();now=10000;render(now)`);
+  const {run}=session();run(`stageIndex=${stage};reset();play();cards[0].feedback='correct';now=10000;render(now)`);
   assert.equal(run('elements[0].style.opacity'),'0.5');
   const positions=run('JSON.stringify(elements.slice(0,3).map(el=>el.style.transform))');
   assert.equal(run('elements[1].hidden'),false);
@@ -437,12 +474,12 @@ test('blocked MIDI launch never produces a rating; five dismissed prompts preser
  for(let i=0;i<5;i++){run('play()');assert.equal(run('run.started'),false);assert.equal(run('Object.keys(results).length'),0);nodes.get('midi-warning-close').handlers.click({stopPropagation(){}});}
  run('play();complete()');assert.equal(run('Object.keys(results).length'),1);assert.equal(alerts.length,0);
 });
-test('complete arpeggio counts correct at trailing settlement and lowers chord weakness exactly once',async()=>{
+test('complete arpeggio counts correct at early settlement and lowers chord weakness exactly once',async()=>{
  const {run,send}=midiSession();await run('connectMidi()');run('selectStage(21);play();now=9000;render(now);levels[cards[0].id]=2');
  for(const note of JSON.parse(run('JSON.stringify(cards[0].targets)'))){send([0x90,note,100]);send([0x80,note,0]);}
  assert.equal(run('run.correct'),0);assert.equal(run('levels[cards[0].id]'),2);
- run('now=12180;render(now)');assert.equal(run('run.total'),0);
- run('now=12181;render(now)');assert.equal(run('run.total'),1);assert.equal(run('run.correct'),1);assert.equal(run('levels[cards[0].id]'),1);
+ run('now=11819;render(now)');assert.equal(run('run.total'),0);
+ run('now=11820;render(now)');assert.equal(run('run.total'),1);assert.equal(run('run.correct'),1);assert.equal(run('levels[cards[0].id]'),1);
  run('now=13000;render(now)');assert.equal(run('levels[cards[0].id]'),1);
 });
 test('silent, partial, wrong, and assisted responses have separate accuracy, weakness, and color outcomes',async()=>{
@@ -456,11 +493,11 @@ test('silent, partial, wrong, and assisted responses have separate accuracy, wea
   assert.equal(run('cards[0].wrong'),mode==='wrong',mode);assert.equal(run('levels[cards[0].id]'),mode==='wrong'?3:2,mode);
  }
 });
-test('MIDI overlap credits shared fresh attacks to both questions but held notes and note-offs never answer',async()=>{
+test('MIDI early switch credits only next question; held notes and note-offs never answer',async()=>{
  const {run,send}=midiSession();await run('connectMidi()');run("selectStage(21);play();while(cards.length<2)appendCard();cards[0]=prepareAttempt({kind:'chord',id:'chord:C:0:0',root:60,q:0,inv:0});cards[1]=prepareAttempt({kind:'chord',id:'chord:A:1:0',root:57,q:1,inv:0});now=11900");
  for(const note of [60,64,67,57,66]){send([0x90,note,100]);send([0x80,note,0]);}
- assert.equal(run('cards[0].feedback'),'correct');assert.equal(run('cards[1].feedback'),'correct');
- run('now=12181;render(now)');assert.equal(run('run.correct'),1);
+ assert.equal(run('cards[0].hits.size'),0);assert.equal(run('cards[0].ended'),true);assert.equal(run('cards[1].feedback'),'wrong');
+ run('now=12181;render(now)');assert.equal(run('run.correct'),0);
  // A key pressed before the next ordinary interval is not a new attack while held.
  send([0x90,60,100]);run('cards[1].hits.clear();now=13000');send([0x90,60,100]);assert.equal(run('cards[1].hits.size'),0);
  send([0x90,60,0]);send([0x90,60,100]);assert.equal(run('cards[1].hits.has(60)'),true);
@@ -478,4 +515,67 @@ test('mouse drag scrolls without selecting; click and keyboard activation still 
 
 test('refreshing an empty MIDI device list does not pause an authorized no-MIDI session',()=>{
  const {run}=session({},false);run('midiStartWarnings=5;play();midiAccess={inputs:new Map()};syncMidiInputs()');assert.equal(run('running'),true);
+});
+
+test('timing captures fresh attacks only, persists on pause, and survives restart',()=>{
+ const saved=new Map(),localStorage={getItem:key=>saved.get(key)??(key==='voicing-bpm'?'60':null),setItem:(key,value)=>saved.set(key,value)};
+ const {run,nodes}=session({localStorage});
+ run("play();now=11820;receiveMidi('fixture',{data:[144,60,100],timeStamp:11800});receiveMidi('fixture',{data:[144,60,90],timeStamp:11810});receiveMidi('fixture',{data:[128,60,0],timeStamp:11820});now=13000;pause();openSettings()");
+ assert.equal(run('timingRun.events.length'),1);assert.equal(run('timingRun.events[0].queueDelayMs'),20);
+ assert.ok(nodes.get('timing-summary').textContent.includes('已记录 1 次按键'));
+ assert.equal(JSON.parse(saved.get(timing.TIMING_KEY)).runs[0].events.length,1);
+ run("now=14000;receiveMidi('fixture',{data:[144,62,100],timeStamp:14000});reset()");
+ assert.equal(run('timingRuns[0].events.length'),1);
+ const restored=session({localStorage});assert.equal(restored.run('timingRuns[0].events.length'),1);
+});
+test('timing persistence failures remain visible without interrupting training',()=>{
+ const {run,nodes}=session({localStorage:{getItem(){return null;},setItem(){throw new Error('quota');}}});
+ run('play();now=12000;judgeMidi(60);pause();openSettings()');
+ assert.equal(run('timingStorageFailed'),true);assert.ok(nodes.get('timing-storage').textContent.includes('本地保存失败'));
+ assert.equal(run('timingRun.events.length'),1);
+});
+test('timing export contains raw records and recomputable analysis',async()=>{
+ let blob,revoked;
+ const {run,nodes}=session({Blob,URL:{createObjectURL(value){blob=value;return 'blob:test';},revokeObjectURL(value){revoked=value;}},setTimeout(fn){fn();}});
+ run('play();now=11820;judgeMidi(60);now=13000;pause()');
+ nodes.get('timing-export').handlers.click();
+ const payload=JSON.parse(await blob.text());assert.equal(payload.schema,1);assert.equal(payload.summary.recorded,1);
+ assert.equal(payload.runs[0].events[0].observation.offsetMs,-180);assert.equal(revoked,'blob:test');
+ assert.deepEqual(timing.analyzeTiming(timing.loadTiming(payload)),payload.summary);
+});
+
+test('paused labels and keyboard answers follow visual touch across the early judgment switch',()=>{
+ for(const stage of [0,5])for(const time of [11819,11820,11999,12000]){
+  const {run}=session();run(`stageIndex=${stage};reset();play();now=${time};render(now)`);
+  const visualIndex=time<12000?0:1;
+  const judgmentIndex=time<11820?0:1;
+  assert.equal(run('activeQuestionIndex(cards,sessionSeconds)'),judgmentIndex);
+  run('pause()');
+  assert.equal(run('elements.filter(el=>!el.hidden).length'),1);
+  assert.equal(run(`elements[${visualIndex}].hidden`),false);
+  assert.equal(run(`cards[${visualIndex}].assisted`),true);
+  assert.equal(run(`cards[${1-visualIndex}].assisted`),false);
+  assert.equal(run(`Array.from(answerDots).every(([n,dot])=>dot.hidden===!cards[${visualIndex}].targets.includes(n))`),true);
+  const total=run('run.total'),seconds=run('sessionSeconds');
+  run('now=60000;render(now)');assert.equal(run('sessionSeconds'),seconds);
+  run('play()');assert.equal(run('run.total'),total);
+  assert.equal(run('activeQuestionIndex(cards,sessionSeconds)'),judgmentIndex);
+ }
+});
+test('paused tempo changes freeze judgement; resume cannot reopen settled answers',()=>{
+ const {run,nodes}=session();run('play();now=11830;pause()');
+ nodes.get('speed').value=40;nodes.get('speed').handlers.change();
+ assert.equal(run('activeQuestionIndex(cards,sessionSeconds)'),1);assert.equal(run('run.total'),1);
+ run('now=50000;play();now=50010;render(now)');assert.equal(run('activeQuestionIndex(cards,sessionSeconds)'),1);assert.equal(run('run.total'),1);
+});
+test('faster tempo on resume switches immediately without backdating the frozen window',()=>{
+ const {run,nodes}=session();run('play();now=11700;pause()');
+ nodes.get('speed').value=140;nodes.get('speed').handlers.change();
+ assert.equal(run('activeQuestionIndex(cards,sessionSeconds)'),0);assert.equal(run('run.total'),0);
+ run('now=50000;play()');assert.equal(run('cards[0].endAt'),11.7);assert.equal(run('cards[1].startAt'),11.7);assert.equal(run('run.total'),1);
+});
+test('final arpeggio note at the shifted boundary belongs only to the next question',()=>{
+ const {run}=session();run("play();while(cards.length<2)appendCard();cards[0]=prepareAttempt({kind:'chord',id:'first',root:60,q:0,inv:0});cards[1]=prepareAttempt({kind:'chord',id:'second',root:60,q:0,inv:0});now=11000;judgeMidi(60);judgeMidi(64);now=11820;judgeMidi(67)");
+ assert.equal(run('run.total'),1);assert.equal(run('run.correct'),0);assert.equal(run('cards[0].hits.has(67)'),false);assert.equal(run('cards[1].hits.has(67)'),true);
+ run('pause();complete()');assert.equal(run('run.total'),1);
 });

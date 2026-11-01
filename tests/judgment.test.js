@@ -1,32 +1,46 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {prepareAttempt,stampBoundaries,attackTargets,applyAttack,isCorrect,canSettle} from '../dist/judgment.js';
+import {prepareAttempt,stampBoundaries,attackTargets,applyAttack,isCorrect,canSettle,activeQuestionIndex} from '../dist/judgment.js';
 function pair(){return [prepareAttempt({kind:'chord',root:60,q:0,inv:0}),prepareAttempt({kind:'chord',root:57,q:1,inv:0})];}
-test('arpeggios accumulate every target in any order; partial and silent responses are not correct',()=>{
- const [c]=pair();assert.equal(isCorrect(c),false);applyAttack(c,67,false);applyAttack(c,60,false);applyAttack(c,60,false);assert.equal(isCorrect(c),false);assert.equal(c.feedback,undefined);
- applyAttack(c,64,false);assert.equal(isCorrect(c),true);applyAttack(c,61,false);assert.equal(isCorrect(c),false);assert.equal(c.feedback,'wrong');applyAttack(c,64,true);assert.equal(c.feedback,'wrong');
+test('arpeggios accumulate every target; later wrong notes are sticky',()=>{
+ const [c]=pair();assert.equal(isCorrect(c),false);applyAttack(c,67);applyAttack(c,60);applyAttack(c,60);assert.equal(isCorrect(c),false);
+ applyAttack(c,64);assert.equal(isCorrect(c),true);applyAttack(c,61);assert.equal(isCorrect(c),false);assert.equal(c.feedback,'wrong');applyAttack(c,64);assert.equal(c.feedback,'wrong');
 });
-test('overlap credits both questions and tolerates non-target notes at all five tempos',()=>{
- for(const bpm of [40,60,90,120,140])for(const delta of [-.18,-.179,0,.179,.18]){
-  const cards=pair(),seconds=3*240/bpm+delta,progress=seconds*bpm/240;stampBoundaries(cards,0,progress,0,bpm);
-  const target=attackTargets(cards,progress,seconds,bpm);assert.deepEqual(target,{indices:[0,1],tolerant:true});
-  for(const note of [60,64,67,57,66])for(const i of target.indices)applyAttack(cards[i],note,target.tolerant);
-  assert.ok(cards.every(isCorrect));assert.ok(cards.every(c=>!c.wrong));
+test('every tempo switches once at -180ms, with no overlap or immunity',()=>{
+ for(const bpm of [40,60,90,120,140])for(const delta of [-.181,-.18,-.179,0,.179,.18]){
+  const cards=pair(),seconds=3*240/bpm+delta,progress=seconds*bpm/240;
+  stampBoundaries(cards,0,progress,0,bpm);
+  const index=delta<-.18?0:1,target=attackTargets(cards,seconds);assert.deepEqual(target,{indices:[index]});
+  applyAttack(cards[index],60);assert.equal(cards[index].hits.has(60),true);assert.equal(cards[1-index].hits.size,0);
+  applyAttack(cards[index],66);assert.equal(cards[index].wrong,true);assert.equal(cards[1-index].wrong,false);
+  assert.equal(canSettle(cards[0],seconds),index===1);
  }
 });
-test('outside overlap wrong notes affect only current question; old errors are sticky',()=>{
- for(const [delta,index] of [[-.181,0],[.181,1]]){
-  const cards=pair(),seconds=12+delta;stampBoundaries(cards,0,seconds/4,0,60);
-  const target=attackTargets(cards,seconds/4,seconds,60);assert.deepEqual(target,{indices:[index],tolerant:false});applyAttack(cards[index],66,false);assert.equal(cards[index].wrong,true);assert.equal(cards[1-index].wrong,false);
- }
+test('first window starts early and immediately counts incorrect notes',()=>{
+ const cards=pair();stampBoundaries(cards,0,7.819/4,0,60);assert.deepEqual(attackTargets(cards,7.819).indices,[]);
+ stampBoundaries(cards,7.819/4,7.82/4,7.819,60);assert.deepEqual(attackTargets(cards,7.82).indices,[0]);
+ applyAttack(cards[0],66);assert.equal(cards[0].wrong,true);
 });
-test('settlement waits for trailing grace and BPM changes cannot shorten it',()=>{
- const cards=pair();stampBoundaries(cards,0,3,0,60);assert.equal(cards[0].endAt,12);
- assert.equal(canSettle(cards[0],12.18),false);assert.equal(canSettle(cards[0],12.181),true);
- stampBoundaries(cards,3,3.05,12,140);assert.equal(cards[0].endAt,12);
- const target=attackTargets(cards,3.05,12+.05*240/140,140);assert.deepEqual(target.indices,[0,1]);
+test('fixed tempo windows preserve duration and use inclusive start, exclusive end',()=>{
+ const cards=pair();stampBoundaries(cards,0,4,0,60);
+ assert.equal(cards[0].startAt,7.82);assert.equal(cards[0].endAt,11.82);assert.equal(cards[1].startAt,11.82);
+ assert.equal(cards[0].endAt-cards[0].startAt,4);
+ assert.equal(canSettle(cards[0],11.819),false);assert.equal(canSettle(cards[0],11.82),true);
+ cards[0].ended=true;applyAttack(cards[0],60);assert.equal(cards[0].hits.size,0);
 });
-test('lead-in only accepts early correct notes near the first touch, no false errors',()=>{
- const cards=pair();assert.deepEqual(attackTargets(cards,1,4,60).indices,[]);
- const target=attackTargets(cards,7.9/4,7.9,60);assert.deepEqual(target,{indices:[0],tolerant:true});
- applyAttack(cards[0],60,true);applyAttack(cards[0],66,true);assert.equal(cards[0].wrong,false);
+test('slowing down after a committed boundary never reopens the previous question',()=>{
+ const cards=pair();stampBoundaries(cards,0,11.83/4,0,60);cards[0].ended=true;
+ stampBoundaries(cards,11.83/4,11.83/4,11.83,40);
+ assert.equal(cards[0].endAt,11.82);assert.equal(cards[1].startAt,11.82);assert.equal(activeQuestionIndex(cards,11.83),1);
+ stampBoundaries(cards,11.83/4,3.5,11.83,40);assert.equal(cards[0].endAt,11.82);
+});
+test('speeding up can commit a boundary now but never backdate it',()=>{
+ const cards=pair();stampBoundaries(cards,0,11.7/4,0,60);
+ stampBoundaries(cards,11.7/4,11.7/4,11.7,140);
+ assert.equal(cards[0].endAt,11.7);assert.equal(cards[1].startAt,11.7);assert.equal(activeQuestionIndex(cards,11.7),1);
+});
+test('delayed frames stamp every ended question and settle only once',()=>{
+ const cards=Array.from({length:10},()=>pair()[0]);stampBoundaries(cards,0,8,0,60);
+ const ended=cards.filter(c=>canSettle(c,32));assert.equal(ended.length,6);
+ for(const c of ended)c.ended=true;
+ assert.equal(cards.filter(c=>canSettle(c,32)).length,0);assert.equal(activeQuestionIndex(cards,32),6);
 });

@@ -49,3 +49,5 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 /* Pause reveals the current label at its original brightness. */
 .instrument[data-running="false"] .card:not([data-feedback="wrong"]) .chord{color:#e2f4cf}
 .instrument[data-running="false"] .card .halo{opacity:1}
+
+.timing-stats{border-top:1px solid #425148;padding-top:16px}.timing-stats h3{font-size:14px;font-weight:500;margin:0 0 10px}.timing-stats p{font-size:12px;line-height:1.7;color:var(--muted);margin:8px 0}.timing-stats button{margin-top:6px}

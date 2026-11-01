@@ -1,13 +1,40 @@
 import {stages,notes,initialStage,names,qualities,inversions} from './theory.js';
 import {Scheduler,cleanLevels} from './scheduler.js';
 import {VERSION,SPEEDS,TOTAL_SECONDS,normalizeBpm,createRun,recordConditions,calculateScore,cleanResults} from './scoring.js';
-import {prepareAttempt,stampBoundaries,attackTargets,applyAttack,isCorrect,canSettle} from './judgment.js';
+import {JUDGMENT_POLICY,activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,applyAttack,isCorrect,canSettle} from './judgment.js';
+import {TIMING_KEY,MAX_TIMING_EVENTS,createTimingRun,addTimingSegment,recordTimingAttack,analyzeTiming,trimTiming,loadTiming,timingObservation} from './timing.js';
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
 let stageIndex=initialStage(read('voicing-route-stage',null),read('voicing-stage',null),read('voicing-note-black-only',false));
 const levels=cleanLevels(read('voicing-weakness-v1',{}));
 const results=cleanResults(read('voicing-results-v1',{}),stages.map(s=>s.id));
+let timingRuns=loadTiming(read(TIMING_KEY,null)),timingRun=null,timingDirty=false,timingSavedAt=0,timingStorageFailed=false;
+function persistTiming(){
+ if(!timingDirty)return;
+ timingRuns=trimTiming(timingRuns);
+ try{localStorage.setItem(TIMING_KEY,JSON.stringify({schema:1,runs:timingRuns}));timingDirty=false;timingStorageFailed=false;}
+ catch{timingStorageFailed=true;}
+}
+function paintTiming(){
+ const stats=analyzeTiming(timingRuns.filter(r=>r.policy===JUDGMENT_POLICY)),percent=n=>n===null?'—':`${n.toFixed(1)}%`;
+ $('timing-summary').textContent=stats.recorded
+  ?`当前规则（提前 180ms）：已记录 ${stats.recorded} 次按键；可分析 ${stats.total} 次，涉及 ${stats.sampledBoundaries} 个分界。触线前 180ms：${stats.early180} 次（${percent(stats.early180Percent)}）；后 180ms：${stats.late180} 次（${percent(stats.late180Percent)}）；正好触线：${stats.onBoundary} 次。开场排除 ${stats.opening} 次，分界待确定 ${stats.pending} 次。`
+  :'尚无弹奏数据。开始训练后自动记录。';
+ const candidate=stats.candidates.find(c=>c.ms===180);
+ $('timing-detail').textContent=stats.total?`前 180ms 中：仅匹配下一题 ${candidate.nextOnly} 次，仅匹配上一题 ${candidate.previousOnly} 次，共有音 ${candidate.shared} 次，均不匹配 ${candidate.neither} 次。共有音不能确定换题意图。`:'';
+ $('timing-storage').textContent=timingStorageFailed?'本地保存失败，数据暂留在当前页面，请及时导出。':`旧规则数据保留在导出中。仅保存在此浏览器，保留最近 ${MAX_TIMING_EVENTS} 次按键。导出包含逐次记录、速度分组和 80／120／180／240ms 对比。`;
+ $('timing-export').disabled=!timingRuns.some(r=>r.events.length);
+}
+$('timing-export').addEventListener('click',()=>{
+ persistTiming();
+ const payload={schema:1,exportedAt:new Date().toISOString(),limit:MAX_TIMING_EVENTS,
+  reference:'Nearest actual visual question boundary in active training time; negative is early. Opening and unresolved boundaries excluded from percentages. Each fresh Note On is one sample, not one chord.',
+  summary:analyzeTiming(timingRuns),runs:timingRuns.map(r=>({...r,events:r.events.map(e=>({...e,observation:timingObservation(r,e)}))}))};
+ const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+ const link=document.createElement('a');link.href=url;link.download=`voicing-timing-${Date.now()}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ paintTiming();
+});
 let scheduler,settled=0,run=createRun();
 let bpm=normalizeBpm(read('voicing-bpm',90));
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
@@ -138,7 +165,7 @@ function receiveMidi(id,event){
  if(![0x80,0x90,0xb0].includes(command))return;
  let channels=midiHeld.get(id);if(!channels){channels=new Map();midiHeld.set(id,channels);}
  let keys=channels.get(channel);if(!keys){keys=new Set();channels.set(channel,keys);}
- if(command===0x90&&velocity>0){const fresh=!keys.has(note);keys.add(note);if(fresh)judgeMidi(note);}
+ if(command===0x90&&velocity>0){const fresh=!keys.has(note);keys.add(note);if(fresh)judgeMidi(note,{timeStamp:event.timeStamp,velocity,channel});}
  else if(command===0x80||command===0x90)keys.delete(note);
  else if(note===120||note===123||(note>=124&&note<=127))keys.clear();
  else return;
@@ -147,19 +174,22 @@ function receiveMidi(id,event){
 function paintFeedback(index){
  const card=cards[index],el=elements[index];
  el.dataset.feedback=card.feedback||'waiting';
- // Use training progress so pausing freezes the fade and tempo changes stay aligned.
- el.style.opacity=!running||card.feedback==='wrong'?'1'
+ // Silence and incomplete chords stay opaque; only a complete correct answer fades.
+ // Use visual progress, including for answers completed in the early judgment window.
+ // Pausing shows the answer at full brightness; resuming restores its visual progress.
+ el.style.opacity=!running||card.feedback!=='correct'?'1'
   :String(Math.max(0,Math.min(1,index+3-elapsed)));
 }
-function judgeMidi(note){
+function judgeMidi(note,meta={}){
  if(!running)return;
  // MIDI can arrive between animation frames; judge against the current clock.
- advance(performance.now());
+ const handledMs=performance.now();advance(handledMs);
  if(!running)return;
  while(elapsed>=cards.length)appendCard();
- const {indices,tolerant}=attackTargets(cards,elapsed,sessionSeconds,bpm);
+ if(timingRun){recordTimingAttack(timingRun,cards,note,{...meta,metronome:metronomeOn,judgmentIndex:activeQuestionIndex(cards,sessionSeconds)},handledMs);timingDirty=true;timingRuns=trimTiming(timingRuns);}
+ const {indices}=attackTargets(cards,sessionSeconds);
  for(const index of indices){
-  const card=cards[index];applyAttack(card,note,tolerant);
+  const card=cards[index];applyAttack(card,note);
   if(card.wrong&&!card.errorRecorded){card.errorRecorded=true;if(scheduler.record(card.id,'wrong'))save('voicing-weakness-v1',levels);}
   paintFeedback(index);
  }
@@ -169,7 +199,7 @@ function syncMidiInputs(){
  const hadInputs=midiInputs.size>0;
  const connected=new Map([...midiAccess.inputs.values()].filter(input=>input.state!=='disconnected').map(input=>[input.id,input]));
  for(const [id,input] of midiInputs){
-  if(connected.get(id)!==input){input.onmidimessage=null;midiInputs.delete(id);midiHeld.delete(id);const active=cards[Math.floor(elapsed-2)];if(active)active.assisted=true;}
+  if(connected.get(id)!==input){if(running)advance(performance.now());input.onmidimessage=null;midiInputs.delete(id);midiHeld.delete(id);const active=cards[activeQuestionIndex(cards,sessionSeconds)];if(active)active.assisted=true;}
  }
  for(const [id,input] of connected){
   if(midiInputs.has(id))continue;
@@ -267,10 +297,10 @@ function hidePauseControls(){
  $('settings-toggle').hidden=true;
  for(const dot of answerDots.values())dot.hidden=true;
 }
+function visualQuestionIndex(){return Math.max(0,Math.floor(elapsed-2));}
 function showAnswer(){
- // Keep the answer for the landed chord until the next one lands. During
- // the opening lead-in, reveal the first approaching chord.
- const card=cards[Math.max(0,Math.floor(elapsed-2))];
+ // Pause answers follow the landed label; before the first touch, preview question one.
+ const card=cards[visualQuestionIndex()];
  if(card)card.assisted=true;
  const pitches=card?(card.kind==='note'?[card.root]:notes(card.root,card.q,card.inv)):[];
  for(const [midi,dot] of answerDots)dot.hidden=!pitches.includes(midi);
@@ -278,6 +308,7 @@ function showAnswer(){
 function openSettings(){
  if(running||$('settings-dialog').open)return;
  updateTimer();$('session-stats').hidden=!started||finished;$('exit-training').hidden=!started||finished;
+ persistTiming();paintTiming();
  $('settings-dialog').showModal();
 }
 function showHome(){
@@ -300,6 +331,7 @@ function appendCard(){
   el.append(chord);$('falling').append(el);elements.push(el);cards.push(card);
 }
 function reset(){
+ persistTiming();timingRun=null;
  releaseScreenLock();stopMetronome();
  running=false;started=false;finished=false;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
  scheduler=new Scheduler(stages[stageIndex],{levels});
@@ -307,6 +339,7 @@ function reset(){
 }
 function pause(){
  if(!running)return;advance(performance.now());if(finished)return;
+ persistTiming();
  running=false;recordConditions(run,{paused:true,visible:true});updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();paintScene();
 }
@@ -319,12 +352,15 @@ function play(){
  if(running){pause();return;}
  if(!canStartTraining())return;
  if(finished)reset();
+ if(!timingRun){timingRun=createTimingRun(stages[stageIndex].id,VERSION);timingRuns.push(timingRun);timingRuns=trimTiming(timingRuns);}
  run.started=true;started=true;running=true;
+ stampBoundaries(cards,elapsed,elapsed,sessionSeconds,bpm);settleAnswers();updateTimer();
  recordConditions(run,{visible:!keyboardBlurOn});
  hidePauseControls();updateKeyboardBlur();previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;paintScene();
 }
 function complete(){
  if(!started||finished)return;
+ persistTiming();
  running=false;finished=true;releaseScreenLock();stopMetronome();
  const result=calculateScore(run),id=stages[stageIndex].id;
  results[id]={last:result,best:!results[id]||result.score>results[id].best.score?result:results[id].best};
@@ -345,6 +381,7 @@ function advance(now){
  if(running){
   const fromSeconds=sessionSeconds,fromProgress=elapsed;
   const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);
+  if(timingRun){addTimingSegment(timingRun,previous,previous+dt*1000,fromSeconds,fromProgress,bpm);timingDirty=true;}
   sessionSeconds+=dt;elapsed+=dt*bpm/240;
   recordConditions(run,{seconds:dt,bpm,visible:!keyboardBlurOn});
   while(elapsed>=cards.length)appendCard();
@@ -360,10 +397,10 @@ function paintScene(){
   const beats=elapsed*4,beatIndex=Math.floor(beats),phase=beats-beatIndex;
   const pulse=Math.pow(Math.max(0,1-phase/.7),2);
   $('lanes').style.setProperty('--beat-glow',String(pulse));
-  const landedIndex=Math.floor(elapsed-2);
+  const landedIndex=Math.floor(elapsed-2),pausedIndex=visualQuestionIndex();
   cards.forEach((_,i)=>{
    const progress=(elapsed-i)/2;const el=elements[i];
-   el.hidden=running?(progress<0||i<landedIndex):i!==Math.max(0,landedIndex);
+   el.hidden=running?(progress<0||i<landedIndex):i!==pausedIndex;
    el.dataset.landed=String(progress>=1);
    if(!el.hidden)paintFeedback(i);
    // Descend continuously until the 36px label meets the key edge.
@@ -377,6 +414,7 @@ function paintScene(){
 }
 function render(now){
  advance(now);
+ if(now-timingSavedAt>=5000){persistTiming();timingSavedAt=now;}
  scheduleMetronome();
  paintScene();
  requestAnimationFrame(render);
@@ -401,7 +439,9 @@ document.addEventListener('click',()=>{
 });
 $('speed').addEventListener('change',()=>{
  advance(performance.now());stopMetronome();bpm=normalizeBpm($('speed').value);$('speed').value=bpm;save('voicing-bpm',bpm);
+ if(running){stampBoundaries(cards,elapsed,elapsed,sessionSeconds,bpm);settleAnswers();updateTimer();}
 });
+globalThis.addEventListener?.('pagehide',persistTiming);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();clearMidi();}});
 const portrait=matchMedia('(orientation: portrait) and (max-width: 1100px) and (any-pointer: coarse)');portrait.addEventListener('change',e=>{if(e.matches)pause();});
 document.addEventListener('keydown',e=>{

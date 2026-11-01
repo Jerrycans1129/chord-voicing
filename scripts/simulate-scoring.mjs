@@ -43,8 +43,8 @@ for(let i=0;i<10000;i++){
 const sessions=[];
 for(const speed of SPEEDS)for(const mode of ['hidden','visible','paused','visible-paused'])for(const duration of [60,300,900,1620,1800])for(const p of [.1,.5,.8,.9,.95,1]){
  const paused=mode.includes('paused'),shownKeyboard=mode!=='hidden';
- // Lead-in takes 2 question periods. Last question settles after +180ms.
- const count=Math.max(0,Math.ceil((duration-.18)*speed.bpm/240-3));
+ // Lead-in takes 2 question periods. Each question settles 180ms before its visual end.
+ const count=Math.max(0,Math.floor((duration+.18)*speed.bpm/240-2+1e-9));
  const hist=[0,0,0,0,0,0,0];let scoreSum=0,correctSum=0;
  const n=100;
  for(let rep=0;rep<n;rep++){
@@ -65,20 +65,19 @@ for(let i=0;i<1000000;i++){
  const delta=(rng()-.5)*1.2,seconds=T+delta,progress=seconds/period;
  const cards=[prepareAttempt({kind:'chord',root:60,q:0,inv:0}),prepareAttempt({kind:'chord',root:57,q:1,inv:0})];
  stampBoundaries(cards,0,progress,0,bpm);
- const {indices,tolerant}=attackTargets(cards,progress,seconds,bpm);
- const overlap=Math.abs(delta)<=.18;
- assert.equal(tolerant,overlap);
- assert.deepEqual(indices,overlap?[0,1]:delta<0?[0]:[1]);
+ const {indices}=attackTargets(cards,seconds);
+ const previous=delta<-.18;
+ assert.deepEqual(indices,previous?[0]:[1]);
  const note=[57,60,64,66,67][Math.floor(rng()*5)];
- for(const index of indices)applyAttack(cards[index],note,tolerant);
+ for(const index of indices)applyAttack(cards[index],note);
  for(let index=0;index<2;index++){
-  const active=overlap||(delta<0?index===0:index===1),expectedHit=active&&cards[index].targets.includes(note);
+  const active=previous?index===0:index===1,expectedHit=active&&cards[index].targets.includes(note);
   assert.equal(cards[index].hits.has(note),expectedHit);
-  assert.equal(cards[index].wrong,active&&!overlap&&!cards[index].targets.includes(note));
+  assert.equal(cards[index].wrong,active&&!cards[index].targets.includes(note));
  }
  if(cards.every(c=>c.hits.size))timing.both++;
  else if(cards[0].hits.size)timing.previousOnly++;else if(cards[1].hits.size)timing.nextOnly++;
- if(overlap&&note===66)timing.ignoredNonTargets++;
+ if(note===66&&!cards.some(c=>c.wrong))timing.ignoredNonTargets++;
  eventCases++;
 }
 const examples=[
@@ -87,6 +86,6 @@ const examples=[
  ['标准、全对、15分钟',base({seconds:900})],['标准、全对、27分钟',base({seconds:1620})],['标准、仅显示琴键、全对',base({shownKeyboard:true})]
 ].map(([name,run])=>({name,...calculateScore(run)}));
 assert.equal(examples[5].stars,3);assert.equal(examples[6].stars,3);
-const report={version:'0.2.0',seed:20261101,gridCases,historyCases,simulatedSessions:sessions.length*100,simulatedQuestions,eventCases,assertions:'passed',examples,caps,timing,sessions,limitations:['Validates mechanical consistency and consequences, not empirical learning efficacy.','Displaying the keyboard alone permits 3 stars only at 100% accuracy in a full standard-speed run.','At 100% accuracy, 27/30 minutes in otherwise unassisted standard conditions reaches 3 stars.','Shared notes inside grace intentionally count for both questions; non-target notes there intentionally never cause red feedback.','The same latent accuracy can land on either side of a star threshold because finite question samples vary.']};
+const report={version:'0.2.0',judgmentPolicy:'advance-180ms',seed:20261101,gridCases,historyCases,simulatedSessions:sessions.length*100,simulatedQuestions,eventCases,assertions:'passed',examples,caps,timing,sessions,limitations:['Validates mechanical consistency and consequences, not empirical learning efficacy.','Displaying the keyboard alone permits 3 stars only at 100% accuracy in a full standard-speed run.','At 100% accuracy, 27/30 minutes in otherwise unassisted standard conditions reaches 3 stars.','Each attack belongs to exactly one shifted window; shared notes never count twice and non-target notes are errors.','The same latent accuracy can land on either side of a star threshold because finite question samples vary.']};
 writeFileSync(new URL('../reports/scoring-simulation.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify({gridCases,historyCases,simulatedSessions:report.simulatedSessions,simulatedQuestions,eventCases,assertions:report.assertions,examples:examples.map(e=>({name:e.name,score:e.score,stars:e.stars})),nearThreshold:sessions.filter(s=>s.bpm===90&&s.mode==='hidden'&&s.seconds===1800&&[.9,.95].includes(s.successProbability))},null,2));
