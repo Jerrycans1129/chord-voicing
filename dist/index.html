@@ -4,9 +4,12 @@
 <div id="lanes"></div><div id="falling"></div>
 <section id="overlay" aria-label="训练主页">
 <header class="app-heading"><h1>VOICING <span>和弦转位训练</span></h1><span id="version"></span></header>
-<div class="home-content"><nav id="route" aria-label="可拖动的训练链"></nav>
-<div class="stage-summary"><h2 id="selected-stage"></h2><p id="stage-detail"></p><p id="last-result" hidden></p></div></div>
-<div class="home-action"><button id="overlay-action" class="primary" type="button">开始训练</button></div>
+<div class="home-content"><nav id="route" aria-label="训练路线">
+<svg id="route-branches" aria-hidden="true"><path id="branch-top"/><path id="branch-quality"/></svg>
+<div class="route-heading"><div id="route-top" class="route-row" aria-label="训练类别"></div><button id="overlay-action" class="primary" type="button">开始训练</button></div>
+<div id="route-second" class="route-row" aria-label="训练内容"></div>
+<div id="route-third" class="route-row" aria-label="根音位置"></div>
+</nav></div>
 </section>
 <button id="settings-toggle" class="secondary" type="button" aria-label="打开训练设置" title="训练设置"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m9 3-.6 2.2-2 .9-2-.6-2 3.5 1.5 1.6v2.8L2.4 15l2 3.5 2-.6 2 .9L9 21h4l.6-2.2 2-.9 2 .6 2-3.5-1.5-1.6v-2.8l1.5-1.6-2-3.5-2 .6-2-.9L13 3Z"/><circle cx="11" cy="12" r="3"/></svg></button>
 <div id="strike"></div><div id="keyboard" aria-label="无音名标记的钢琴参照键盘"></div><div id="keyboard-frost" aria-hidden="true" hidden></div>

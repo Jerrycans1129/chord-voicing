@@ -2,17 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-import {stages,notes,initialStage,names,qualities,inversions} from '../dist/theory.js';
+import * as theory from '../dist/theory.js';
+import {BUILD_REVISION} from '../dist/build.js';
 import {Scheduler,cleanLevels} from '../dist/scheduler.js';
 import * as scoring from '../dist/scoring.js';
 import * as judgment from '../dist/judgment.js';
 import * as timing from '../dist/timing.js';
 function session(extras={},connected=true){
  const nodes=new Map(),documentHandlers={},alerts=[];
- const element=()=>({open:false,click(){this.clicked=true;},showModal(){this.open=true;},close(){this.open=false;},style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},children:[],append(...items){this.children.push(...items);},replaceChildren(){this.children=[];},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},queries:new Map(),querySelector(selector){if(!this.queries.has(selector))this.queries.set(selector,element());return this.queries.get(selector);},scrollLeft:0,scrollIntoView(){},setPointerCapture(){},hasPointerCapture(){return false;},releasePointerCapture(){}});
+ const element=()=>({open:false,click(){this.clicked=true;},showModal(){this.open=true;},close(){this.open=false;},style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},children:[],append(...items){this.children.push(...items);},replaceChildren(...items){this.children=[...items];},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},queries:new Map(),querySelector(selector){if(!this.queries.has(selector))this.queries.set(selector,element());return this.queries.get(selector);},scrollLeft:0,scrollIntoView(){},setPointerCapture(){},hasPointerCapture(){return false;},releasePointerCapture(){}});
  const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
- const context=vm.createContext({alert:message=>alerts.push(message),stages,notes,initialStage,names,qualities,inversions,Scheduler,cleanLevels,...scoring,...judgment,...timing,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
+ const context=vm.createContext({alert:message=>alerts.push(message),...theory,BUILD_REVISION,Scheduler,cleanLevels,...scoring,...judgment,...timing,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
+ if(!extras.localStorage)vm.runInContext('selectStage(5)',context);
  if(connected)vm.runInContext("midiInputs.set('fixture',{state:'connected'})",context);
  return {run:code=>vm.runInContext(code,context),nodes,documentHandlers,alerts};
 }
@@ -462,9 +464,9 @@ test('actual running speed is latched, homepage choices and transient paused cho
 });
 test('zero-question exit creates a zero-star result; best rating survives later worse attempts and reload',()=>{
  const stored=new Map();const localStorage={getItem:k=>stored.get(k)??null,setItem:(k,v)=>stored.set(k,v)};
- const {run,nodes}=session({localStorage});assert.equal(nodes.get('last-result').hidden,true);
+ const {run,nodes}=session({localStorage});assert.equal(run('Object.keys(results).length'),0);
  run('play();pause();openSettings()');nodes.get('exit-training').handlers.click({stopPropagation(){}});
- assert.equal(run("results['notes-two'].last.stars"),0);assert.equal(run('run.total'),0);assert.equal(nodes.get('last-result').hidden,false);
+ assert.equal(run("results['notes-two'].last.stars"),0);assert.equal(run('run.total'),0);assert.equal(nodes.get('overlay-action').disabled,false);
  run('play();run.seconds=1800;run.total=100;run.correct=95;run.minBpm=90;complete()');assert.equal(run("results['notes-two'].best.stars"),3);
  run('play();pause();complete()');assert.equal(run("results['notes-two'].last.stars"),0);assert.equal(run("results['notes-two'].best.stars"),3);
  const reload=session({localStorage});assert.equal(reload.run("results['notes-two'].best.stars"),3);
@@ -507,7 +509,7 @@ test('disconnect pauses immediately and a partial last question is not settled o
  run('complete()');assert.equal(run('run.total'),0);
 });
 test('mouse drag scrolls without selecting; click and keyboard activation still select',()=>{
- const {run,nodes}=session();const route=nodes.get('route');
+ const {run,nodes}=session();const route=nodes.get('route-second');
  route.handlers.pointerdown({pointerType:'mouse',button:0,pointerId:1,clientX:300});route.handlers.pointermove({pointerId:1,clientX:100,preventDefault(){}});route.handlers.pointerup({pointerId:1});
  assert.equal(route.scrollLeft,200);let prevented=false;route.handlers.click({detail:1,preventDefault(){prevented=true;},stopPropagation(){}});assert.equal(prevented,true);
  run('routeNodes[1].handlers.click()');assert.equal(run('stageIndex'),1);
@@ -578,4 +580,39 @@ test('final arpeggio note at the shifted boundary belongs only to the next quest
  const {run}=session();run("play();while(cards.length<2)appendCard();cards[0]=prepareAttempt({kind:'chord',id:'first',root:60,q:0,inv:0});cards[1]=prepareAttempt({kind:'chord',id:'second',root:60,q:0,inv:0});now=11000;judgeMidi(60);judgeMidi(64);now=11820;judgeMidi(67)");
  assert.equal(run('run.total'),1);assert.equal(run('run.correct'),0);assert.equal(run('cards[0].hits.has(67)'),false);assert.equal(run('cards[1].hits.has(67)'),true);
  run('pause();complete()');assert.equal(run('run.total'),1);
+});
+
+test('navigation clears selection for unavailable parents and placeholder; distant leaves remain free',()=>{
+ const {run,nodes}=session({localStorage:{getItem(){return null;},setItem(){}}});
+ assert.equal(run('stageIndex'),0);assert.equal(run('expandedTop'),'notes-all');
+ run("selectNode('chords-all');play()");assert.equal(run('stageIndex'),-1);assert.equal(run('started'),false);assert.equal(nodes.get('overlay-action').disabled,true);
+ run("selectNode('quality-8')");assert.equal(run('expandedQuality'),'quality-8');assert.equal(nodes.get('route-third').children.length,4);
+ run("selectNode('chord-8-3');play()");assert.equal(run('started'),true);assert.equal(run('cards[0].targets.length'),4);
+ run("complete();selectNode('practice');play()");assert.equal(run('started'),false);assert.equal(nodes.get('route-second').hidden,true);assert.equal(nodes.get('route-third').hidden,true);
+});
+test('eligible parent mixes only its own children and receives independent results',()=>{
+ const {run,nodes}=session();
+ run("for(const child of curriculum[0].children)results[child.id]={best:{stars:3}};selectNode('notes-all')");
+ assert.equal(nodes.get('overlay-action').disabled,false);assert.equal(run('scheduler.items.length'),17);
+ run('play();complete()');assert.equal(run("results['notes-all'].best.stars"),0);assert.equal(run("results['notes-two'].best.stars"),3);
+});
+test('reopening follows postorder progress, including a newly available parent',()=>{
+ const full={started:true,seconds:1800,total:100,correct:100,minBpm:90,paused:false,shownKeyboard:false};
+ const saved=Object.fromEntries(theory.curriculum[0].children.map(n=>[n.id,{last:full,best:full}]));
+ const {run}=session({localStorage:{getItem(key){return key==='voicing-results-v1'?JSON.stringify(saved):null;},setItem(){}}});
+ assert.equal(run("stages[stageIndex].id"),'notes-all');assert.equal(run('expandedTop'),'notes-all');
+});
+test('all new four-note qualities require the fourth MIDI attack before correctness',()=>{
+ for(let q=4;q<=8;q++)for(let inv=0;inv<4;inv++){
+  const {run}=session();run(`selectNode('chord-${q}-${inv}');play();now=9000;render(now)`);
+  run('for(const note of cards[0].targets.slice(0,3))judgeMidi(note)');assert.equal(run('cards[0].hits.size'),3);assert.notEqual(run('cards[0].feedback'),'correct');
+  run('judgeMidi(cards[0].targets[3])');assert.equal(run('cards[0].feedback'),'correct');
+ }
+});
+test('startup expands all ancestors and children of the next quality mixture',()=>{
+ const full={started:true,seconds:1800,total:100,correct:100,minBpm:90,paused:false,shownKeyboard:false};
+ const saved=Object.fromEntries(theory.stages.slice(0,8).map(n=>[n.id,{last:full,best:full}]));
+ const {run,nodes}=session({localStorage:{getItem:key=>key==='voicing-results-v1'?JSON.stringify(saved):null,setItem(){}}});
+ assert.equal(run("stages[stageIndex].id"),'quality-0');assert.equal(run('expandedTop'),'chords-all');assert.equal(run('expandedQuality'),'quality-0');
+ assert.equal(nodes.get('route-third').children.length,3);assert.equal(nodes.get('overlay-action').disabled,false);
 });

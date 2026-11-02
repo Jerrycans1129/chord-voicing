@@ -1,4 +1,5 @@
-import {stages,notes,initialStage,names,qualities,inversions} from './theory.js';
+import {stages,notes,names,qualities,curriculum,selectable,currentProgress,migrateResults} from './theory.js';
+import {BUILD_REVISION} from './build.js';
 import {Scheduler,cleanLevels} from './scheduler.js';
 import {VERSION,SPEEDS,TOTAL_SECONDS,normalizeBpm,createRun,recordConditions,calculateScore,cleanResults} from './scoring.js';
 import {JUDGMENT_POLICY,activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,applyAttack,isCorrect,canSettle} from './judgment.js';
@@ -6,9 +7,11 @@ import {TIMING_KEY,MAX_TIMING_EVENTS,createTimingRun,addTimingSegment,recordTimi
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
-let stageIndex=initialStage(read('voicing-route-stage',null),read('voicing-stage',null),read('voicing-note-black-only',false));
 const levels=cleanLevels(read('voicing-weakness-v1',{}));
-const results=cleanResults(read('voicing-results-v1',{}),stages.map(s=>s.id));
+const results=cleanResults(migrateResults(read('voicing-results-v1',{})),stages.map(s=>s.id));
+let stageIndex=currentProgress(results);
+let expandedTop=stages[stageIndex].kind==='note'?'notes-all':'chords-all';
+let expandedQuality=stages[stageIndex].id.startsWith('quality-')?stages[stageIndex].id:stages[stageIndex].parent?.startsWith('quality-')?stages[stageIndex].parent:null;
 let timingRuns=loadTiming(read(TIMING_KEY,null)),timingRun=null,timingDirty=false,timingSavedAt=0,timingStorageFailed=false;
 function persistTiming(){
  if(!timingDirty)return;
@@ -234,7 +237,7 @@ $('midi-warning-connect').addEventListener('click',event=>{event.stopPropagation
 $('midi-clear').addEventListener('click',event=>{event.stopPropagation();clearMidi();});
 void connectMidi();
 paintMidi();
-const routeNodes=[];
+const routeNodes=[],stageButtons=new Map();
 function setStars(element,value){
  element.replaceChildren();element.setAttribute('role','img');element.setAttribute('aria-label',value===undefined?'':`${value} 星`);
  if(value===undefined)return;
@@ -242,56 +245,100 @@ function setStars(element,value){
  const fill=document.createElement('span');fill.className='stars-fill';fill.textContent='★★★';fill.setAttribute('aria-hidden','true');fill.style.width=`${value/3*100}%`;
  element.append(base,fill);
 }
-stages.forEach((stage,i)=>{
- const node=document.createElement('button');node.type='button';node.className='route-node';node.dataset.mixed=String(!!stage.mixed);
- node.setAttribute('aria-label',`第 ${i+1} 关 · ${stage.name}`);
- for(const [className,text] of [['route-chapter',i===0||stage.chapter!==stages[i-1].chapter?stage.chapter:''],['route-dot',String(i+1).padStart(2,'0')],['route-kind',stage.mixed?'综合':'专项'],['route-name',stage.name],['stars','']]){
-  const span=document.createElement('span');span.className=className;span.textContent=text;node.append(span);
- }
- node.addEventListener('click',()=>selectStage(i));routeNodes.push(node);$('route').append(node);
-});
+const nodeById=new Map([...stages,...curriculum.filter(n=>n.placeholder)].map(n=>[n.id,n]));
+const routeRows=[$('route-top'),$('route-second'),$('route-third')];
+for(const stage of nodeById.values()){
+ const node=document.createElement('button');node.type='button';node.className='route-node';node.dataset.id=stage.id;
+ const label=document.createElement('span');label.className='route-name';label.textContent=stage.name;
+ const dot=document.createElement('span');dot.className='route-dot';dot.append(label);
+ const stars=document.createElement('span');stars.className='stars';node.append(dot,stars);
+ node.addEventListener('click',()=>selectNode(stage.id));
+ routeNodes[stages.indexOf(stage)]=node;
+ stageButtons.set(stage.id,node);
+}
 function updateRoute(){
- routeNodes.forEach((node,i)=>{
-  node.setAttribute('aria-current',i===stageIndex?'step':'false');setStars(node.querySelector('.stars'),results[stages[i].id]?.best.stars);
+ const top=nodeById.get(expandedTop),quality=nodeById.get(expandedQuality);
+ const rows=[curriculum,top?.children??[],quality?.children??[]];
+ rows.forEach((nodes,i)=>{
+  const buttons=nodes.map(n=>stageButtons.get(n.id)),existing=Array.from(routeRows[i].children);
+  if(existing.length!==buttons.length||buttons.some((button,j)=>button!==existing[j])){
+   routeRows[i].replaceChildren(...buttons);
+   if(!matchMedia('(prefers-reduced-motion: reduce)').matches)buttons.forEach((button,j)=>button.animate?.([{opacity:0},{opacity:1}],{duration:360,delay:Math.min(j*22,132),easing:'cubic-bezier(.2,.7,.2,1)',fill:'backwards'}));
+  }
+  routeRows[i].hidden=!nodes.length;
  });
- const stage=stages[stageIndex];
- $('selected-stage').textContent=`${String(stageIndex+1).padStart(2,'0')} · ${stage.name}`;
- const scope=stage.kind==='note'?(stage.detail||stage.pcs.map(pc=>names[pc].join(' / ')).join(' · ')):stage.combos.map(({q,inv})=>`${qualities[q].name} · ${inversions[inv]}`).join('、');
- $('stage-detail').textContent=`${scope} · C3–C6 全音域`;
- const last=results[stage.id]?.last;
- $('last-result').textContent=last?`上次 ${last.correct}/${last.total}（${(last.accuracy*100).toFixed(1)}%）· 综合分 ${formatScore(last.score)} · ${last.stars} 星`:'';
- $('last-result').hidden=!last;
+ for(const [id,node] of stageButtons){
+  const stage=nodeById.get(id),selected=stages[stageIndex]?.id===id;
+  node.setAttribute('aria-current',selected?'step':'false');
+  node.dataset.expanded=String(stage.children? id===expandedTop||id===expandedQuality:false);
+  if(stage.children)node.setAttribute('aria-expanded',node.dataset.expanded);
+  node.setAttribute('aria-label',`${stage.name}${stage.placeholder?' · 后续版本':stage.children&&!selectable(stage,results)?' · 展开':''}`);
+  setStars(node.querySelector('.stars'),results[id]?.best.stars);
+ }
+ $('overlay-action').disabled=stageIndex<0||!selectable(stages[stageIndex],results);
+ requestAnimationFrame(drawBranches);
 }
-// Truncate display so a score below a threshold is not displayed at that threshold.
-function formatScore(score){return (Math.floor(score*10+1e-10)/10).toFixed(1);}
-function focusCurrentStage(){routeNodes[stageIndex]?.scrollIntoView?.({block:'nearest',inline:'center',behavior:'auto'});}
-function selectStage(index){
- if(started&&!finished||!Number.isInteger(index)||!stages[index])return;
- stageIndex=index;save('voicing-route-stage',stages[index].id);reset();focusCurrentStage();
+// Decorative curves follow the actual circles through scrolling and resizing.
+function drawBranches(){
+ const bounds=$('route').getBoundingClientRect();
+ const links=[['branch-top',expandedTop,routeRows[0],routeRows[1]],['branch-quality',expandedQuality,routeRows[1],routeRows[2]]];
+ for(const [id,parentId,parentRow,childRow] of links){
+  const path=$(id),parent=stageButtons.get(parentId),child=childRow.children[0];
+  if(!parent||!child||childRow.hidden){path.setAttribute('d','');path.dataset.parent='';continue;}
+  const from=parent.querySelector('.route-dot').getBoundingClientRect(),to=child.querySelector('.route-dot').getBoundingClientRect();
+  const parentClip=parentRow.getBoundingClientRect(),childClip=childRow.getBoundingClientRect();
+  const x1=(from.left+from.right)/2-bounds.left,x2=(to.left+to.right)/2-bounds.left;
+  // Do not connect a different visible child when the first child is scrolled out.
+  if(from.left<parentClip.left||from.right>parentClip.right||to.left<childClip.left||to.right>childClip.right){path.setAttribute('d','');continue;}
+  const y1=from.bottom-bounds.top,y2=to.top-bounds.top;
+  const mid=(y1+y2)/2;
+  path.setAttribute('d',`M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`);
+  if(path.dataset.parent!==parentId){
+   path.dataset.parent=parentId;path.setAttribute('pathLength','1');
+   if(!matchMedia('(prefers-reduced-motion: reduce)').matches)path.animate?.([{strokeDasharray:'1',strokeDashoffset:1,opacity:0},{strokeDasharray:'1',strokeDashoffset:0,opacity:1}],{duration:460,easing:'cubic-bezier(.2,.7,.2,1)'});
+  }
+ }
 }
-$('version').textContent=`v${VERSION}`;
+for(const row of routeRows)row.addEventListener('scroll',()=>requestAnimationFrame(drawBranches),{passive:true});
+globalThis.addEventListener?.('resize',()=>requestAnimationFrame(drawBranches));
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>requestAnimationFrame(drawBranches)).observe($('route'));
+function focusCurrentStage(){stageButtons.get(expandedTop)?.scrollIntoView?.({block:'nearest',inline:'nearest'});stageButtons.get(expandedQuality)?.scrollIntoView?.({block:'nearest',inline:'nearest'});routeNodes[stageIndex]?.scrollIntoView?.({block:'nearest',inline:'nearest'});}
+function selectNode(id){
+ if(started&&!finished)return;
+ const stage=nodeById.get(id);if(!stage)return;
+ if(curriculum.includes(stage)){expandedTop=id;expandedQuality=null;}
+ else if(stage.parent==='chords-all'){expandedTop='chords-all';expandedQuality=id;}
+ else if(stage.parent?.startsWith('quality-')){expandedTop='chords-all';expandedQuality=stage.parent;}
+ else {expandedTop='notes-all';expandedQuality=null;}
+ stageIndex=selectable(stage,results)?stages.indexOf(stage):-1;
+ reset();focusCurrentStage();
+}
+function selectStage(index){if(stages[index])selectNode(stages[index].id);}
+$('version').textContent=`v${VERSION}+${BUILD_REVISION}`;
 for(const speed of SPEEDS){const option=document.createElement('option');option.value=speed.bpm;option.textContent=`${speed.name} · ${speed.bpm} BPM`;$('speed').append(option);}
 $('speed').value=bpm;
 // Native touch scrolling; mouse dragging captures only after a real drag.
 let routeDrag=null,suppressRouteClick=false;
-$('route').addEventListener('pointerdown',e=>{
+for(const route of routeRows){
+route.addEventListener('pointerdown',e=>{
  suppressRouteClick=false;
  if(e.pointerType!=='mouse'||e.button!==0)return;
- routeDrag={id:e.pointerId,x:e.clientX,left:$('route').scrollLeft,moved:false};
+ routeDrag={id:e.pointerId,x:e.clientX,left:route.scrollLeft,moved:false};
 });
-$('route').addEventListener('pointermove',e=>{
+route.addEventListener('pointermove',e=>{
  if(!routeDrag||routeDrag.id!==e.pointerId)return;
  const dx=e.clientX-routeDrag.x;
- if(!routeDrag.moved&&Math.abs(dx)>6){routeDrag.moved=true;$('route').setPointerCapture(e.pointerId);$('route').dataset.dragging='true';}
- if(routeDrag.moved){e.preventDefault();$('route').scrollLeft=routeDrag.left-dx;}
+ if(!routeDrag.moved&&Math.abs(dx)>6){routeDrag.moved=true;route.setPointerCapture(e.pointerId);route.dataset.dragging='true';}
+ if(routeDrag.moved){e.preventDefault();route.scrollLeft=routeDrag.left-dx;}
 });
 function endRouteDrag(e){
  if(!routeDrag||routeDrag.id!==e.pointerId)return;
- suppressRouteClick=routeDrag.moved;routeDrag=null;$('route').dataset.dragging='false';
- if($('route').hasPointerCapture(e.pointerId))$('route').releasePointerCapture(e.pointerId);
+ suppressRouteClick=routeDrag.moved;routeDrag=null;route.dataset.dragging='false';
+ if(route.hasPointerCapture(e.pointerId))route.releasePointerCapture(e.pointerId);
 }
-$('route').addEventListener('pointerup',endRouteDrag);$('route').addEventListener('pointercancel',endRouteDrag);
-$('route').addEventListener('click',e=>{if(suppressRouteClick&&e.detail!==0){e.preventDefault();e.stopPropagation();suppressRouteClick=false;}},true);
+route.addEventListener('pointerup',endRouteDrag);route.addEventListener('pointercancel',endRouteDrag);
+route.addEventListener('click',e=>{if(suppressRouteClick&&e.detail!==0){e.preventDefault();e.stopPropagation();suppressRouteClick=false;}},true);
+}
 document.addEventListener('dragstart',e=>e.preventDefault());
 function hidePauseControls(){
  $('settings-toggle').hidden=true;
@@ -316,7 +363,7 @@ function showHome(){
 }
 function appendCard(){
  const card=prepareAttempt(scheduler.next());
-  const el=document.createElement('div');el.className='card';el.dataset.inv=card.inv;
+  const el=document.createElement('div');el.className='card';el.dataset.inv=card.inv;el.dataset.size=card.kind==='note'?1:qualities[card.q].intervals.length;
   el.style.left=`${centers.get(card.root)*100}%`;el.hidden=true;
   if(card.kind!=='note'){
    const bounds=keyBounds.get(card.root);
@@ -334,8 +381,8 @@ function reset(){
  persistTiming();timingRun=null;
  releaseScreenLock();stopMetronome();
  running=false;started=false;finished=false;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
- scheduler=new Scheduler(stages[stageIndex],{levels});
- cards=[];elements=[];$('falling').replaceChildren();appendCard();updateTimer();showHome();
+ scheduler=stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
+ cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
 }
 function pause(){
  if(!running)return;advance(performance.now());if(finished)return;
@@ -344,7 +391,7 @@ function pause(){
  $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();paintScene();
 }
 function canStartTraining(){
- if($('midi-warning').open||$('settings-dialog').open)return false;
+ if(!selectable(stages[stageIndex],results)||$('midi-warning').open||$('settings-dialog').open)return false;
  if([...midiInputs.values()].some(input=>input.state!=='disconnected')||midiStartWarnings>=5)return true;
  midiStartWarnings++;$('midi-warning').showModal();return false;
 }

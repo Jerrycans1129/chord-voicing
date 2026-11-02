@@ -44,12 +44,12 @@ const isolated=simulate(stages[4],7351,200000,i=>i.name==='C♯'?3:0);
 assert.ok(isolated.exposure.get('note:C♯')>isolated.exposure.get('note:D♭')*2);
 assert.deepEqual({...isolated.levels},{'note:C♯':3});
 // Large pools approximate 7:3:1 globally; exact expectation remains conditional on cooldown.
-const tiers=simulate(stages[21],7352,300000,(_,i)=>1+i%3);
+const tiers=simulate(stages.at(-1),7352,300000,(_,i)=>1+i%3);
 const normalized=tiers.result.observed.slice(1).map(n=>n/tiers.result.reviews);
 for(const [i,p] of [1/11,3/11,7/11].entries())assert.ok(Math.abs(normalized[i]-p)<.015);
 const dynamic=simulate(stages[4],7353,200000,()=>0,{dynamic:true});
 assert.ok(dynamic.exposure.get('note:C♯')>dynamic.exposure.get('note:E♭'));
 assert.ok(dynamic.exposure.get('note:E♭')>dynamic.exposure.get('note:D♭'));
-const report={totalGenerated:total,assertions:'passed',description:'Deterministic Monte Carlo: 3 seeds × 22 stages × 2 profiles × 20,000 cards, plus isolated/dynamic/large-pool scenarios. Statistical properties only; not a learning-outcome trial.',isolated:{...isolated.result,sharp:isolated.exposure.get('note:C♯'),flat:isolated.exposure.get('note:D♭')},largePool:{...tiers.result,reviewTierShares:normalized},dynamic:{...dynamic.result,exposure:Object.fromEntries(dynamic.exposure)},runs};
+const report={totalGenerated:total,assertions:'passed',description:'Deterministic Monte Carlo: 3 seeds × 47 stages × 2 profiles × 20,000 cards, plus isolated/dynamic/large-pool scenarios. Statistical properties only; not a learning-outcome trial.',isolated:{...isolated.result,sharp:isolated.exposure.get('note:C♯'),flat:isolated.exposure.get('note:D♭')},largePool:{...tiers.result,reviewTierShares:normalized},dynamic:{...dynamic.result,exposure:Object.fromEntries(dynamic.exposure)},runs};
 writeFileSync(new URL('../reports/scheduler-simulation.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify({totalGenerated:total,assertions:report.assertions,maxBalancedSpread:Math.max(...runs.map(r=>r.balancedSpread)),maxOctaveSpread:Math.max(...runs.map(r=>r.maxOctaveSpread)),cooldownViolations:sum(runs.map(r=>r.cooldownViolations)),isolated:report.isolated,largePool:report.largePool,dynamic:report.dynamic},null,2));

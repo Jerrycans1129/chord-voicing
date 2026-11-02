@@ -1,8 +1,8 @@
 // Bump this version whenever app assets change. Updates activate after all
 // existing app windows close, so an active training session is not interrupted.
 const CACHE_PREFIX = `voicing-${self.registration.scope}-`;
-const CACHE_NAME = `${CACHE_PREFIX}v22`;
-const ASSETS = ['./', './index.html', './style.css', './app.js', './theory.js', './scheduler.js', './scoring.js', './judgment.js', './timing.js',
+const CACHE_NAME = `${CACHE_PREFIX}v23-f006fd6-d4a97d3a0e70`;
+const ASSETS = ['./', './index.html', './style.css', './app.js', './build.js', './theory.js', './scheduler.js', './scoring.js', './judgment.js', './timing.js',
   './pwa.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 const assetURLs = new Set(ASSETS.map(path => new URL(path, self.registration.scope).href));
 self.addEventListener('install', event => {

@@ -3,7 +3,7 @@ import {Scheduler,cleanLevels} from '../dist/scheduler.js';
 import {stages,positions} from '../dist/theory.js';
 const rng=()=>{let n=123456;return ()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};};
 test('mistakes are spelling-, quality-, and inversion-specific, but shared across octaves and stages',()=>{
- const levels=cleanLevels({});const s=new Scheduler(stages[21],{levels,rng:rng()});
+ const levels=cleanLevels({});const s=new Scheduler(stages.at(-1),{levels,rng:rng()});
  const id='chord:D♭:1:1';s.record(id,'wrong');s.record(id,'wrong');s.record(id,'wrong');s.record(id,'wrong');
  assert.equal(levels[id],3);assert.equal(levels['chord:C♯:1:1'],undefined);assert.equal(levels['chord:D♭:1:2'],undefined);assert.equal(levels['chord:D♭:0:1'],undefined);
  assert.equal(s.record(id,'correct'),true);assert.equal(levels[id],2);s.record(id,'wrong');
