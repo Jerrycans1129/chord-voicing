@@ -401,7 +401,7 @@ test('automatic connection waits for an input; manual retry enables training wit
  access.inputs.set('keyboard',{id:'keyboard',state:'connected'});
  resolveAccess(access);await new Promise(setImmediate);
  assert.equal(run('running'),false);
- run('play()');assert.equal(run('running'),true);assert.equal(run('midiStartWarnings'),2);assert.equal(alerts.length,0);
+ run('play()');assert.equal(run('running'),true);assert.equal(alerts.length,0);
 });
 
 
@@ -430,11 +430,11 @@ test('page MIDI dialog blocks repeated starts and background shortcuts without b
   run('play();play(true)');documentHandlers.click();
   documentHandlers.keydown({code:'Space',preventDefault(){}});
  }
- assert.equal(run('midiStartWarnings'),1);assert.equal(run('running'),false);
+ assert.equal(run('running'),false);
  assert.equal(run('started'),false);assert.equal(alerts.length,0);
  let stopped=false;nodes.get('midi-warning-close').handlers.click({stopPropagation(){stopped=true;}});
  assert.equal(stopped,true);assert.equal(nodes.get('midi-warning').open,false);assert.equal(run('running'),false);
- run('play()');assert.equal(run('midiStartWarnings'),2);
+ run('play()');
  nodes.get('midi-warning-connect').handlers.click({stopPropagation(){}});
  assert.equal(nodes.get('midi-warning').open,false);assert.equal(run('running'),false);
 });
@@ -471,10 +471,18 @@ test('zero-question exit creates a zero-star result; best rating survives later 
  run('play();pause();complete()');assert.equal(run("results['notes-two'].last.stars"),0);assert.equal(run("results['notes-two'].best.stars"),3);
  const reload=session({localStorage});assert.equal(reload.run("results['notes-two'].best.stars"),3);
 });
-test('blocked MIDI launch never produces a rating; five dismissed prompts preserve the existing override',()=>{
- const {run,nodes,alerts}=session({},false);
- for(let i=0;i<5;i++){run('play()');assert.equal(run('run.started'),false);assert.equal(run('Object.keys(results).length'),0);nodes.get('midi-warning-close').handlers.click({stopPropagation(){}});}
- run('play();complete()');assert.equal(run('Object.keys(results).length'),1);assert.equal(alerts.length,0);
+test('repeated dismissed MIDI prompts cannot bypass any start entry or create results',()=>{
+ const {run,nodes,documentHandlers,alerts}=session({},false);
+ const entries=[()=>run('play()'),()=>nodes.get('overlay-action').handlers.click({stopPropagation(){}}),()=>documentHandlers.keydown({code:'Space',preventDefault(){}})];
+ for(let i=0;i<30;i++){
+  entries[i%entries.length]();
+  assert.equal(nodes.get('midi-warning').open,true);
+  assert.equal(run('running'),false);assert.equal(run('run.started'),false);
+  assert.equal(run('Object.keys(results).length'),0);assert.equal(run('timingRuns.length'),0);
+  nodes.get('midi-warning-close').handlers.click({stopPropagation(){}});
+  documentHandlers.click();assert.equal(run('running'),false);
+ }
+ run('complete()');assert.equal(run('Object.keys(results).length'),0);assert.equal(alerts.length,0);
 });
 test('complete arpeggio counts correct at early settlement and lowers chord weakness exactly once',async()=>{
  const {run,send}=midiSession();await run('connectMidi()');run('selectStage(21);play();now=9000;render(now);levels[cards[0].id]=2');
@@ -515,8 +523,31 @@ test('mouse drag scrolls without selecting; click and keyboard activation still 
  run('routeNodes[1].handlers.click()');assert.equal(run('stageIndex'),1);
 });
 
-test('refreshing an empty MIDI device list does not pause an authorized no-MIDI session',()=>{
- const {run}=session({},false);run('midiStartWarnings=5;play();midiAccess={inputs:new Map()};syncMidiInputs()');assert.equal(run('running'),true);
+test('empty MIDI discovery never authorizes startup',()=>{
+ const {run}=session({},false);run('midiAccess={inputs:new Map()};syncMidiInputs();play()');
+ assert.equal(run('running'),false);assert.equal(run('started'),false);
+});
+test('only explicitly connected input states authorize startup',()=>{
+ for(const state of ['disconnected','pending','closed',undefined]){
+  const {run}=session({},false);run(`midiInputs.set('stale',{state:${JSON.stringify(state)}});play()`);
+  assert.equal(run('running'),false);assert.equal(run('started'),false);
+ }
+});
+test('disconnect blocks every resume entry until a device reconnects',async()=>{
+ const {run,nodes,documentHandlers,input,access}=midiSession();await run('connectMidi()');
+ run('play();now=10000;render(now)');input.state='disconnected';access.onstatechange();
+ assert.equal(run('running'),false);const seconds=run('sessionSeconds');
+ for(let i=0;i<12;i++){
+  run('play()');assert.equal(nodes.get('midi-warning').open,true);assert.equal(run('running'),false);
+  nodes.get('midi-warning-close').handlers.click({stopPropagation(){}});
+  documentHandlers.click();assert.equal(run('running'),false);
+  nodes.get('midi-warning-close').handlers.click({stopPropagation(){}});
+  documentHandlers.keydown({code:'Space',preventDefault(){}});assert.equal(run('running'),false);
+  nodes.get('midi-warning-close').handlers.click({stopPropagation(){}});
+ }
+ assert.equal(run('sessionSeconds'),seconds);
+ input.state='connected';access.onstatechange();assert.equal(run('running'),false);
+ run('play()');assert.equal(run('running'),true);
 });
 
 test('timing captures fresh attacks only, persists on pause, and survives restart',()=>{

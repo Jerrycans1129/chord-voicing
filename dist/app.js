@@ -148,7 +148,7 @@ for(let midi=48;midi<=84;midi++){
 }
 // MIDI is input-only: track physical keys separately for each device/channel.
 // Sustain does not keep a released physical key highlighted.
-let midiAccess=null,midiConnecting=false,midiStartWarnings=0;
+let midiAccess=null,midiConnecting=false;
 const midiInputs=new Map(),midiHeld=new Map();
 function paintMidi(){
  const held=new Set([...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys])));
@@ -199,8 +199,7 @@ function judgeMidi(note,meta={}){
 }
 
 function syncMidiInputs(){
- const hadInputs=midiInputs.size>0;
- const connected=new Map([...midiAccess.inputs.values()].filter(input=>input.state!=='disconnected').map(input=>[input.id,input]));
+ const connected=new Map([...midiAccess.inputs.values()].filter(input=>input.state==='connected').map(input=>[input.id,input]));
  for(const [id,input] of midiInputs){
   if(connected.get(id)!==input){if(running)advance(performance.now());input.onmidimessage=null;midiInputs.delete(id);midiHeld.delete(id);const active=cards[activeQuestionIndex(cards,sessionSeconds)];if(active)active.assisted=true;}
  }
@@ -208,7 +207,7 @@ function syncMidiInputs(){
   if(midiInputs.has(id))continue;
   midiInputs.set(id,input);input.onmidimessage=event=>receiveMidi(id,event);
  }
- if(hadInputs&&started&&!finished&&running&&!midiInputs.size)pause();
+ if(started&&!finished&&running&&!midiInputs.size)pause();
  $('midi-status').textContent=midiInputs.size?`已连接：${[...midiInputs.values()].map(input=>input.name||'MIDI 输入设备').join('、')}`:'已启用 · 未发现 MIDI 输入，请连接键盘';
  paintMidi();
 }
@@ -392,8 +391,8 @@ function pause(){
 }
 function canStartTraining(){
  if(!selectable(stages[stageIndex],results)||$('midi-warning').open||$('settings-dialog').open)return false;
- if([...midiInputs.values()].some(input=>input.state!=='disconnected')||midiStartWarnings>=5)return true;
- midiStartWarnings++;$('midi-warning').showModal();return false;
+ if([...midiInputs.values()].some(input=>input.state==='connected'))return true;
+ $('midi-warning').showModal();return false;
 }
 function play(){
  if(running){pause();return;}
