@@ -467,8 +467,8 @@ test('zero-question exit creates a zero-star result; best rating survives later 
  const {run,nodes}=session({localStorage});assert.equal(run('Object.keys(results).length'),0);
  run('play();pause();openSettings()');nodes.get('exit-training').handlers.click({stopPropagation(){}});
  assert.equal(run("results['notes-two'].last.stars"),0);assert.equal(run('run.total'),0);assert.equal(nodes.get('overlay-action').disabled,false);
- run('play();run.seconds=1800;run.total=100;run.correct=95;run.minBpm=90;complete()');assert.equal(run("results['notes-two'].best.stars"),3);
- run('play();pause();complete()');assert.equal(run("results['notes-two'].last.stars"),0);assert.equal(run("results['notes-two'].best.stars"),3);
+ run("$('result-dialog').close()");run('play();run.seconds=1800;run.total=100;run.correct=95;run.minBpm=90;complete()');assert.equal(run("results['notes-two'].best.stars"),3);
+ run("$('result-dialog').close()");run('play();pause();complete()');assert.equal(run("results['notes-two'].last.stars"),0);assert.equal(run("results['notes-two'].best.stars"),3);
  const reload=session({localStorage});assert.equal(reload.run("results['notes-two'].best.stars"),3);
 });
 test('repeated dismissed MIDI prompts cannot bypass any start entry or create results',()=>{
@@ -646,4 +646,57 @@ test('startup expands all ancestors and children of the next quality mixture',()
  const {run,nodes}=session({localStorage:{getItem:key=>key==='voicing-results-v1'?JSON.stringify(saved):null,setItem(){}}});
  assert.equal(run("stages[stageIndex].id"),'quality-0');assert.equal(run('expandedTop'),'chords-all');assert.equal(run('expandedQuality'),'quality-0');
  assert.equal(nodes.get('route-third').children.length,3);assert.equal(nodes.get('overlay-action').disabled,false);
+});
+
+
+test('tail cards must touch strictly before the deadline at every tempo',()=>{
+ for(const bpm of [40,60,90,120,140]){
+  const {run}=session();run(`bpm=${bpm};play();now=1780000;render(now)`);
+  for(let ms=1780100;ms<1800000;ms+=100){
+   run(`now=${ms};render(now)`);
+   assert.equal(run('cards.every((c,i)=>sessionSeconds+(i+2-elapsed)*240/bpm<MAX_SECONDS-1e-9)'),true);
+  }
+  run('now=1800000;render(now)');assert.equal(run('finished'),true);
+ }
+});
+test('slowing near the end removes only unreachable tail and speeding resumes generation',()=>{
+ const {run}=session();run('bpm=140;play();now=1795000;pause()');
+ const count=run('cards.length');
+ run('bpm=40;play()');assert.ok(run('cards.length')<count);
+ assert.equal(run('cards.every((c,i)=>canReachLine(i))'),true);
+ const trimmed=run('cards.length');run('pause();bpm=140;play()');assert.ok(run('cards.length')>trimmed);
+});
+test('remaining time reminders are static, last four active seconds and skip opening',()=>{
+ const {run,nodes}=session();run('play();render(0)');assert.equal(nodes.get('time-reminder').hidden,true);
+ for(const minutes of [24,18,12,6,1]){
+  const ms=(1800-minutes*60)*1000;
+  run(`now=${ms};render(now)`);assert.equal(nodes.get('time-reminder').hidden,false);
+  assert.equal(nodes.get('time-reminder').textContent,`剩余 ${minutes} 分钟`);
+  run(`now=${ms+3999};render(now)`);assert.equal(nodes.get('time-reminder').hidden,false);
+  run(`now=${ms+4000};render(now)`);assert.equal(nodes.get('time-reminder').hidden,true);
+ }
+ run('now=1800000;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
+});
+test('pausing freezes a reminder and restarting clears it',()=>{
+ const {run,nodes}=session();run('play();now=361000;pause();now=400000;render(now)');
+ assert.equal(nodes.get('time-reminder').hidden,false);
+ run('play();now=402999;render(now)');assert.equal(nodes.get('time-reminder').hidden,false);
+ run('now=403000;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
+ run('reset()');assert.equal(nodes.get('time-reminder').hidden,true);
+});
+test('result dialog reports results, blocks background starts and retries explicitly',()=>{
+ const {run,nodes,documentHandlers}=session();run('play();now=1800000;render(now)');
+ assert.equal(nodes.get('result-dialog').open,true);
+ assert.equal(nodes.get('result-score').textContent,run('calculateScore(run).score.toFixed(1)'));
+ assert.equal(nodes.get('result-duration').textContent,'30 分 0 秒');
+ documentHandlers.click();documentHandlers.keydown({code:'Space',preventDefault(){}});run('play()');assert.equal(run('running'),false);
+ nodes.get('result-retry').handlers.click({stopPropagation(){}});
+ assert.equal(nodes.get('result-dialog').open,false);assert.equal(run('running'),true);assert.equal(run('sessionSeconds'),0);
+ run('pause();complete()');assert.equal(nodes.get('result-dialog').open,true);
+ nodes.get('result-home').handlers.click({stopPropagation(){}});assert.equal(run('running'),false);assert.equal(nodes.get('overlay').hidden,false);
+});
+test('pulse follows a changed BPM without resetting beat phase',()=>{
+ const {run,nodes}=session();run('bpm=60;play();now=250;pause();bpm=120;play();now=625;render(now)');
+ assert.equal(nodes.get('lanes').style['--beat-glow'],'1');
+ run('now=875;render(now)');assert.ok(Number(nodes.get('lanes').style['--beat-glow'])<1);
 });

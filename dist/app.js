@@ -42,6 +42,7 @@ let scheduler,settled=0,run=createRun();
 let bpm=normalizeBpm(read('voicing-bpm',90));
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0;
+let reminderUntil=0;
 const MAX_SECONDS=TOTAL_SECONDS;
 let screenLock=null,screenLockGeneration=0;
 function releaseScreenLock(){
@@ -188,7 +189,7 @@ function judgeMidi(note,meta={}){
  // MIDI can arrive between animation frames; judge against the current clock.
  const handledMs=performance.now();advance(handledMs);
  if(!running)return;
- while(elapsed>=cards.length)appendCard();
+ syncCards();
  if(timingRun){recordTimingAttack(timingRun,cards,note,{...meta,metronome:metronomeOn,judgmentIndex:activeQuestionIndex(cards,sessionSeconds)},handledMs);timingDirty=true;timingRuns=trimTiming(timingRuns);}
  const {indices}=attackTargets(cards,sessionSeconds);
  for(const index of indices){
@@ -360,6 +361,39 @@ function openSettings(){
 function showHome(){
  updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('settings-toggle').hidden=false;updateRoute();
 }
+// A card at index i touches the line at musical progress i + 2.
+function canReachLine(index){
+ return sessionSeconds+(index+2-elapsed)*240/bpm<MAX_SECONDS-1e-9;
+}
+function syncCards(){
+ // Tempo changes can invalidate only the unlanded tail. Keep settled attempts.
+ while(cards.length>settled&&cards.length-1+2>elapsed&&!canReachLine(cards.length-1)){
+  cards.pop();elements.pop();
+  $('falling').replaceChildren(...elements);
+ }
+ while(elapsed>=cards.length&&canReachLine(cards.length))appendCard();
+}
+function updateReminder(fromSeconds){
+ for(const remaining of [1440,1080,720,360,60]){
+  const at=MAX_SECONDS-remaining;
+  if(fromSeconds<at&&sessionSeconds>=at){
+   $('time-reminder').textContent=`剩余 ${remaining/60} 分钟`;
+   reminderUntil=at+4;
+  }
+ }
+ $('time-reminder').hidden=!started||finished||sessionSeconds>=reminderUntil;
+}
+function showResult(result){
+ $('result-score').textContent=result.score.toFixed(1);
+ $('result-stars').textContent=`${result.stars} / 3 星`;
+ $('result-accuracy').textContent=result.total?`${(result.accuracy*100).toFixed(1)}%`:'—';
+ $('result-count').textContent=`${result.correct} / ${result.total}`;
+ const seconds=Math.floor(result.seconds);
+ $('result-duration').textContent=`${Math.floor(seconds/60)} 分 ${seconds%60} 秒`;
+ const f=result.factors;
+ $('result-factors').textContent=`计分系数：暂停 ×${f.pause} · 琴键提示 ×${f.keyboard} · 速度 ×${f.speed} · 时长 ×${f.duration.toFixed(3)}`;
+ $('result-dialog').showModal();
+}
 function appendCard(){
  const card=prepareAttempt(scheduler.next());
   const el=document.createElement('div');el.className='card';el.dataset.inv=card.inv;el.dataset.size=card.kind==='note'?1:qualities[card.q].intervals.length;
@@ -381,6 +415,7 @@ function reset(){
  releaseScreenLock();stopMetronome();
  running=false;started=false;finished=false;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
  scheduler=stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
+ reminderUntil=0;$('time-reminder').hidden=true;$('result-dialog').close();$('lanes').style.setProperty('--beat-glow','0');
  cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
 }
 function pause(){
@@ -390,7 +425,7 @@ function pause(){
  $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();paintScene();
 }
 function canStartTraining(){
- if(!selectable(stages[stageIndex],results)||$('midi-warning').open||$('settings-dialog').open)return false;
+ if(!selectable(stages[stageIndex],results)||$('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return false;
  if([...midiInputs.values()].some(input=>input.state==='connected'))return true;
  $('midi-warning').showModal();return false;
 }
@@ -400,6 +435,7 @@ function play(){
  if(finished)reset();
  if(!timingRun){timingRun=createTimingRun(stages[stageIndex].id,VERSION);timingRuns.push(timingRun);timingRuns=trimTiming(timingRuns);}
  run.started=true;started=true;running=true;
+ syncCards();
  stampBoundaries(cards,elapsed,elapsed,sessionSeconds,bpm);settleAnswers();updateTimer();
  recordConditions(run,{visible:!keyboardBlurOn});
  hidePauseControls();updateKeyboardBlur();previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;paintScene();
@@ -412,7 +448,7 @@ function complete(){
  results[id]={last:result,best:!results[id]||result.score>results[id].best.score?result:results[id].best};
  save('voicing-results-v1',results);
  if($('settings-dialog').open)$('settings-dialog').close();
- elements.forEach(el=>{el.hidden=true;});showHome();focusCurrentStage();
+ elements.forEach(el=>{el.hidden=true;});$('time-reminder').hidden=true;$('lanes').style.setProperty('--beat-glow','0');showHome();focusCurrentStage();showResult(result);
 }
 function settleAnswers(){
  while(settled<cards.length&&canSettle(cards[settled],sessionSeconds)){
@@ -429,16 +465,17 @@ function advance(now){
   const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);
   if(timingRun){addTimingSegment(timingRun,previous,previous+dt*1000,fromSeconds,fromProgress,bpm);timingDirty=true;}
   sessionSeconds+=dt;elapsed+=dt*bpm/240;
+  if(MAX_SECONDS-sessionSeconds<1e-9)sessionSeconds=MAX_SECONDS;
   recordConditions(run,{seconds:dt,bpm,visible:!keyboardBlurOn});
-  while(elapsed>=cards.length)appendCard();
-  stampBoundaries(cards,fromProgress,elapsed,fromSeconds,bpm);settleAnswers();updateTimer();
+  syncCards();
+  stampBoundaries(cards,fromProgress,elapsed,fromSeconds,bpm);settleAnswers();updateTimer();updateReminder(fromSeconds);
   if(sessionSeconds>=MAX_SECONDS)complete();
  }
  previous=now;
 }
 function paintScene(){
  if(started&&!finished){
-  while(elapsed>=cards.length)appendCard();
+  syncCards();
   const height=$('falling').clientHeight;
   const beats=elapsed*4,beatIndex=Math.floor(beats),phase=beats-beatIndex;
   const pulse=Math.pow(Math.max(0,1-phase/.7),2);
@@ -478,9 +515,12 @@ $('settings-toggle').addEventListener('click',e=>{e.stopPropagation();openSettin
 $('settings-dialog').addEventListener('click',e=>e.stopPropagation());
 $('settings-close').addEventListener('click',e=>{e.stopPropagation();$('settings-dialog').close();});
 $('exit-training').addEventListener('click',e=>{e.stopPropagation();complete();});
+$('result-dialog').addEventListener('click',e=>e.stopPropagation());
+$('result-home').addEventListener('click',e=>{e.stopPropagation();$('result-dialog').close();});
+$('result-retry').addEventListener('click',e=>{e.stopPropagation();$('result-dialog').close();play();});
 $('overlay').addEventListener('click',e=>e.stopPropagation());
 document.addEventListener('click',()=>{
- if($('midi-warning').open||$('settings-dialog').open)return;
+ if($('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return;
  if(running)pause();else if(started&&!finished&&$('overlay').hidden)play();
 });
 $('speed').addEventListener('change',()=>{
@@ -491,7 +531,7 @@ globalThis.addEventListener?.('pagehide',persistTiming);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();clearMidi();}});
 const portrait=matchMedia('(orientation: portrait) and (max-width: 1100px) and (any-pointer: coarse)');portrait.addEventListener('change',e=>{if(e.matches)pause();});
 document.addEventListener('keydown',e=>{
- if($('midi-warning').open||$('settings-dialog').open)return;
+ if($('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return;
  if(e.code==='Space'&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement?.tagName)){e.preventDefault();play();}
 });
 reset();focusCurrentStage();requestAnimationFrame(render);

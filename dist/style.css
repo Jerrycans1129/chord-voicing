@@ -62,3 +62,13 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 .card[data-size="4"][data-inv="3"] .halo{left:calc(-100cqw / 22);width:calc(100% + 100cqw / 22 * 3);background:linear-gradient(90deg,transparent,#b9e39352 calc(100cqw / 22),#b9e39352 calc(100% - 100cqw / 22 * 2),transparent)}
 
 @media(prefers-reduced-motion:reduce){.route-dot,.route-heading .primary{transition:none!important}}
+
+/* Keep the reminder behind all falling labels and clear of pointer interaction. */
+#time-reminder{position:absolute;top:22%;left:0;right:0;text-align:center;font-size:clamp(28px,5vw,64px);font-weight:500;letter-spacing:.08em;color:rgb(201 237 157 / .23);pointer-events:none;z-index:0}
+#falling{z-index:1}
+#result-dialog{width:min(440px,calc(100vw - 40px));max-height:calc(100dvh - 32px);overflow:auto}
+.result-rating{text-align:center;margin:12px 0 24px;color:var(--accent)}
+#result-score{font-size:56px;font-weight:600;margin-right:8px}
+#result-stars{margin:4px 0;font-size:18px}
+.result-details{margin:0}.result-details>div{display:flex;justify-content:space-between;gap:20px;padding:10px 0;border-bottom:1px solid #ffffff12}.result-details dt{color:var(--muted)}.result-details dd{margin:0}
+#result-factors{font-size:12px;line-height:1.8;color:var(--muted)}
