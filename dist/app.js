@@ -42,7 +42,7 @@ let scheduler,settled=0,run=createRun();
 let bpm=normalizeBpm(read('voicing-bpm',90));
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0;
-let reminderUntil=0;
+let streak=0,timeNotice=null,comboNotice=null;
 const MAX_SECONDS=TOTAL_SECONDS;
 let screenLock=null,screenLockGeneration=0;
 function releaseScreenLock(){
@@ -373,15 +373,27 @@ function syncCards(){
  }
  while(elapsed>=cards.length&&canReachLine(cards.length))appendCard();
 }
+function showCombo(count,at){
+ comboNotice={at,text:`${count}连击`};
+ // If time is already visible or queued, restart it after the three-second combo and a one-second gap.
+ if(timeNotice&&at<timeNotice.at+3)timeNotice.at=Math.max(timeNotice.at,at+4);
+}
 function updateReminder(fromSeconds){
  for(const remaining of [1440,1080,720,360,60]){
   const at=MAX_SECONDS-remaining;
   if(fromSeconds<at&&sessionSeconds>=at){
-   $('time-reminder').textContent=`剩余 ${remaining/60} 分钟`;
-   reminderUntil=at+4;
+   const conflict=comboNotice&&at<comboNotice.at+4&&at+3>comboNotice.at;
+   timeNotice={at:conflict?Math.max(at,comboNotice.at+4):at,text:`剩余 ${remaining/60} 分钟`};
   }
  }
- $('time-reminder').hidden=!started||finished||sessionSeconds>=reminderUntil;
+ paintReminders();
+}
+function paintReminders(){
+ for(const [id,notice] of [['time-reminder',timeNotice],['combo-reminder',comboNotice]]){
+  const el=$(id);
+  el.hidden=!started||finished||!notice||sessionSeconds<notice.at||sessionSeconds>=notice.at+3;
+  if(notice)el.textContent=notice.text;
+ }
 }
 function showResult(result){
  $('result-score').textContent=result.score.toFixed(1);
@@ -415,7 +427,7 @@ function reset(){
  releaseScreenLock();stopMetronome();
  running=false;started=false;finished=false;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
  scheduler=stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
- reminderUntil=0;$('time-reminder').hidden=true;$('result-dialog').close();$('lanes').style.setProperty('--beat-glow','0');
+ streak=0;timeNotice=null;comboNotice=null;paintReminders();$('result-dialog').close();$('lanes').style.setProperty('--beat-glow','0');
  cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
 }
 function pause(){
@@ -448,15 +460,16 @@ function complete(){
  results[id]={last:result,best:!results[id]||result.score>results[id].best.score?result:results[id].best};
  save('voicing-results-v1',results);
  if($('settings-dialog').open)$('settings-dialog').close();
- elements.forEach(el=>{el.hidden=true;});$('time-reminder').hidden=true;$('lanes').style.setProperty('--beat-glow','0');showHome();focusCurrentStage();showResult(result);
+ elements.forEach(el=>{el.hidden=true;});paintReminders();$('lanes').style.setProperty('--beat-glow','0');showHome();focusCurrentStage();showResult(result);
 }
 function settleAnswers(){
  while(settled<cards.length&&canSettle(cards[settled],sessionSeconds)){
   const card=cards[settled++];card.ended=true;run.total++;
   if(isCorrect(card)){
-   run.correct++;
+   run.correct++;streak++;
+   if(streak%100===0)showCombo(streak,card.endAt);
    if(!card.assisted&&scheduler.record(card.id,'correct'))save('voicing-weakness-v1',levels);
-  }
+  }else streak=0;
  }
 }
 function advance(now){
@@ -474,6 +487,7 @@ function advance(now){
  previous=now;
 }
 function paintScene(){
+ paintReminders();
  if(started&&!finished){
   syncCards();
   const height=$('falling').clientHeight;

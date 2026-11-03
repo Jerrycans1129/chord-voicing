@@ -666,22 +666,22 @@ test('slowing near the end removes only unreachable tail and speeding resumes ge
  assert.equal(run('cards.every((c,i)=>canReachLine(i))'),true);
  const trimmed=run('cards.length');run('pause();bpm=140;play()');assert.ok(run('cards.length')>trimmed);
 });
-test('remaining time reminders are static, last four active seconds and skip opening',()=>{
+test('remaining time reminders are static, last three active seconds and skip opening',()=>{
  const {run,nodes}=session();run('play();render(0)');assert.equal(nodes.get('time-reminder').hidden,true);
  for(const minutes of [24,18,12,6,1]){
   const ms=(1800-minutes*60)*1000;
   run(`now=${ms};render(now)`);assert.equal(nodes.get('time-reminder').hidden,false);
   assert.equal(nodes.get('time-reminder').textContent,`剩余 ${minutes} 分钟`);
-  run(`now=${ms+3999};render(now)`);assert.equal(nodes.get('time-reminder').hidden,false);
-  run(`now=${ms+4000};render(now)`);assert.equal(nodes.get('time-reminder').hidden,true);
+  run(`now=${ms+2999};render(now)`);assert.equal(nodes.get('time-reminder').hidden,false);
+  run(`now=${ms+3000};render(now)`);assert.equal(nodes.get('time-reminder').hidden,true);
  }
  run('now=1800000;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
 });
 test('pausing freezes a reminder and restarting clears it',()=>{
  const {run,nodes}=session();run('play();now=361000;pause();now=400000;render(now)');
  assert.equal(nodes.get('time-reminder').hidden,false);
- run('play();now=402999;render(now)');assert.equal(nodes.get('time-reminder').hidden,false);
- run('now=403000;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
+ run('play();now=401999;render(now)');assert.equal(nodes.get('time-reminder').hidden,false);
+ run('now=402000;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
  run('reset()');assert.equal(nodes.get('time-reminder').hidden,true);
 });
 test('result dialog reports results, blocks background starts and retries explicitly',()=>{
@@ -699,4 +699,43 @@ test('pulse follows a changed BPM without resetting beat phase',()=>{
  const {run,nodes}=session();run('bpm=60;play();now=250;pause();bpm=120;play();now=625;render(now)');
  assert.equal(nodes.get('lanes').style['--beat-glow'],'1');
  run('now=875;render(now)');assert.ok(Number(nodes.get('lanes').style['--beat-glow'])<1);
+});
+
+
+test('each 100 consecutive settled correct answers triggers a combo; misses reset it',()=>{
+ const {run,nodes}=session();run('play()');
+ const settle=(correct)=>run(`{const card=cards[0];card.ended=false;card.endAt=sessionSeconds;card.hits=new Set(${correct} ? card.targets : []);card.wrong=false;settled=0;settleAnswers();paintReminders();}`);
+ for(let i=0;i<99;i++)settle(true);
+ assert.equal(nodes.get('combo-reminder').hidden,true);
+ settle(true);assert.equal(nodes.get('combo-reminder').textContent,'100连击');assert.equal(nodes.get('combo-reminder').hidden,false);
+ for(let i=0;i<100;i++)settle(true);
+ assert.equal(nodes.get('combo-reminder').textContent,'200连击');
+ settle(false);assert.equal(run('streak'),0);settle(true);assert.equal(run('streak'),1);
+ run('reset()');assert.equal(run('streak'),0);assert.equal(nodes.get('combo-reminder').hidden,true);
+});
+test('simultaneous notices show combo first, then a one-second blank gap and time in sequence',()=>{
+ const {run,nodes}=session();run('play();sessionSeconds=360;showCombo(200,360);updateReminder(359)');
+ assert.equal(nodes.get('combo-reminder').textContent,'200连击');assert.equal(nodes.get('combo-reminder').hidden,false);assert.equal(nodes.get('time-reminder').hidden,true);
+ for(const seconds of [362.999,363,363.999]){
+  run(`sessionSeconds=${seconds};paintReminders()`);
+  assert.equal(nodes.get('time-reminder').hidden,true);
+  assert.equal(nodes.get('combo-reminder').hidden,seconds>=363);
+ }
+ run('sessionSeconds=364;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);assert.equal(nodes.get('combo-reminder').hidden,true);
+ run('sessionSeconds=366.999;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);
+ run('sessionSeconds=367;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,true);
+});
+test('combo arriving during a time notice delays its full display and pause freezes notices',()=>{
+ const {run,nodes}=session();run('play();now=360000;render(now);now=360500;pause();showCombo(100,sessionSeconds);paintReminders()');
+ assert.equal(nodes.get('time-reminder').hidden,true);assert.equal(nodes.get('combo-reminder').hidden,false);
+ run('now=500000;render(now)');assert.equal(nodes.get('combo-reminder').hidden,false);assert.equal(nodes.get('time-reminder').hidden,true);
+ run('play();now=503999;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
+ run('now=504000;render(now)');assert.equal(nodes.get('time-reminder').hidden,false);
+ run('complete()');assert.equal(nodes.get('combo-reminder').hidden,true);assert.equal(nodes.get('time-reminder').hidden,true);
+});
+
+test('time threshold during the gap waits until four seconds after combo onset',()=>{
+ const {run,nodes}=session();run('play();sessionSeconds=360;showCombo(100,356.5);updateReminder(359)');
+ assert.equal(nodes.get('combo-reminder').hidden,true);assert.equal(nodes.get('time-reminder').hidden,true);
+ run('sessionSeconds=360.5;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);
 });
