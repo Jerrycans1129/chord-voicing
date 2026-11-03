@@ -389,6 +389,13 @@ function updateReminder(fromSeconds){
  paintReminders();
 }
 function paintReminders(){
+ const paused=started&&!finished&&!running;
+ $('training-reminders').hidden=paused;
+ $('pause-time').hidden=!paused;
+ if(paused){
+  const minutes=Math.max(0,Math.ceil((MAX_SECONDS-sessionSeconds)/60));
+  $('pause-time').textContent=`剩余 ${minutes} 分钟`;
+ }
  for(const [id,notice] of [['time-reminder',timeNotice],['combo-reminder',comboNotice]]){
   const el=$(id);
   el.hidden=!started||finished||!notice||sessionSeconds<notice.at||sessionSeconds>=notice.at+3;
@@ -396,8 +403,7 @@ function paintReminders(){
  }
 }
 function showResult(result){
- $('result-score').textContent=result.score.toFixed(1);
- $('result-stars').textContent=`${result.stars} / 3 星`;
+ setStars($('result-stars'),result.stars);
  $('result-accuracy').textContent=result.total?`${(result.accuracy*100).toFixed(1)}%`:'—';
  $('result-count').textContent=`${result.correct} / ${result.total}`;
  const seconds=Math.floor(result.seconds);

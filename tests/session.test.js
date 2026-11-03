@@ -687,7 +687,8 @@ test('pausing freezes a reminder and restarting clears it',()=>{
 test('result dialog reports results, blocks background starts and retries explicitly',()=>{
  const {run,nodes,documentHandlers}=session();run('play();now=1800000;render(now)');
  assert.equal(nodes.get('result-dialog').open,true);
- assert.equal(nodes.get('result-score').textContent,run('calculateScore(run).score.toFixed(1)'));
+ assert.equal(nodes.get('result-stars').children[0].textContent,'★★★');
+ assert.equal(nodes.get('result-stars').children[1].style.width,run('`${calculateScore(run).stars/3*100}%`'));
  assert.equal(nodes.get('result-duration').textContent,'30 分 0 秒');
  documentHandlers.click();documentHandlers.keydown({code:'Space',preventDefault(){}});run('play()');assert.equal(run('running'),false);
  nodes.get('result-retry').handlers.click({stopPropagation(){}});
@@ -738,4 +739,18 @@ test('time threshold during the gap waits until four seconds after combo onset',
  const {run,nodes}=session();run('play();sessionSeconds=360;showCombo(100,356.5);updateReminder(359)');
  assert.equal(nodes.get('combo-reminder').hidden,true);assert.equal(nodes.get('time-reminder').hidden,true);
  run('sessionSeconds=360.5;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);
+});
+
+test('pause shows frozen remaining minutes until resume or completion',()=>{
+ const {run,nodes}=session();assert.equal(nodes.get('pause-time').hidden,true);
+ run('play();now=123456;pause()');assert.equal(nodes.get('pause-time').hidden,false);
+ assert.equal(nodes.get('pause-time').textContent,'剩余 28 分钟');assert.equal(nodes.get('training-reminders').hidden,true);
+ run('now=500000;render(now)');assert.equal(nodes.get('pause-time').textContent,'剩余 28 分钟');
+ run('play()');assert.equal(nodes.get('pause-time').hidden,true);assert.equal(nodes.get('training-reminders').hidden,false);
+ run('pause();complete()');assert.equal(nodes.get('pause-time').hidden,true);
+});
+test('result stars preserve half-star ratings without a numerical score',()=>{
+ const {run,nodes}=session();run('showResult({stars:2.5,total:10,correct:8,accuracy:.8,seconds:300,factors:{pause:1,keyboard:1,speed:1,duration:1}})');
+ assert.equal(nodes.get('result-stars').children[1].style.width,`${2.5/3*100}%`);
+ assert.equal(readFileSync(new URL('../dist/index.html',import.meta.url),'utf8').includes('id="result-score"'),false);
 });
