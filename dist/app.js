@@ -10,7 +10,7 @@ const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}ca
 const levels=cleanLevels(read('voicing-weakness-v1',{}));
 const results=cleanResults(migrateResults(read('voicing-results-v1',{})),stages.map(s=>s.id));
 let stageIndex=currentProgress(results);
-let expandedTop=stages[stageIndex].kind==='note'?'notes-all':'chords-all';
+let expandedTop=stages[stageIndex].projectId;
 let expandedQuality=stages[stageIndex].id.startsWith('quality-')?stages[stageIndex].id:stages[stageIndex].parent?.startsWith('quality-')?stages[stageIndex].parent:null;
 let timingRuns=loadTiming(read(TIMING_KEY,null)),timingRun=null,timingDirty=false,timingSavedAt=0,timingStorageFailed=false;
 function persistTiming(){
@@ -245,20 +245,20 @@ function setStars(element,value){
  const fill=document.createElement('span');fill.className='stars-fill';fill.textContent='★★★';fill.setAttribute('aria-hidden','true');fill.style.width=`${value/3*100}%`;
  element.append(base,fill);
 }
-const nodeById=new Map([...stages,...curriculum.filter(n=>n.placeholder)].map(n=>[n.id,n]));
+const nodeById=new Map([...stages,...curriculum].map(n=>[n.id,n]));
 const routeRows=[$('route-top'),$('route-second'),$('route-third')];
 for(const stage of nodeById.values()){
- const node=document.createElement('button');node.type='button';node.className='route-node';node.dataset.id=stage.id;
+ const node=document.createElement('button');node.type='button';node.className='route-node';node.dataset.id=stage.id;node.dataset.comprehensive=String(!!stage.comprehensive);
  const label=document.createElement('span');label.className='route-name';label.textContent=stage.name;
  const dot=document.createElement('span');dot.className='route-dot';dot.append(label);
  const stars=document.createElement('span');stars.className='stars';node.append(dot,stars);
  node.addEventListener('click',()=>selectNode(stage.id));
- routeNodes[stages.indexOf(stage)]=node;
+ if(!stage.project)routeNodes[stages.indexOf(stage)]=node;
  stageButtons.set(stage.id,node);
 }
 function updateRoute(){
- const top=nodeById.get(expandedTop),quality=nodeById.get(expandedQuality);
- const rows=[curriculum,top?.children??[],quality?.children??[]];
+ const quality=nodeById.get(expandedQuality);
+ const rows=[curriculum,curriculum.flatMap(n=>n.children),quality?.children??[]];
  rows.forEach((nodes,i)=>{
   const buttons=nodes.map(n=>stageButtons.get(n.id)),existing=Array.from(routeRows[i].children);
   if(existing.length!==buttons.length||buttons.some((button,j)=>button!==existing[j])){
@@ -269,49 +269,71 @@ function updateRoute(){
  });
  for(const [id,node] of stageButtons){
   const stage=nodeById.get(id),selected=stages[stageIndex]?.id===id;
-  node.setAttribute('aria-current',selected?'step':'false');
+  node.setAttribute('aria-current',stage.project?(id===expandedTop?'location':'false'):(selected?'step':'false'));
   node.dataset.expanded=String(stage.children? id===expandedTop||id===expandedQuality:false);
-  if(stage.children)node.setAttribute('aria-expanded',node.dataset.expanded);
-  node.setAttribute('aria-label',`${stage.name}${stage.placeholder?' · 后续版本':stage.children&&!selectable(stage,results)?' · 展开':''}`);
+  if(stage.children&&!stage.project)node.setAttribute('aria-expanded',node.dataset.expanded);
+  node.setAttribute('aria-label',`${stage.name}${!stage.project&&!selectable(stage,results)?' · 尚未解锁':''}`);
   setStars(node.querySelector('.stars'),results[id]?.best.stars);
  }
  $('overlay-action').disabled=stageIndex<0||!selectable(stages[stageIndex],results);
  requestAnimationFrame(drawBranches);
 }
-// Decorative curves follow the actual circles through scrolling and resizing.
+// Keep the inversion group centered directly beneath its chord while scrolling.
 function drawBranches(){
- const bounds=$('route').getBoundingClientRect();
- const links=[['branch-top',expandedTop,routeRows[0],routeRows[1]],['branch-quality',expandedQuality,routeRows[1],routeRows[2]]];
- for(const [id,parentId,parentRow,childRow] of links){
-  const path=$(id),parent=stageButtons.get(parentId),child=childRow.children[0];
-  if(!parent||!child||childRow.hidden){path.setAttribute('d','');path.dataset.parent='';continue;}
-  const from=parent.querySelector('.route-dot').getBoundingClientRect(),to=child.querySelector('.route-dot').getBoundingClientRect();
-  const parentClip=parentRow.getBoundingClientRect(),childClip=childRow.getBoundingClientRect();
-  const x1=(from.left+from.right)/2-bounds.left,x2=(to.left+to.right)/2-bounds.left;
-  // Do not connect a different visible child when the first child is scrolled out.
-  if(from.left<parentClip.left||from.right>parentClip.right||to.left<childClip.left||to.right>childClip.right){path.setAttribute('d','');continue;}
-  const y1=from.bottom-bounds.top,y2=to.top-bounds.top;
-  const mid=(y1+y2)/2;
-  path.setAttribute('d',`M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`);
-  if(path.dataset.parent!==parentId){
-   path.dataset.parent=parentId;path.setAttribute('pathLength','1');
-   if(!matchMedia('(prefers-reduced-motion: reduce)').matches)path.animate?.([{strokeDasharray:'1',strokeDashoffset:1,opacity:0},{strokeDasharray:'1',strokeDashoffset:0,opacity:1}],{duration:460,easing:'cubic-bezier(.2,.7,.2,1)'});
-  }
- }
+ const path=$('branch-quality'),parent=stageButtons.get(expandedQuality),row=routeRows[2];
+ $('branch-top').setAttribute('d','');
+ if(!parent||!row.children.length||row.hidden){path.setAttribute('d','');return;}
+ const bounds=$('route').getBoundingClientRect(),clip=routeRows[1].getBoundingClientRect();
+ const from=parent.querySelector('.route-dot').getBoundingClientRect();
+ const center=(from.left+from.right)/2;
+ const visible=from.left>=clip.left&&from.right<=clip.right;
+ row.style.visibility=visible?'visible':'hidden';
+ if(!visible){path.setAttribute('d','');return;}
+ const detail=$('route-details').getBoundingClientRect();
+ row.style.transform=`translateX(${center-detail.left-row.offsetWidth/2}px)`;
+ const to=row.children[0].querySelector('.route-dot').getBoundingClientRect();
+ const x=center-bounds.left;
+ path.setAttribute('d',`M ${x} ${from.bottom-bounds.top} V ${(to.top+to.bottom)/2-bounds.top}`);
 }
 for(const row of routeRows)row.addEventListener('scroll',()=>requestAnimationFrame(drawBranches),{passive:true});
 globalThis.addEventListener?.('resize',()=>requestAnimationFrame(drawBranches));
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>requestAnimationFrame(drawBranches)).observe($('route'));
-function focusCurrentStage(){stageButtons.get(expandedTop)?.scrollIntoView?.({block:'nearest',inline:'nearest'});stageButtons.get(expandedQuality)?.scrollIntoView?.({block:'nearest',inline:'nearest'});routeNodes[stageIndex]?.scrollIntoView?.({block:'nearest',inline:'nearest'});}
+let programmaticScrollLeft=null;
+function revealProject(){stageButtons.get(expandedTop)?.scrollIntoView?.({block:'nearest',inline:'nearest'});}
+function focusCurrentStage(){revealProject();stageButtons.get(expandedQuality)?.scrollIntoView?.({block:'nearest',inline:'center'});routeNodes[stageIndex]?.scrollIntoView?.({block:'nearest',inline:'center'});programmaticScrollLeft=routeRows[1].scrollLeft;}
+function syncProjectFromScroll(){
+ const row=routeRows[1];
+ if(programmaticScrollLeft!==null&&Math.abs(row.scrollLeft-programmaticScrollLeft)<1)return;
+ programmaticScrollLeft=null;
+ const bounds=row.getBoundingClientRect();
+ if(!bounds.width)return;
+ const children=Array.from(row.children);
+ let closest;
+ if(row.scrollLeft<=1)closest=children[0];
+ else if(row.scrollLeft+row.clientWidth>=row.scrollWidth-1)closest=children.at(-1);
+ else closest=children.reduce((best,node)=>{
+  const rect=node.getBoundingClientRect(),distance=Math.abs((rect.left+rect.right-bounds.left-bounds.right)/2);
+  return !best||distance<best.distance?{node,distance}:best;
+ },null)?.node;
+ const project=nodeById.get(closest?.dataset.id)?.projectId;
+ if(project&&project!==expandedTop){expandedTop=project;updateRoute();revealProject();}
+}
+routeRows[1].addEventListener('scroll',()=>requestAnimationFrame(syncProjectFromScroll),{passive:true});
 function selectNode(id){
  if(started&&!finished)return;
  const stage=nodeById.get(id);if(!stage)return;
- if(curriculum.includes(stage)){expandedTop=id;expandedQuality=null;}
- else if(stage.parent==='chords-all'){expandedTop='chords-all';expandedQuality=id;}
- else if(stage.parent?.startsWith('quality-')){expandedTop='chords-all';expandedQuality=stage.parent;}
- else {expandedTop='notes-all';expandedQuality=null;}
+ if(stage.project){
+  expandedTop=id;updateRoute();revealProject();
+  stageButtons.get(stage.children[0].id)?.scrollIntoView?.({block:'nearest',inline:'center'});
+  programmaticScrollLeft=routeRows[1].scrollLeft;
+  return;
+ }
+ expandedTop=stage.projectId;
+ expandedQuality=stage.children?stage.id:stage.parent?.startsWith('quality-')?stage.parent:null;
  stageIndex=selectable(stage,results)?stages.indexOf(stage):-1;
  reset();focusCurrentStage();
+ if(stageIndex<0)stageButtons.get(id)?.scrollIntoView?.({block:'nearest',inline:'center'});
+ programmaticScrollLeft=routeRows[1].scrollLeft;
 }
 function selectStage(index){if(stages[index])selectNode(stages[index].id);}
 $('version').textContent=`v${VERSION}+${BUILD_REVISION}`;
@@ -319,17 +341,17 @@ for(const speed of SPEEDS){const option=document.createElement('option');option.
 $('speed').value=bpm;
 // Native touch scrolling; mouse dragging captures only after a real drag.
 let routeDrag=null,suppressRouteClick=false;
-for(const route of routeRows){
+for(const route of routeRows.slice(0,2)){
 route.addEventListener('pointerdown',e=>{
  suppressRouteClick=false;
  if(e.pointerType!=='mouse'||e.button!==0)return;
- routeDrag={id:e.pointerId,x:e.clientX,left:route.scrollLeft,moved:false};
+ routeDrag={id:e.pointerId,x:route===routeRows[0]?e.clientY:e.clientX,left:route===routeRows[0]?route.scrollTop:route.scrollLeft,moved:false};
 });
 route.addEventListener('pointermove',e=>{
  if(!routeDrag||routeDrag.id!==e.pointerId)return;
- const dx=e.clientX-routeDrag.x;
+ const dx=(route===routeRows[0]?e.clientY:e.clientX)-routeDrag.x;
  if(!routeDrag.moved&&Math.abs(dx)>6){routeDrag.moved=true;route.setPointerCapture(e.pointerId);route.dataset.dragging='true';}
- if(routeDrag.moved){e.preventDefault();route.scrollLeft=routeDrag.left-dx;}
+ if(routeDrag.moved){e.preventDefault();if(route===routeRows[0])route.scrollTop=routeDrag.left-dx;else route.scrollLeft=routeDrag.left-dx;}
 });
 function endRouteDrag(e){
  if(!routeDrag||routeDrag.id!==e.pointerId)return;
@@ -373,17 +395,18 @@ function syncCards(){
  }
  while(elapsed>=cards.length&&canReachLine(cards.length))appendCard();
 }
+const NOTICE_SECONDS=4,NOTICE_GAP_SECONDS=1;
 function showCombo(count,at){
  comboNotice={at,text:`${count}连击`};
- // If time is already visible or queued, restart it after the three-second combo and a one-second gap.
- if(timeNotice&&at<timeNotice.at+3)timeNotice.at=Math.max(timeNotice.at,at+4);
+ // If time is already visible or queued, restart it after the four-second combo and a one-second gap.
+ if(timeNotice&&at<timeNotice.at+NOTICE_SECONDS)timeNotice.at=Math.max(timeNotice.at,at+NOTICE_SECONDS+NOTICE_GAP_SECONDS);
 }
 function updateReminder(fromSeconds){
  for(const remaining of [1440,1080,720,360,60]){
   const at=MAX_SECONDS-remaining;
   if(fromSeconds<at&&sessionSeconds>=at){
-   const conflict=comboNotice&&at<comboNotice.at+4&&at+3>comboNotice.at;
-   timeNotice={at:conflict?Math.max(at,comboNotice.at+4):at,text:`剩余 ${remaining/60} 分钟`};
+   const conflict=comboNotice&&at<comboNotice.at+NOTICE_SECONDS+NOTICE_GAP_SECONDS&&at+NOTICE_SECONDS>comboNotice.at;
+   timeNotice={at:conflict?Math.max(at,comboNotice.at+NOTICE_SECONDS+NOTICE_GAP_SECONDS):at,text:`剩余 ${remaining/60} 分钟`};
   }
  }
  paintReminders();
@@ -398,7 +421,7 @@ function paintReminders(){
  }
  for(const [id,notice] of [['time-reminder',timeNotice],['combo-reminder',comboNotice]]){
   const el=$(id);
-  el.hidden=!started||finished||!notice||sessionSeconds<notice.at||sessionSeconds>=notice.at+3;
+  el.hidden=!started||finished||!notice||sessionSeconds<notice.at||sessionSeconds>=notice.at+NOTICE_SECONDS;
   if(notice)el.textContent=notice.text;
  }
 }

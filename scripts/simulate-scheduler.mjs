@@ -13,10 +13,11 @@ function simulate(stage,seed,count,levelFor,{dynamic=false}={}){
  let opportunities=0,reviews=0,fallBacks=0,cooldownViolations=0,invalid=0;
  const observed=[0,0,0,0],expected=[0,0,0,0],variance=[0,0,0,0];
  for(let n=0;n<count;n++){
-  const eligible=s.items.filter(i=>reviewWeights[levels[i.id]||0]&&n-(s.lastSeen.get(i.id)??-Infinity)>=4);
+  const last=new Map(s.lastSeen),c=s.next();
+  const pool=s.pools.find(pool=>pool.some(item=>item.id===c.id));
+  const eligible=pool.filter(i=>reviewWeights[levels[i.id]||0]&&n-(last.get(i.id)??-Infinity)>=4);
   const weights=[0,0,0,0];for(const item of eligible)weights[levels[item.id]]+=reviewWeights[levels[item.id]];
   const denom=sum(weights);
-  const last=new Map(s.lastSeen),c=s.next();
   if(c.reviewSlot)opportunities++;
   if(c.source==='review'){
    reviews++;if(n-(last.get(c.id)??-Infinity)<4)cooldownViolations++;
@@ -29,7 +30,7 @@ function simulate(stage,seed,count,levelFor,{dynamic=false}={}){
  }
  total+=count;
  assert.equal(opportunities,count*.3);assert.equal(cooldownViolations,0);assert.equal(invalid,0);
- assert.ok(spread([...balanced.values()])<=1);
+ for(const pool of s.pools)assert.ok(spread(pool.map(item=>balanced.get(item.id)))<=1);
  assert.ok([...roots.values()].every(r=>spread([...r.values()])<=1));
  for(let l=1;l<=3;l++)assert.ok(Math.abs(observed[l]-expected[l])<=7*Math.sqrt(variance[l])+5,`conditional weighted sampling tier ${l}`);
  const result={stage:stage.id,seed,count,opportunities,reviews,reviewPercent:100*reviews/count,fallBacks,balancedSpread:spread([...balanced.values()]),maxOctaveSpread:Math.max(...[...roots.values()].map(r=>spread([...r.values()]))),cooldownViolations,invalid,observed,expected:expected.map(n=>+n.toFixed(2)),maxWeightedZ:Math.max(...observed.map((n,i)=>Math.abs(n-expected[i])/Math.sqrt(variance[i]||1)))};
@@ -50,6 +51,6 @@ for(const [i,p] of [1/11,3/11,7/11].entries())assert.ok(Math.abs(normalized[i]-p
 const dynamic=simulate(stages[4],7353,200000,()=>0,{dynamic:true});
 assert.ok(dynamic.exposure.get('note:C♯')>dynamic.exposure.get('note:E♭'));
 assert.ok(dynamic.exposure.get('note:E♭')>dynamic.exposure.get('note:D♭'));
-const report={totalGenerated:total,assertions:'passed',description:'Deterministic Monte Carlo: 3 seeds × 47 stages × 2 profiles × 20,000 cards, plus isolated/dynamic/large-pool scenarios. Statistical properties only; not a learning-outcome trial.',isolated:{...isolated.result,sharp:isolated.exposure.get('note:C♯'),flat:isolated.exposure.get('note:D♭')},largePool:{...tiers.result,reviewTierShares:normalized},dynamic:{...dynamic.result,exposure:Object.fromEntries(dynamic.exposure)},runs};
+const report={totalGenerated:total,assertions:'passed',description:'Deterministic Monte Carlo: 3 seeds × 46 stages × 2 profiles × 20,000 cards, plus isolated/dynamic/large-pool scenarios. Statistical properties only; not a learning-outcome trial.',isolated:{...isolated.result,sharp:isolated.exposure.get('note:C♯'),flat:isolated.exposure.get('note:D♭')},largePool:{...tiers.result,reviewTierShares:normalized},dynamic:{...dynamic.result,exposure:Object.fromEntries(dynamic.exposure)},runs};
 writeFileSync(new URL('../reports/scheduler-simulation.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify({totalGenerated:total,assertions:report.assertions,maxBalancedSpread:Math.max(...runs.map(r=>r.balancedSpread)),maxOctaveSpread:Math.max(...runs.map(r=>r.maxOctaveSpread)),cooldownViolations:sum(runs.map(r=>r.cooldownViolations)),isolated:report.isolated,largePool:report.largePool,dynamic:report.dynamic},null,2));

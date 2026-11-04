@@ -39,7 +39,23 @@ test('balanced source covers every spelling equally and every item visits all le
    const c=s.next();assert.equal(c.source,'balanced');counts.set(c.id,(counts.get(c.id)||0)+1);
    if(!roots.has(c.id))roots.set(c.id,new Set());roots.get(c.id).add(c.root);
   }
-  assert.equal(counts.size,s.items.length);assert.ok([...counts.values()].every(n=>n===20));
+  assert.equal(counts.size,s.items.length);for(const pool of s.pools){
+   const values=pool.map(item=>counts.get(item.id));assert.ok(Math.max(...values)-Math.min(...values)<=1);
+  }
   for(const item of s.items)assert.deepEqual([...roots.get(item.id)].sort(),positions(item.pc,item.q,item.inv));
+ }
+});
+
+test('mixed levels enforce five current and five earlier cards despite concentrated weakness',()=>{
+ for(const stage of stages.filter(s=>s.pools)){
+  const levels=Object.fromEntries(stage.pools[0].map(c=>[`chord:C:${c.q}:${c.inv}`,3]));
+  const s=new Scheduler(stage,{levels,rng:rng()}),current=new Set(stage.pools[0].map(c=>c.q));
+  let reviews=0;
+  for(let block=0;block<100;block++){
+   let currentCount=0,slots=0;
+   for(let n=0;n<10;n++){const card=s.next();currentCount+=Number(current.has(card.q));slots+=Number(card.reviewSlot);if(card.source==='review')reviews++;}
+   assert.equal(currentCount,5);assert.equal(slots,3);
+  }
+  assert.ok(reviews>0);
  }
 });

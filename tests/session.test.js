@@ -485,7 +485,7 @@ test('repeated dismissed MIDI prompts cannot bypass any start entry or create re
  run('complete()');assert.equal(run('Object.keys(results).length'),0);assert.equal(alerts.length,0);
 });
 test('complete arpeggio counts correct at early settlement and lowers chord weakness exactly once',async()=>{
- const {run,send}=midiSession();await run('connectMidi()');run('selectStage(21);play();now=9000;render(now);levels[cards[0].id]=2');
+ const {run,send}=midiSession();await run('connectMidi()');run('selectStage(stages.findIndex(s=>s.id===`chord-4-1`));play();now=9000;render(now);levels[cards[0].id]=2');
  for(const note of JSON.parse(run('JSON.stringify(cards[0].targets)'))){send([0x90,note,100]);send([0x80,note,0]);}
  assert.equal(run('run.correct'),0);assert.equal(run('levels[cards[0].id]'),2);
  run('now=11819;render(now)');assert.equal(run('run.total'),0);
@@ -494,7 +494,7 @@ test('complete arpeggio counts correct at early settlement and lowers chord weak
 });
 test('silent, partial, wrong, and assisted responses have separate accuracy, weakness, and color outcomes',async()=>{
  for(const mode of ['silent','partial','wrong','assisted']){
-  const {run,send}=midiSession();await run('connectMidi()');run('selectStage(21);play();now=9000;render(now);levels[cards[0].id]=2');
+  const {run,send}=midiSession();await run('connectMidi()');run('selectStage(stages.findIndex(s=>s.id===`chord-4-1`));play();now=9000;render(now);levels[cards[0].id]=2');
   const targets=JSON.parse(run('JSON.stringify(cards[0].targets)'));
   if(mode!=='silent')for(const note of mode==='partial'?targets.slice(0,1):targets){send([0x90,note,100]);send([0x80,note,0]);}
   if(mode==='wrong'){send([0x90,0,100]);send([0x80,0,0]);send([0x90,0,100]);}
@@ -504,7 +504,7 @@ test('silent, partial, wrong, and assisted responses have separate accuracy, wea
  }
 });
 test('MIDI early switch credits only next question; held notes and note-offs never answer',async()=>{
- const {run,send}=midiSession();await run('connectMidi()');run("selectStage(21);play();while(cards.length<2)appendCard();cards[0]=prepareAttempt({kind:'chord',id:'chord:C:0:0',root:60,q:0,inv:0});cards[1]=prepareAttempt({kind:'chord',id:'chord:A:1:0',root:57,q:1,inv:0});now=11900");
+ const {run,send}=midiSession();await run('connectMidi()');run("selectStage(stages.findIndex(s=>s.id===`chord-4-1`));play();while(cards.length<2)appendCard();cards[0]=prepareAttempt({kind:'chord',id:'chord:C:0:0',root:60,q:0,inv:0});cards[1]=prepareAttempt({kind:'chord',id:'chord:A:1:0',root:57,q:1,inv:0});now=11900");
  for(const note of [60,64,67,57,66]){send([0x90,note,100]);send([0x80,note,0]);}
  assert.equal(run('cards[0].hits.size'),0);assert.equal(run('cards[0].ended'),true);assert.equal(run('cards[1].feedback'),'wrong');
  run('now=12181;render(now)');assert.equal(run('run.correct'),0);
@@ -613,28 +613,28 @@ test('final arpeggio note at the shifted boundary belongs only to the next quest
  run('pause();complete()');assert.equal(run('run.total'),1);
 });
 
-test('navigation clears selection for unavailable parents and placeholder; distant leaves remain free',()=>{
+test('navigation keeps the continuous chain and distant leaves remain free',()=>{
  const {run,nodes}=session({localStorage:{getItem(){return null;},setItem(){}}});
- assert.equal(run('stageIndex'),0);assert.equal(run('expandedTop'),'notes-all');
- run("selectNode('chords-all');play()");assert.equal(run('stageIndex'),-1);assert.equal(run('started'),false);assert.equal(nodes.get('overlay-action').disabled,true);
+ assert.equal(run('stageIndex'),0);assert.equal(run('expandedTop'),'project-notes');
+ run("selectNode('level-6');play()");assert.equal(run('stageIndex'),-1);assert.equal(run('started'),false);assert.equal(nodes.get('overlay-action').disabled,true);
  run("selectNode('quality-8')");assert.equal(run('expandedQuality'),'quality-8');assert.equal(nodes.get('route-third').children.length,4);
  run("selectNode('chord-8-3');play()");assert.equal(run('started'),true);assert.equal(run('cards[0].targets.length'),4);
- run("complete();selectNode('practice');play()");assert.equal(run('started'),false);assert.equal(nodes.get('route-second').hidden,true);assert.equal(nodes.get('route-third').hidden,true);
+ run("complete();selectNode('level-6')");assert.equal(nodes.get('route-second').children.length,18);assert.equal(nodes.get('route-third').hidden,true);
 });
 test('eligible parent mixes only its own children and receives independent results',()=>{
  const {run,nodes}=session();
- run("for(const child of curriculum[0].children)results[child.id]={best:{stars:3}};selectNode('notes-all')");
+ run("for(const child of curriculum[0].children.slice(0,4))results[child.id]={best:{stars:3}};selectNode('notes-all')");
  assert.equal(nodes.get('overlay-action').disabled,false);assert.equal(run('scheduler.items.length'),17);
  run('play();complete()');assert.equal(run("results['notes-all'].best.stars"),0);assert.equal(run("results['notes-two'].best.stars"),3);
 });
 test('reopening follows postorder progress, including a newly available parent',()=>{
  const full={started:true,seconds:1800,total:100,correct:100,minBpm:90,paused:false,shownKeyboard:false};
- const saved=Object.fromEntries(theory.curriculum[0].children.map(n=>[n.id,{last:full,best:full}]));
+ const saved=Object.fromEntries(theory.curriculum[0].children.slice(0,4).map(n=>[n.id,{last:full,best:full}]));
  const {run}=session({localStorage:{getItem(key){return key==='voicing-results-v1'?JSON.stringify(saved):null;},setItem(){}}});
- assert.equal(run("stages[stageIndex].id"),'notes-all');assert.equal(run('expandedTop'),'notes-all');
+ assert.equal(run("stages[stageIndex].id"),'notes-all');assert.equal(run('expandedTop'),'project-notes');
 });
 test('all new four-note qualities require the fourth MIDI attack before correctness',()=>{
- for(let q=4;q<=8;q++)for(let inv=0;inv<4;inv++){
+ for(const q of [4,5,6,8])for(let inv=0;inv<4;inv++){
   const {run}=session();run(`selectNode('chord-${q}-${inv}');play();now=9000;render(now)`);
   run('for(const note of cards[0].targets.slice(0,3))judgeMidi(note)');assert.equal(run('cards[0].hits.size'),3);assert.notEqual(run('cards[0].feedback'),'correct');
   run('judgeMidi(cards[0].targets[3])');assert.equal(run('cards[0].feedback'),'correct');
@@ -644,7 +644,7 @@ test('startup expands all ancestors and children of the next quality mixture',()
  const full={started:true,seconds:1800,total:100,correct:100,minBpm:90,paused:false,shownKeyboard:false};
  const saved=Object.fromEntries(theory.stages.slice(0,8).map(n=>[n.id,{last:full,best:full}]));
  const {run,nodes}=session({localStorage:{getItem:key=>key==='voicing-results-v1'?JSON.stringify(saved):null,setItem(){}}});
- assert.equal(run("stages[stageIndex].id"),'quality-0');assert.equal(run('expandedTop'),'chords-all');assert.equal(run('expandedQuality'),'quality-0');
+ assert.equal(run("stages[stageIndex].id"),'quality-0');assert.equal(run('expandedTop'),'project-triads');assert.equal(run('expandedQuality'),'quality-0');
  assert.equal(nodes.get('route-third').children.length,3);assert.equal(nodes.get('overlay-action').disabled,false);
 });
 
@@ -666,22 +666,22 @@ test('slowing near the end removes only unreachable tail and speeding resumes ge
  assert.equal(run('cards.every((c,i)=>canReachLine(i))'),true);
  const trimmed=run('cards.length');run('pause();bpm=140;play()');assert.ok(run('cards.length')>trimmed);
 });
-test('remaining time reminders are static, last three active seconds and skip opening',()=>{
+test('remaining time reminders are static, last four active seconds and skip opening',()=>{
  const {run,nodes}=session();run('play();render(0)');assert.equal(nodes.get('time-reminder').hidden,true);
  for(const minutes of [24,18,12,6,1]){
   const ms=(1800-minutes*60)*1000;
   run(`now=${ms};render(now)`);assert.equal(nodes.get('time-reminder').hidden,false);
   assert.equal(nodes.get('time-reminder').textContent,`剩余 ${minutes} 分钟`);
-  run(`now=${ms+2999};render(now)`);assert.equal(nodes.get('time-reminder').hidden,false);
-  run(`now=${ms+3000};render(now)`);assert.equal(nodes.get('time-reminder').hidden,true);
+  run(`now=${ms+3999};render(now)`);assert.equal(nodes.get('time-reminder').hidden,false);
+  run(`now=${ms+4000};render(now)`);assert.equal(nodes.get('time-reminder').hidden,true);
  }
  run('now=1800000;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
 });
 test('pausing freezes a reminder and restarting clears it',()=>{
  const {run,nodes}=session();run('play();now=361000;pause();now=400000;render(now)');
  assert.equal(nodes.get('time-reminder').hidden,false);
- run('play();now=401999;render(now)');assert.equal(nodes.get('time-reminder').hidden,false);
- run('now=402000;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
+ run('play();now=402999;render(now)');assert.equal(nodes.get('time-reminder').hidden,false);
+ run('now=403000;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
  run('reset()');assert.equal(nodes.get('time-reminder').hidden,true);
 });
 test('result dialog reports results, blocks background starts and retries explicitly',()=>{
@@ -717,26 +717,26 @@ test('each 100 consecutive settled correct answers triggers a combo; misses rese
 test('simultaneous notices show combo first, then a one-second blank gap and time in sequence',()=>{
  const {run,nodes}=session();run('play();sessionSeconds=360;showCombo(200,360);updateReminder(359)');
  assert.equal(nodes.get('combo-reminder').textContent,'200连击');assert.equal(nodes.get('combo-reminder').hidden,false);assert.equal(nodes.get('time-reminder').hidden,true);
- for(const seconds of [362.999,363,363.999]){
+ for(const seconds of [363.999,364,364.999]){
   run(`sessionSeconds=${seconds};paintReminders()`);
   assert.equal(nodes.get('time-reminder').hidden,true);
-  assert.equal(nodes.get('combo-reminder').hidden,seconds>=363);
+  assert.equal(nodes.get('combo-reminder').hidden,seconds>=364);
  }
- run('sessionSeconds=364;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);assert.equal(nodes.get('combo-reminder').hidden,true);
- run('sessionSeconds=366.999;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);
- run('sessionSeconds=367;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,true);
+ run('sessionSeconds=365;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);assert.equal(nodes.get('combo-reminder').hidden,true);
+ run('sessionSeconds=368.999;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);
+ run('sessionSeconds=369;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,true);
 });
 test('combo arriving during a time notice delays its full display and pause freezes notices',()=>{
  const {run,nodes}=session();run('play();now=360000;render(now);now=360500;pause();showCombo(100,sessionSeconds);paintReminders()');
  assert.equal(nodes.get('time-reminder').hidden,true);assert.equal(nodes.get('combo-reminder').hidden,false);
  run('now=500000;render(now)');assert.equal(nodes.get('combo-reminder').hidden,false);assert.equal(nodes.get('time-reminder').hidden,true);
- run('play();now=503999;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
- run('now=504000;render(now)');assert.equal(nodes.get('time-reminder').hidden,false);
+ run('play();now=504999;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
+ run('now=505000;render(now)');assert.equal(nodes.get('time-reminder').hidden,false);
  run('complete()');assert.equal(nodes.get('combo-reminder').hidden,true);assert.equal(nodes.get('time-reminder').hidden,true);
 });
 
-test('time threshold during the gap waits until four seconds after combo onset',()=>{
- const {run,nodes}=session();run('play();sessionSeconds=360;showCombo(100,356.5);updateReminder(359)');
+test('time threshold during the gap waits until five seconds after combo onset',()=>{
+ const {run,nodes}=session();run('play();sessionSeconds=360;showCombo(100,355.5);updateReminder(359)');
  assert.equal(nodes.get('combo-reminder').hidden,true);assert.equal(nodes.get('time-reminder').hidden,true);
  run('sessionSeconds=360.5;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);
 });
@@ -753,4 +753,30 @@ test('result stars preserve half-star ratings without a numerical score',()=>{
  const {run,nodes}=session();run('showResult({stars:2.5,total:10,correct:8,accuracy:.8,seconds:300,factors:{pause:1,keyboard:1,speed:1,duration:1}})');
  assert.equal(nodes.get('result-stars').children[1].style.width,`${2.5/3*100}%`);
  assert.equal(readFileSync(new URL('../dist/index.html',import.meta.url),'utf8').includes('id="result-score"'),false);
+});
+
+test('project browsing preserves selected training and expanded inversions',()=>{
+ const {run,nodes}=session();run("selectNode('chord-0-1');selectNode('project-colors')");
+ assert.equal(run("stages[stageIndex].id"),'chord-0-1');assert.equal(run('expandedQuality'),'quality-0');
+ assert.equal(run('expandedTop'),'project-colors');assert.equal(nodes.get('route-second').children.length,18);
+ assert.equal(nodes.get('route-third').children.length,3);
+});
+test('scroll project tracking uses center and endpoints without selecting training',()=>{
+ const {run,nodes}=session();
+ const row=nodes.get('route-second');row.clientWidth=400;row.scrollWidth=2200;
+ row.getBoundingClientRect=()=>({left:0,right:400,width:400});
+ row.children.forEach((node,i)=>{node.getBoundingClientRect=()=>({left:i*120-row.scrollLeft,right:i*120+100-row.scrollLeft});});
+ row.scrollLeft=1250;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-sevenths');
+ row.scrollLeft=1800;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-finale');
+ row.scrollLeft=0;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-notes');
+ assert.equal(run("stages[stageIndex].id"),'chord-0-1');
+});
+
+test('programmatic end-of-chain navigation keeps the clicked project highlighted',()=>{
+ const {run,nodes}=session();
+ const row=nodes.get('route-second');row.scrollLeft=1800;row.clientWidth=400;row.scrollWidth=2200;
+ row.getBoundingClientRect=()=>({left:0,right:400,width:400});
+ run("selectNode('project-colors');syncProjectFromScroll()");
+ assert.equal(run('expandedTop'),'project-colors');
+ assert.equal(run("stages[stageIndex].id"),'chord-0-1');
 });

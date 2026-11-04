@@ -24,16 +24,30 @@ const chordChildren=qualities.map((quality,q)=>{
  const children=order.map(inv=>({id:`chord-${q}-${inv}`,name:voicingLabel(q,inv),combos:[{q,inv}]}));
  return {id:`quality-${q}`,name:quality.name,children,combos:children.flatMap(s=>s.combos),mixed:true};
 });
-export const curriculum=[
- {id:'notes-all',name:'单音',kind:'note',children:noteChildren,pcs:Array.from({length:12},(_,i)=>i),mixed:true},
- {id:'chords-all',name:'和弦',children:chordChildren,combos:chordChildren.flatMap(s=>s.combos),mixed:true},
- {id:'practice',name:'实战',placeholder:true}
+const groups=[
+ {id:'project-triads',name:'大三/小三',qs:[0,1],title:'基础和弦'},
+ {id:'project-sus',name:'挂留和弦',qs:[2,3],title:'开挂啦'},
+ {id:'project-sevenths',name:'属七/小七',qs:[4,5],title:'高级和弦1'},
+ {id:'project-colors',name:'大七/加九',qs:[6,8],title:'高级和弦2'}
 ];
-// Postorder is also the recommended training sequence. Placeholders never train.
+const noteMix={id:'notes-all',name:'Level-1\n全部12个键',kind:'note',pcs:Array.from({length:12},(_,i)=>i),comprehensive:true,requires:noteChildren.map(n=>n.id)};
+export const curriculum=[{id:'project-notes',name:'单音',project:true,children:[...noteChildren,noteMix]}];
+let previous=[];
+for(const [index,group] of groups.entries()){
+ const children=group.qs.map(q=>({...chordChildren[q],name:qualities[q].name+'和弦'}));
+ const current=children.flatMap(n=>n.combos),level=index+2;
+ const mix={id:`level-${level}`,name:`Level-${level}\n${group.title}`,comprehensive:true,
+  combos:[...previous,...current],requires:[...children.map(n=>n.id),...(level>2?[`level-${level-1}`]:[])],
+  ...(previous.length?{pools:[current,[...previous]]}:{})};
+ curriculum.push({id:group.id,name:group.name,project:true,children:[...children,mix]});
+ previous=[...previous,...current];
+}
+curriculum.push({id:'project-finale',name:'终极大杂烩',project:true,children:[{id:'level-6',name:'Level-6\n满级键盘手',comprehensive:true,combos:previous,requires:['level-5']}]});
+// Projects are navigation only. Stable quality indices keep legacy item identities.
 export const stages=[];
-function visit(node,parent=null){node.parent=parent;for(const child of node.children??[])visit(child,node.id);if(!node.placeholder)stages.push(node);}
+function visit(node,parent=null,project=node.id){node.parent=parent;node.projectId=project;for(const child of node.children??[])visit(child,node.id,project);if(!node.project)stages.push(node);}
 curriculum.forEach(node=>visit(node));
-export function selectable(node,results){return !!node&&!node.placeholder&&(!node.children||node.children.every(child=>results[child.id]?.best.stars===3));}
+export function selectable(node,results){return !!node&&!node.project&&(node.requires??node.children?.map(child=>child.id)??[]).every(id=>results[id]?.best.stars===3);}
 export function currentProgress(results){const index=stages.findIndex(node=>selectable(node,results)&&results[node.id]?.best.stars!==3);return index<0?stages.length-1:index;}
 export function migrateResults(saved){const migrated={...saved};if(!migrated['quality-0']&&saved?.['mix-0-0'])migrated['quality-0']=saved['mix-0-0'];return migrated;}
 // inv rotates the sorted, close-position pitch classes; root remains the anchor.

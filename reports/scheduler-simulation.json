@@ -1,7 +1,7 @@
 {
-  "totalGenerated": 3340000,
+  "totalGenerated": 6220000,
   "assertions": "passed",
-  "description": "Deterministic Monte Carlo: 3 seeds × 22 stages × 2 profiles × 20,000 cards, plus isolated/dynamic/large-pool scenarios. Statistical properties only; not a learning-outcome trial.",
+  "description": "Deterministic Monte Carlo: 3 seeds × 46 stages × 2 profiles × 20,000 cards, plus isolated/dynamic/large-pool scenarios. Statistical properties only; not a learning-outcome trial.",
   "isolated": {
     "stage": "notes-all",
     "seed": 7351,
@@ -31,7 +31,7 @@
     "flat": 10062
   },
   "largePool": {
-    "stage": "mix-2-0",
+    "stage": "level-6",
     "seed": 7352,
     "count": 300000,
     "opportunities": 90000,
@@ -44,21 +44,21 @@
     "invalid": 0,
     "observed": [
       0,
-      8211,
-      24427,
-      57362
+      8055,
+      24600,
+      57345
     ],
     "expected": [
       0,
-      8228.93,
-      24626.67,
-      57144.4
+      8229.67,
+      24668.26,
+      57102.08
     ],
-    "maxWeightedZ": 1.506719566875893,
+    "maxWeightedZ": 2.0199672743853707,
     "reviewTierShares": [
-      0.09123333333333333,
-      0.2714111111111111,
-      0.6373555555555556
+      0.0895,
+      0.2733333333333333,
+      0.6371666666666667
     ]
   },
   "dynamic": {
@@ -486,60 +486,6 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-0-2",
-      "seed": 42,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-0-2",
-      "seed": 42,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        612,
-        1681,
-        3707
-      ],
-      "expected": [
-        0,
-        633.62,
-        1653.02,
-        3713.35
-      ],
-      "maxWeightedZ": 0.9091122562728626,
-      "mode": "mixed-levels"
-    },
-    {
       "stage": "chord-0-0",
       "seed": 42,
       "count": 20000,
@@ -594,7 +540,7 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-0-0",
+      "stage": "quality-0",
       "seed": 42,
       "count": 20000,
       "opportunities": 6000,
@@ -621,7 +567,7 @@
       "mode": "no-errors"
     },
     {
-      "stage": "mix-0-0",
+      "stage": "quality-0",
       "seed": 42,
       "count": 20000,
       "opportunities": 6000,
@@ -702,60 +648,6 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-1-1",
-      "seed": 42,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-1-1",
-      "seed": 42,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        568,
-        1651,
-        3781
-      ],
-      "expected": [
-        0,
-        555.83,
-        1653.62,
-        3790.55
-      ],
-      "maxWeightedZ": 0.5419490520913754,
-      "mode": "mixed-levels"
-    },
-    {
       "stage": "chord-1-2",
       "seed": 42,
       "count": 20000,
@@ -807,60 +699,6 @@
         3657.08
       ],
       "maxWeightedZ": 0.3789345140110936,
-      "mode": "mixed-levels"
-    },
-    {
-      "stage": "mix-1-2",
-      "seed": 42,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-1-2",
-      "seed": 42,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        517,
-        1625,
-        3858
-      ],
-      "expected": [
-        0,
-        553.03,
-        1650.09,
-        3796.88
-      ],
-      "maxWeightedZ": 1.6377097355671515,
       "mode": "mixed-levels"
     },
     {
@@ -918,7 +756,7 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-1-0",
+      "stage": "quality-1",
       "seed": 42,
       "count": 20000,
       "opportunities": 6000,
@@ -945,7 +783,61 @@
       "mode": "no-errors"
     },
     {
-      "stage": "mix-1-0",
+      "stage": "quality-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        583,
+        1751,
+        3666
+      ],
+      "expected": [
+        0,
+        588.32,
+        1745.76,
+        3665.92
+      ],
+      "maxWeightedZ": 0.2310757317724038,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-2",
       "seed": 42,
       "count": 20000,
       "opportunities": 6000,
@@ -1026,60 +918,6 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-2-1",
-      "seed": 42,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-2-1",
-      "seed": 42,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        570,
-        1698,
-        3732
-      ],
-      "expected": [
-        0,
-        562.92,
-        1681.01,
-        3756.06
-      ],
-      "maxWeightedZ": 0.6421622587227042,
-      "mode": "mixed-levels"
-    },
-    {
       "stage": "chord-2-2",
       "seed": 42,
       "count": 20000,
@@ -1131,60 +969,6 @@
         3650.74
       ],
       "maxWeightedZ": 0.5374172659361127,
-      "mode": "mixed-levels"
-    },
-    {
-      "stage": "mix-2-2",
-      "seed": 42,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-2-2",
-      "seed": 42,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        585,
-        1641,
-        3774
-      ],
-      "expected": [
-        0,
-        550.07,
-        1644.14,
-        3805.8
-      ],
-      "maxWeightedZ": 1.5628701436553,
       "mode": "mixed-levels"
     },
     {
@@ -1242,7 +1026,7 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-2-0",
+      "stage": "quality-2",
       "seed": 42,
       "count": 20000,
       "opportunities": 6000,
@@ -1269,7 +1053,7 @@
       "mode": "no-errors"
     },
     {
-      "stage": "mix-2-0",
+      "stage": "quality-2",
       "seed": 42,
       "count": 20000,
       "opportunities": 6000,
@@ -1282,17 +1066,1529 @@
       "invalid": 0,
       "observed": [
         0,
-        554,
-        1663,
-        3783
+        586,
+        1742,
+        3672
       ],
       "expected": [
         0,
-        549.46,
-        1643.42,
-        3807.12
+        588.8,
+        1744.55,
+        3666.65
       ],
-      "maxWeightedZ": 0.6467449141964864,
+      "maxWeightedZ": 0.14194035463493795,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-3-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-3-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        573,
+        1738,
+        3689
+      ],
+      "expected": [
+        0,
+        606.87,
+        1736.11,
+        3657.02
+      ],
+      "maxWeightedZ": 1.4564091077572328,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-3-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-3-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        587,
+        1719,
+        3694
+      ],
+      "expected": [
+        0,
+        606.84,
+        1740.13,
+        3653.03
+      ],
+      "maxWeightedZ": 1.1024111433180022,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-3-0",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-3-0",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        648,
+        1710,
+        3642
+      ],
+      "expected": [
+        0,
+        603.04,
+        1734.62,
+        3662.34
+      ],
+      "maxWeightedZ": 1.9384194068905027,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        589,
+        1752,
+        3659
+      ],
+      "expected": [
+        0,
+        588.09,
+        1741.41,
+        3670.49
+      ],
+      "maxWeightedZ": 0.3048791672284033,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        665,
+        1614,
+        3721
+      ],
+      "expected": [
+        0,
+        649.57,
+        1610.91,
+        3739.52
+      ],
+      "maxWeightedZ": 0.6536410973304891,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        647,
+        1700,
+        3653
+      ],
+      "expected": [
+        0,
+        604.49,
+        1729.12,
+        3666.39
+      ],
+      "maxWeightedZ": 1.8309556682266601,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        617,
+        1727,
+        3656
+      ],
+      "expected": [
+        0,
+        609.13,
+        1741.63,
+        3649.24
+      ],
+      "maxWeightedZ": 0.42213939106762216,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        601,
+        1721,
+        3678
+      ],
+      "expected": [
+        0,
+        608.37,
+        1738.74,
+        3652.89
+      ],
+      "maxWeightedZ": 0.6756518984650752,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-0",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-0",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        625,
+        1752,
+        3623
+      ],
+      "expected": [
+        0,
+        606.64,
+        1736.84,
+        3656.52
+      ],
+      "maxWeightedZ": 0.9021389870699447,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-4",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-4",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        550,
+        1605,
+        3845
+      ],
+      "expected": [
+        0,
+        556.26,
+        1654.48,
+        3789.27
+      ],
+      "maxWeightedZ": 1.4925873762605373,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        601,
+        1744,
+        3655
+      ],
+      "expected": [
+        0,
+        608.08,
+        1737.63,
+        3654.28
+      ],
+      "maxWeightedZ": 0.3042629817006014,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        617,
+        1740,
+        3643
+      ],
+      "expected": [
+        0,
+        608.45,
+        1734.47,
+        3657.08
+      ],
+      "maxWeightedZ": 0.3789345140110936,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        601,
+        1721,
+        3678
+      ],
+      "expected": [
+        0,
+        608.37,
+        1738.74,
+        3652.89
+      ],
+      "maxWeightedZ": 0.6756518984650752,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-0",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-0",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        625,
+        1752,
+        3623
+      ],
+      "expected": [
+        0,
+        606.64,
+        1736.84,
+        3656.52
+      ],
+      "maxWeightedZ": 0.9021389870699447,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-5",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-5",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        537,
+        1700,
+        3763
+      ],
+      "expected": [
+        0,
+        555.77,
+        1650.05,
+        3794.19
+      ],
+      "maxWeightedZ": 1.4451331302666712,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-4",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 25,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-4",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 18,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        552,
+        1631,
+        3817
+      ],
+      "expected": [
+        0,
+        547.37,
+        1640.25,
+        3812.38
+      ],
+      "maxWeightedZ": 0.26783596148007444,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        647,
+        1700,
+        3653
+      ],
+      "expected": [
+        0,
+        604.49,
+        1729.12,
+        3666.39
+      ],
+      "maxWeightedZ": 1.8309556682266601,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        617,
+        1727,
+        3656
+      ],
+      "expected": [
+        0,
+        609.13,
+        1741.63,
+        3649.24
+      ],
+      "maxWeightedZ": 0.42213939106762216,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        589,
+        1713,
+        3698
+      ],
+      "expected": [
+        0,
+        602.99,
+        1733.87,
+        3663.14
+      ],
+      "maxWeightedZ": 0.937967494976155,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-0",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-0",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        603,
+        1750,
+        3647
+      ],
+      "expected": [
+        0,
+        606.37,
+        1734.7,
+        3658.93
+      ],
+      "maxWeightedZ": 0.4420084273282349,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-6",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-6",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        576,
+        1579,
+        3845
+      ],
+      "expected": [
+        0,
+        555.69,
+        1654.67,
+        3789.63
+      ],
+      "maxWeightedZ": 2.1872521407244645,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-1",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        573,
+        1738,
+        3689
+      ],
+      "expected": [
+        0,
+        606.87,
+        1736.11,
+        3657.02
+      ],
+      "maxWeightedZ": 1.4564091077572328,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-2",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        588,
+        1776,
+        3636
+      ],
+      "expected": [
+        0,
+        606.16,
+        1736.07,
+        3657.76
+      ],
+      "maxWeightedZ": 1.1529509434608736,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-3",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        617,
+        1727,
+        3656
+      ],
+      "expected": [
+        0,
+        609.13,
+        1741.63,
+        3649.24
+      ],
+      "maxWeightedZ": 0.42213939106762216,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-0",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-0",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        648,
+        1710,
+        3642
+      ],
+      "expected": [
+        0,
+        603.04,
+        1734.62,
+        3662.34
+      ],
+      "maxWeightedZ": 1.9384194068905027,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-8",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-8",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        576,
+        1682,
+        3742
+      ],
+      "expected": [
+        0,
+        555.57,
+        1654.18,
+        3790.25
+      ],
+      "maxWeightedZ": 1.292380825097705,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-5",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 45,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-5",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 32,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        541,
+        1675,
+        3784
+      ],
+      "expected": [
+        0,
+        546.89,
+        1638.79,
+        3814.32
+      ],
+      "maxWeightedZ": 1.049184417655972,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-6",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-6",
+      "seed": 42,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        573,
+        1615,
+        3812
+      ],
+      "expected": [
+        0,
+        546.79,
+        1638.3,
+        3814.91
+      ],
+      "maxWeightedZ": 1.1757313406661019,
       "mode": "mixed-levels"
     },
     {
@@ -1674,60 +2970,6 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-0-2",
-      "seed": 123456,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-0-2",
-      "seed": 123456,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        615,
-        1660,
-        3725
-      ],
-      "expected": [
-        0,
-        634.01,
-        1654.34,
-        3711.65
-      ],
-      "maxWeightedZ": 0.7989825996286053,
-      "mode": "mixed-levels"
-    },
-    {
       "stage": "chord-0-0",
       "seed": 123456,
       "count": 20000,
@@ -1782,7 +3024,7 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-0-0",
+      "stage": "quality-0",
       "seed": 123456,
       "count": 20000,
       "opportunities": 6000,
@@ -1809,7 +3051,7 @@
       "mode": "no-errors"
     },
     {
-      "stage": "mix-0-0",
+      "stage": "quality-0",
       "seed": 123456,
       "count": 20000,
       "opportunities": 6000,
@@ -1890,60 +3132,6 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-1-1",
-      "seed": 123456,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-1-1",
-      "seed": 123456,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        561,
-        1670,
-        3769
-      ],
-      "expected": [
-        0,
-        555.26,
-        1652.73,
-        3792
-      ],
-      "maxWeightedZ": 0.6161509425260109,
-      "mode": "mixed-levels"
-    },
-    {
       "stage": "chord-1-2",
       "seed": 123456,
       "count": 20000,
@@ -1995,60 +3183,6 @@
         3655.17
       ],
       "maxWeightedZ": 1.0270425975151065,
-      "mode": "mixed-levels"
-    },
-    {
-      "stage": "mix-1-2",
-      "seed": 123456,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-1-2",
-      "seed": 123456,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        576,
-        1639,
-        3785
-      ],
-      "expected": [
-        0,
-        553.35,
-        1648.36,
-        3798.28
-      ],
-      "maxWeightedZ": 1.0105255892035756,
       "mode": "mixed-levels"
     },
     {
@@ -2106,7 +3240,7 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-1-0",
+      "stage": "quality-1",
       "seed": 123456,
       "count": 20000,
       "opportunities": 6000,
@@ -2133,7 +3267,61 @@
       "mode": "no-errors"
     },
     {
-      "stage": "mix-1-0",
+      "stage": "quality-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        593,
+        1725,
+        3682
+      ],
+      "expected": [
+        0,
+        588.2,
+        1745.99,
+        3665.81
+      ],
+      "maxWeightedZ": 0.5973529482749935,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-2",
       "seed": 123456,
       "count": 20000,
       "opportunities": 6000,
@@ -2214,60 +3402,6 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-2-1",
-      "seed": 123456,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-2-1",
-      "seed": 123456,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        587,
-        1665,
-        3748
-      ],
-      "expected": [
-        0,
-        562.64,
-        1680.9,
-        3756.46
-      ],
-      "maxWeightedZ": 1.0788103010451562,
-      "mode": "mixed-levels"
-    },
-    {
       "stage": "chord-2-2",
       "seed": 123456,
       "count": 20000,
@@ -2319,60 +3453,6 @@
         3650.68
       ],
       "maxWeightedZ": 0.3526399740216867,
-      "mode": "mixed-levels"
-    },
-    {
-      "stage": "mix-2-2",
-      "seed": 123456,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-2-2",
-      "seed": 123456,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        533,
-        1645,
-        3822
-      ],
-      "expected": [
-        0,
-        550.4,
-        1644.07,
-        3805.52
-      ],
-      "maxWeightedZ": 0.7784224829513773,
       "mode": "mixed-levels"
     },
     {
@@ -2430,7 +3510,7 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-2-0",
+      "stage": "quality-2",
       "seed": 123456,
       "count": 20000,
       "opportunities": 6000,
@@ -2457,7 +3537,7 @@
       "mode": "no-errors"
     },
     {
-      "stage": "mix-2-0",
+      "stage": "quality-2",
       "seed": 123456,
       "count": 20000,
       "opportunities": 6000,
@@ -2470,17 +3550,1529 @@
       "invalid": 0,
       "observed": [
         0,
-        575,
-        1632,
-        3793
+        591,
+        1725,
+        3684
       ],
       "expected": [
         0,
-        549.56,
-        1643.7,
-        3806.74
+        587.94,
+        1743.92,
+        3668.13
       ],
-      "maxWeightedZ": 1.1387649234280521,
+      "maxWeightedZ": 0.5386143507645078,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-3-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-3-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        601,
+        1738,
+        3661
+      ],
+      "expected": [
+        0,
+        605.02,
+        1736.08,
+        3658.9
+      ],
+      "maxWeightedZ": 0.17311284952399564,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-3-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-3-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        581,
+        1796,
+        3623
+      ],
+      "expected": [
+        0,
+        607.54,
+        1740.43,
+        3652.03
+      ],
+      "maxWeightedZ": 1.6041199130844621,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-3-0",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-3-0",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        617,
+        1659,
+        3724
+      ],
+      "expected": [
+        0,
+        608.55,
+        1748.34,
+        3643.11
+      ],
+      "maxWeightedZ": 2.575899947814428,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        602,
+        1727,
+        3671
+      ],
+      "expected": [
+        0,
+        588.66,
+        1744.52,
+        3666.82
+      ],
+      "maxWeightedZ": 0.579138707138943,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        674,
+        1604,
+        3722
+      ],
+      "expected": [
+        0,
+        649.49,
+        1610.99,
+        3739.52
+      ],
+      "maxWeightedZ": 1.0380354213545575,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        608,
+        1719,
+        3673
+      ],
+      "expected": [
+        0,
+        608.32,
+        1738.6,
+        3653.09
+      ],
+      "maxWeightedZ": 0.5655197433001362,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        600,
+        1719,
+        3681
+      ],
+      "expected": [
+        0,
+        606.53,
+        1742.13,
+        3651.34
+      ],
+      "maxWeightedZ": 0.7976527423241331,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        614,
+        1681,
+        3705
+      ],
+      "expected": [
+        0,
+        606.52,
+        1736.27,
+        3657.21
+      ],
+      "maxWeightedZ": 1.595777280237701,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-0",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-0",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        639,
+        1733,
+        3628
+      ],
+      "expected": [
+        0,
+        602.95,
+        1744.17,
+        3652.89
+      ],
+      "maxWeightedZ": 1.5547180132885294,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-4",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-4",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        538,
+        1630,
+        3832
+      ],
+      "expected": [
+        0,
+        555.76,
+        1652.7,
+        3791.54
+      ],
+      "maxWeightedZ": 1.0836352185064053,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        621,
+        1709,
+        3670
+      ],
+      "expected": [
+        0,
+        607.16,
+        1735.53,
+        3657.31
+      ],
+      "maxWeightedZ": 0.7665828870746816,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        628,
+        1755,
+        3617
+      ],
+      "expected": [
+        0,
+        607.76,
+        1737.07,
+        3655.17
+      ],
+      "maxWeightedZ": 1.0270425975151065,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        614,
+        1681,
+        3705
+      ],
+      "expected": [
+        0,
+        606.52,
+        1736.27,
+        3657.21
+      ],
+      "maxWeightedZ": 1.595777280237701,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-0",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-0",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        639,
+        1733,
+        3628
+      ],
+      "expected": [
+        0,
+        602.95,
+        1744.17,
+        3652.89
+      ],
+      "maxWeightedZ": 1.5547180132885294,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-5",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-5",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        566,
+        1678,
+        3756
+      ],
+      "expected": [
+        0,
+        555.56,
+        1652.19,
+        3792.25
+      ],
+      "maxWeightedZ": 0.9711504266056922,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-4",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 25,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-4",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 18,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        565,
+        1637,
+        3798
+      ],
+      "expected": [
+        0,
+        547.19,
+        1639.33,
+        3813.48
+      ],
+      "maxWeightedZ": 0.7987237604385589,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        608,
+        1719,
+        3673
+      ],
+      "expected": [
+        0,
+        608.32,
+        1738.6,
+        3653.09
+      ],
+      "maxWeightedZ": 0.5655197433001362,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        600,
+        1719,
+        3681
+      ],
+      "expected": [
+        0,
+        606.53,
+        1742.13,
+        3651.34
+      ],
+      "maxWeightedZ": 0.7976527423241331,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        634,
+        1711,
+        3655
+      ],
+      "expected": [
+        0,
+        606.05,
+        1744,
+        3649.94
+      ],
+      "maxWeightedZ": 1.202392319592101,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-0",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-0",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        625,
+        1734,
+        3641
+      ],
+      "expected": [
+        0,
+        605.27,
+        1728.02,
+        3666.7
+      ],
+      "maxWeightedZ": 0.8492453111093738,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-6",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-6",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        588,
+        1549,
+        3863
+      ],
+      "expected": [
+        0,
+        556.03,
+        1654.34,
+        3789.63
+      ],
+      "maxWeightedZ": 3.0448881569127906,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-1",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        601,
+        1738,
+        3661
+      ],
+      "expected": [
+        0,
+        605.02,
+        1736.08,
+        3658.9
+      ],
+      "maxWeightedZ": 0.17311284952399564,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-2",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        603,
+        1766,
+        3631
+      ],
+      "expected": [
+        0,
+        608.96,
+        1738.67,
+        3652.37
+      ],
+      "maxWeightedZ": 0.7888106136712563,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-3",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        600,
+        1719,
+        3681
+      ],
+      "expected": [
+        0,
+        606.53,
+        1742.13,
+        3651.34
+      ],
+      "maxWeightedZ": 0.7976527423241331,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-0",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-0",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        617,
+        1659,
+        3724
+      ],
+      "expected": [
+        0,
+        608.55,
+        1748.34,
+        3643.11
+      ],
+      "maxWeightedZ": 2.575899947814428,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-8",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-8",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        577,
+        1634,
+        3789
+      ],
+      "expected": [
+        0,
+        555.45,
+        1653.5,
+        3791.04
+      ],
+      "maxWeightedZ": 0.9598617829544936,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-5",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 45,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-5",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 32,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        570,
+        1643,
+        3787
+      ],
+      "expected": [
+        0,
+        546.73,
+        1638.46,
+        3814.82
+      ],
+      "maxWeightedZ": 1.0439514387167574,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-6",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-6",
+      "seed": 123456,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        526,
+        1644,
+        3830
+      ],
+      "expected": [
+        0,
+        546.79,
+        1638.37,
+        3814.84
+      ],
+      "maxWeightedZ": 0.9326823080377601,
       "mode": "mixed-levels"
     },
     {
@@ -2862,60 +5454,6 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-0-2",
-      "seed": 20261101,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-0-2",
-      "seed": 20261101,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        616,
-        1652,
-        3732
-      ],
-      "expected": [
-        0,
-        632.98,
-        1652.95,
-        3714.07
-      ],
-      "maxWeightedZ": 0.7142278784612931,
-      "mode": "mixed-levels"
-    },
-    {
       "stage": "chord-0-0",
       "seed": 20261101,
       "count": 20000,
@@ -2970,7 +5508,7 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-0-0",
+      "stage": "quality-0",
       "seed": 20261101,
       "count": 20000,
       "opportunities": 6000,
@@ -2997,7 +5535,7 @@
       "mode": "no-errors"
     },
     {
-      "stage": "mix-0-0",
+      "stage": "quality-0",
       "seed": 20261101,
       "count": 20000,
       "opportunities": 6000,
@@ -3078,60 +5616,6 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-1-1",
-      "seed": 20261101,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-1-1",
-      "seed": 20261101,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        528,
-        1611,
-        3861
-      ],
-      "expected": [
-        0,
-        556.36,
-        1653.62,
-        3790.02
-      ],
-      "maxWeightedZ": 1.900921511239105,
-      "mode": "mixed-levels"
-    },
-    {
       "stage": "chord-1-2",
       "seed": 20261101,
       "count": 20000,
@@ -3183,60 +5667,6 @@
         3658.41
       ],
       "maxWeightedZ": 0.9927010281850799,
-      "mode": "mixed-levels"
-    },
-    {
-      "stage": "mix-1-2",
-      "seed": 20261101,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-1-2",
-      "seed": 20261101,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        575,
-        1619,
-        3806
-      ],
-      "expected": [
-        0,
-        553.55,
-        1648.57,
-        3797.88
-      ],
-      "maxWeightedZ": 0.9570072932906222,
       "mode": "mixed-levels"
     },
     {
@@ -3294,7 +5724,7 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-1-0",
+      "stage": "quality-1",
       "seed": 20261101,
       "count": 20000,
       "opportunities": 6000,
@@ -3321,7 +5751,61 @@
       "mode": "no-errors"
     },
     {
-      "stage": "mix-1-0",
+      "stage": "quality-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        583,
+        1732,
+        3685
+      ],
+      "expected": [
+        0,
+        588.88,
+        1745.48,
+        3665.64
+      ],
+      "maxWeightedZ": 0.5132434898978587,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-2",
       "seed": 20261101,
       "count": 20000,
       "opportunities": 6000,
@@ -3402,60 +5886,6 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-2-1",
-      "seed": 20261101,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-2-1",
-      "seed": 20261101,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        525,
-        1698,
-        3777
-      ],
-      "expected": [
-        0,
-        562.88,
-        1681,
-        3756.12
-      ],
-      "maxWeightedZ": 1.677296521942069,
-      "mode": "mixed-levels"
-    },
-    {
       "stage": "chord-2-2",
       "seed": 20261101,
       "count": 20000,
@@ -3507,60 +5937,6 @@
         3653.64
       ],
       "maxWeightedZ": 1.0792655167169363,
-      "mode": "mixed-levels"
-    },
-    {
-      "stage": "mix-2-2",
-      "seed": 20261101,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 0,
-      "reviewPercent": 0,
-      "fallBacks": 6000,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "expected": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "maxWeightedZ": 0,
-      "mode": "no-errors"
-    },
-    {
-      "stage": "mix-2-2",
-      "seed": 20261101,
-      "count": 20000,
-      "opportunities": 6000,
-      "reviews": 6000,
-      "reviewPercent": 30,
-      "fallBacks": 0,
-      "balancedSpread": 1,
-      "maxOctaveSpread": 1,
-      "cooldownViolations": 0,
-      "invalid": 0,
-      "observed": [
-        0,
-        529,
-        1672,
-        3799
-      ],
-      "expected": [
-        0,
-        550.4,
-        1644.29,
-        3805.31
-      ],
-      "maxWeightedZ": 0.9571277433894051,
       "mode": "mixed-levels"
     },
     {
@@ -3618,7 +5994,7 @@
       "mode": "mixed-levels"
     },
     {
-      "stage": "mix-2-0",
+      "stage": "quality-2",
       "seed": 20261101,
       "count": 20000,
       "opportunities": 6000,
@@ -3645,7 +6021,7 @@
       "mode": "no-errors"
     },
     {
-      "stage": "mix-2-0",
+      "stage": "quality-2",
       "seed": 20261101,
       "count": 20000,
       "opportunities": 6000,
@@ -3658,17 +6034,1529 @@
       "invalid": 0,
       "observed": [
         0,
-        559,
-        1704,
+        537,
+        1726,
         3737
       ],
       "expected": [
         0,
-        549.6,
-        1642.28,
-        3808.12
+        588.49,
+        1744.71,
+        3666.8
       ],
-      "maxWeightedZ": 1.9069733032013956,
+      "maxWeightedZ": 2.2355981060429935,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-3-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-3-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        633,
+        1753,
+        3614
+      ],
+      "expected": [
+        0,
+        607.4,
+        1740.18,
+        3652.42
+      ],
+      "maxWeightedZ": 1.1004313159015782,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-3-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-3-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        620,
+        1722,
+        3658
+      ],
+      "expected": [
+        0,
+        607.95,
+        1734.15,
+        3657.9
+      ],
+      "maxWeightedZ": 0.5176525605987622,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-3-0",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-3-0",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        642,
+        1694,
+        3664
+      ],
+      "expected": [
+        0,
+        605.13,
+        1734.53,
+        3660.33
+      ],
+      "maxWeightedZ": 1.587199072917789,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        595,
+        1761,
+        3644
+      ],
+      "expected": [
+        0,
+        588.04,
+        1742.36,
+        3669.6
+      ],
+      "maxWeightedZ": 0.6789948614594735,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        699,
+        1581,
+        3720
+      ],
+      "expected": [
+        0,
+        646.11,
+        1611.73,
+        3742.16
+      ],
+      "maxWeightedZ": 2.2451042966607986,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        612,
+        1815,
+        3573
+      ],
+      "expected": [
+        0,
+        606.53,
+        1735.82,
+        3657.65
+      ],
+      "maxWeightedZ": 2.286806088749984,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        593,
+        1748,
+        3659
+      ],
+      "expected": [
+        0,
+        608.17,
+        1737.47,
+        3654.36
+      ],
+      "maxWeightedZ": 0.6515433992809099,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        594,
+        1771,
+        3635
+      ],
+      "expected": [
+        0,
+        608.16,
+        1741.35,
+        3650.48
+      ],
+      "maxWeightedZ": 0.8554547958567256,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-4-0",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-4-0",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        577,
+        1719,
+        3704
+      ],
+      "expected": [
+        0,
+        608.82,
+        1746.18,
+        3645
+      ],
+      "maxWeightedZ": 1.586107611928911,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-4",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-4",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        582,
+        1662,
+        3756
+      ],
+      "expected": [
+        0,
+        555.18,
+        1650.65,
+        3794.17
+      ],
+      "maxWeightedZ": 1.195096291216917,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        597,
+        1739,
+        3664
+      ],
+      "expected": [
+        0,
+        608.45,
+        1743.59,
+        3647.96
+      ],
+      "maxWeightedZ": 0.4919364314243504,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        599,
+        1767,
+        3634
+      ],
+      "expected": [
+        0,
+        608.94,
+        1732.65,
+        3658.41
+      ],
+      "maxWeightedZ": 0.9927010281850799,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        594,
+        1771,
+        3635
+      ],
+      "expected": [
+        0,
+        608.16,
+        1741.35,
+        3650.48
+      ],
+      "maxWeightedZ": 0.8554547958567256,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-5-0",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-5-0",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        577,
+        1719,
+        3704
+      ],
+      "expected": [
+        0,
+        608.82,
+        1746.18,
+        3645
+      ],
+      "maxWeightedZ": 1.586107611928911,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-5",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-5",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        553,
+        1659,
+        3788
+      ],
+      "expected": [
+        0,
+        555.96,
+        1654.04,
+        3790.01
+      ],
+      "maxWeightedZ": 0.1434489135572255,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-4",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 25,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-4",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 17,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        545,
+        1591,
+        3864
+      ],
+      "expected": [
+        0,
+        547.26,
+        1640.09,
+        3812.65
+      ],
+      "maxWeightedZ": 1.4220849015742694,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        612,
+        1815,
+        3573
+      ],
+      "expected": [
+        0,
+        606.53,
+        1735.82,
+        3657.65
+      ],
+      "maxWeightedZ": 2.286806088749984,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        593,
+        1748,
+        3659
+      ],
+      "expected": [
+        0,
+        608.17,
+        1737.47,
+        3654.36
+      ],
+      "maxWeightedZ": 0.6515433992809099,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        622,
+        1734,
+        3644
+      ],
+      "expected": [
+        0,
+        609.23,
+        1739.79,
+        3650.97
+      ],
+      "maxWeightedZ": 0.548083368525749,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-6-0",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-6-0",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        636,
+        1716,
+        3648
+      ],
+      "expected": [
+        0,
+        607.7,
+        1733.96,
+        3658.34
+      ],
+      "maxWeightedZ": 1.2159514397877567,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-6",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-6",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        558,
+        1642,
+        3800
+      ],
+      "expected": [
+        0,
+        556.45,
+        1653.64,
+        3789.92
+      ],
+      "maxWeightedZ": 0.33638484877399616,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-1",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        633,
+        1753,
+        3614
+      ],
+      "expected": [
+        0,
+        607.4,
+        1740.18,
+        3652.42
+      ],
+      "maxWeightedZ": 1.1004313159015782,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-2",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        610,
+        1780,
+        3610
+      ],
+      "expected": [
+        0,
+        608.44,
+        1742.56,
+        3648.99
+      ],
+      "maxWeightedZ": 1.0799905548927975,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-3",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        593,
+        1748,
+        3659
+      ],
+      "expected": [
+        0,
+        608.17,
+        1737.47,
+        3654.36
+      ],
+      "maxWeightedZ": 0.6515433992809099,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "chord-8-0",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "chord-8-0",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        642,
+        1694,
+        3664
+      ],
+      "expected": [
+        0,
+        605.13,
+        1734.53,
+        3660.33
+      ],
+      "maxWeightedZ": 1.587199072917789,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "quality-8",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "quality-8",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        591,
+        1637,
+        3772
+      ],
+      "expected": [
+        0,
+        555.33,
+        1651.44,
+        3793.23
+      ],
+      "maxWeightedZ": 1.589259289646565,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-5",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 45,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-5",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 31,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        557,
+        1606,
+        3837
+      ],
+      "expected": [
+        0,
+        546.95,
+        1638.95,
+        3814.09
+      ],
+      "maxWeightedZ": 0.9547825828021212,
+      "mode": "mixed-levels"
+    },
+    {
+      "stage": "level-6",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 0,
+      "reviewPercent": 0,
+      "fallBacks": 6000,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "expected": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "maxWeightedZ": 0,
+      "mode": "no-errors"
+    },
+    {
+      "stage": "level-6",
+      "seed": 20261101,
+      "count": 20000,
+      "opportunities": 6000,
+      "reviews": 6000,
+      "reviewPercent": 30,
+      "fallBacks": 0,
+      "balancedSpread": 1,
+      "maxOctaveSpread": 1,
+      "cooldownViolations": 0,
+      "invalid": 0,
+      "observed": [
+        0,
+        532,
+        1673,
+        3795
+      ],
+      "expected": [
+        0,
+        546.77,
+        1638.67,
+        3814.56
+      ],
+      "maxWeightedZ": 0.9948315010785285,
       "mode": "mixed-levels"
     }
   ]
