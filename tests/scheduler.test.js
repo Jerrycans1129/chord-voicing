@@ -61,12 +61,12 @@ test('mixed levels enforce five current and five earlier cards despite concentra
 });
 
 
-test('practice repeats D–G–C with stable spellings and only permitted voicings',()=>{
- const order=[2,7,0,5,10,3,8,1,6,11,4,9];
- for(const id of ['quality-10','chord-10-3','quality-11']){
-  const scheduler=new PracticeScheduler(stages.find(s=>s.id===id),{rng:rng()});
+test('practice randomly starts on any pitch and preserves its cycle and permitted voicings',()=>{
+ for(const id of ['quality-10','chord-10-3','quality-11'])for(let start=0;start<12;start++){
+  const random=rng();let first=true;
+  const scheduler=new PracticeScheduler(stages.find(s=>s.id===id),{rng:()=>{if(first){first=false;return (start+.5)/12;}return random();}});
   for(let i=0;i<120;i++){
-   const card=scheduler.next();assert.equal(card.pc,order[i%12]);
+   const card=scheduler.next();assert.equal(card.pc,(start+i*5)%12);
    assert.ok(positions(card.pc,card.q,card.inv).includes(card.root));
    if(id==='chord-10-3')assert.equal(card.inv,3);
    if(id==='quality-11'){assert.equal(card.freeOctaves,true);assert.equal(card.root,48+card.pc);}

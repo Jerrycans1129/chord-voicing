@@ -48,10 +48,10 @@ export class Scheduler{
 export class PracticeScheduler{
  constructor(stage,{rng=Math.random}={}){
   if(!supportsPractice(stage))throw new Error('Practice requires a single chord quality');
-  this.items=trainingItems(stage);this.rng=rng;this.index=0;
+  this.items=trainingItems(stage);this.rng=rng;this.index=0;this.startPc=Math.floor(rng()*12);
  }
  next(){
-  const pc=(2+this.index*5)%12;
+  const pc=(this.startPc+this.index*5)%12;
   const spelling=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'][pc];
   const candidates=this.items.filter(item=>item.pc===pc&&item.name===spelling);
   const item=candidates[Math.floor(this.rng()*candidates.length)];

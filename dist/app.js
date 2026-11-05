@@ -280,7 +280,7 @@ function updateRoute(){
  }
  $('overlay-action').disabled=stageIndex<0||!selectable(stages[stageIndex],results);
  $('practice-action').hidden=!supportsPractice(stages[stageIndex]);
- requestAnimationFrame(drawBranches);
+ scheduleRouteLayout();
 }
 // Keep the inversion group centered directly beneath its chord while scrolling.
 function drawBranches(){
@@ -291,17 +291,25 @@ function drawBranches(){
  const from=parent.querySelector('.route-dot').getBoundingClientRect();
  const center=(from.left+from.right)/2;
  const visible=from.left>=clip.left&&from.right<=clip.right;
- row.style.visibility=visible?'visible':'hidden';
- if(!visible){path.setAttribute('d','');return;}
+ if(!visible){row.style.visibility='hidden';path.setAttribute('d','');return;}
+ // Read geometry before changing styles so dragging does not force a second layout.
  const detail=$('route-details').getBoundingClientRect();
- row.style.transform=`translateX(${center-detail.left-row.offsetWidth/2}px)`;
- const to=row.children[0].querySelector('.route-dot').getBoundingClientRect();
+ const rowWidth=row.offsetWidth;
+ const dot=row.children[0].querySelector('.route-dot').getBoundingClientRect();
  const x=center-bounds.left;
- path.setAttribute('d',`M ${x} ${from.bottom-bounds.top} V ${(to.top+to.bottom)/2-bounds.top}`);
+ row.style.visibility='visible';
+ row.style.transform=`translateX(${center-detail.left-rowWidth/2}px)`;
+ path.setAttribute('d',`M ${x} ${from.bottom-bounds.top} V ${(dot.top+dot.bottom)/2-bounds.top}`);
 }
-for(const row of routeRows)row.addEventListener('scroll',()=>requestAnimationFrame(drawBranches),{passive:true});
-globalThis.addEventListener?.('resize',()=>requestAnimationFrame(drawBranches));
-if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>requestAnimationFrame(drawBranches)).observe($('route'));
+let routeLayoutPending=false;
+function scheduleRouteLayout(){
+ if(routeLayoutPending)return;
+ routeLayoutPending=true;
+ requestAnimationFrame(()=>{routeLayoutPending=false;syncProjectFromScroll();drawBranches();});
+}
+for(const row of routeRows)row.addEventListener('scroll',scheduleRouteLayout,{passive:true});
+globalThis.addEventListener?.('resize',scheduleRouteLayout);
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(scheduleRouteLayout).observe($('route'));
 let programmaticScrollLeft=null;
 function revealProject(){stageButtons.get(expandedTop)?.scrollIntoView?.({block:'nearest',inline:'nearest'});}
 function focusCurrentStage(){revealProject();stageButtons.get(expandedQuality)?.scrollIntoView?.({block:'nearest',inline:'center'});routeNodes[stageIndex]?.scrollIntoView?.({block:'nearest',inline:'center'});programmaticScrollLeft=routeRows[1].scrollLeft;}
@@ -320,9 +328,15 @@ function syncProjectFromScroll(){
   return !best||distance<best.distance?{node,distance}:best;
  },null)?.node;
  const project=nodeById.get(closest?.dataset.id)?.projectId;
- if(project&&project!==expandedTop){expandedTop=project;updateRoute();revealProject();}
+ if(project&&project!==expandedTop){
+  expandedTop=project;
+  for(const item of curriculum){
+   const button=stageButtons.get(item.id),active=item.id===project;
+   button.setAttribute('aria-current',active?'location':'false');button.dataset.expanded=String(active);
+  }
+  revealProject();
+ }
 }
-routeRows[1].addEventListener('scroll',()=>requestAnimationFrame(syncProjectFromScroll),{passive:true});
 function selectNode(id){
  if(started&&!finished)return;
  const stage=nodeById.get(id);if(!stage)return;
@@ -351,20 +365,28 @@ route.addEventListener('pointerdown',e=>{
  suppressRouteClick=false;
  if(e.pointerType==='mouse'&&e.button!==0)return;
  if(route===routeRows[0]&&e.pointerType!=='mouse')return;
- routeDrag={id:e.pointerId,x:route===routeRows[0]?e.clientY:e.clientX,left:route===routeRows[0]?scrollRow.scrollTop:scrollRow.scrollLeft,moved:false};
+ const coordinate=route===routeRows[0]?e.clientY:e.clientX;
+ routeDrag={id:e.pointerId,x:coordinate,last:coordinate,moved:false};
 });
 route.addEventListener('pointermove',e=>{
  if(!routeDrag||routeDrag.id!==e.pointerId)return;
- const dx=(route===routeRows[0]?e.clientY:e.clientX)-routeDrag.x;
+ const coordinate=route===routeRows[0]?e.clientY:e.clientX;
+ const dx=coordinate-routeDrag.x;
  if(!routeDrag.moved&&Math.abs(dx)>6){routeDrag.moved=true;route.setPointerCapture(e.pointerId);route.dataset.dragging='true';}
- if(routeDrag.moved){e.preventDefault();if(route===routeRows[0])scrollRow.scrollTop=routeDrag.left-dx;else{scrollRow.scrollLeft=routeDrag.left-dx;programmaticScrollLeft=null;}}
+ if(routeDrag.moved){
+  e.preventDefault();
+  const delta=routeDrag.last-coordinate;
+  if(route===routeRows[0])scrollRow.scrollTop+=delta;
+  else{scrollRow.scrollLeft+=delta;programmaticScrollLeft=null;}
+  routeDrag.last=coordinate;
+ }
 });
 function endRouteDrag(e){
  if(!routeDrag||routeDrag.id!==e.pointerId)return;
  suppressRouteClick=routeDrag.moved;routeDrag=null;route.dataset.dragging='false';
  if(route.hasPointerCapture(e.pointerId))route.releasePointerCapture(e.pointerId);
 }
-route.addEventListener('pointerup',endRouteDrag);route.addEventListener('pointercancel',endRouteDrag);
+route.addEventListener('pointerup',endRouteDrag);route.addEventListener('pointercancel',endRouteDrag);route.addEventListener('lostpointercapture',endRouteDrag);
 route.addEventListener('click',e=>{if(suppressRouteClick&&e.detail!==0){e.preventDefault();e.stopPropagation();suppressRouteClick=false;}},true);
 }
 $('route-surface').addEventListener('wheel',e=>{
