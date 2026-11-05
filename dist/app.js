@@ -42,7 +42,6 @@ let scheduler,settled=0,run=createRun();
 let bpm=normalizeBpm(read('voicing-bpm',90));
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0;
-let streak=0,timeNotice=null,comboNotice=null;
 const MAX_SECONDS=TOTAL_SECONDS;
 let screenLock=null,screenLockGeneration=0;
 function releaseScreenLock(){
@@ -87,7 +86,7 @@ let metronomeOn=read('voicing-metronome',true)!==false;
 let audioContext=null,nextAudioBeat=null;
 const clicks=new Set();
 function updateMetronome(){
- $('metronome').textContent=metronomeOn?'节拍器：开':'节拍器：关';
+ $('metronome').textContent=metronomeOn?'开':'关';
  $('metronome').setAttribute('aria-pressed',String(metronomeOn));
 }
 function stopMetronome(){
@@ -130,7 +129,9 @@ function scheduleMetronome(){
 updateMetronome();
 function updateTimer(){
  const seconds=Math.floor(sessionSeconds);
- $('count').textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')} / 30:00`;
+ const time=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
+ $('count').textContent=`${time} / 30:00`;
+ $('training-time').textContent=time;
  $('answer-count').textContent=`${run.correct} / ${run.total}`;
  $('accuracy').textContent=run.total?`${(100*run.correct/run.total).toFixed(1)}%`:'—';
 }
@@ -155,7 +156,7 @@ function paintMidi(){
  const held=new Set([...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys])));
  for(const [note,key] of midiKeys)key.dataset.midiPressed=String(held.has(note));
  const outside=[...held].filter(note=>!midiKeys.has(note)).length;
- $('midi-notes').textContent=held.size?`按下 ${held.size} 键${outside?` · ${outside} 键超出 C3–C6`:''}`:'等待演奏 · 蓝色为输入，绿点为答案';
+ $('midi-notes').textContent=held.size?`按下 ${held.size} 键${outside?` · ${outside} 键超出 C3–C6`:''}`:'等待演奏';
 }
 function clearMidi(){midiHeld.clear();paintMidi();}
 function receiveMidi(id,event){
@@ -395,35 +396,11 @@ function syncCards(){
  }
  while(elapsed>=cards.length&&canReachLine(cards.length))appendCard();
 }
-const NOTICE_SECONDS=4,NOTICE_GAP_SECONDS=1;
-function showCombo(count,at){
- comboNotice={at,text:`${count}连击`};
- // If time is already visible or queued, restart it after the four-second combo and a one-second gap.
- if(timeNotice&&at<timeNotice.at+NOTICE_SECONDS)timeNotice.at=Math.max(timeNotice.at,at+NOTICE_SECONDS+NOTICE_GAP_SECONDS);
-}
-function updateReminder(fromSeconds){
- for(const remaining of [1440,1080,720,360,60]){
-  const at=MAX_SECONDS-remaining;
-  if(fromSeconds<at&&sessionSeconds>=at){
-   const conflict=comboNotice&&at<comboNotice.at+NOTICE_SECONDS+NOTICE_GAP_SECONDS&&at+NOTICE_SECONDS>comboNotice.at;
-   timeNotice={at:conflict?Math.max(at,comboNotice.at+NOTICE_SECONDS+NOTICE_GAP_SECONDS):at,text:`剩余 ${remaining/60} 分钟`};
-  }
- }
- paintReminders();
-}
-function paintReminders(){
- const paused=started&&!finished&&!running;
- $('training-reminders').hidden=paused;
- $('pause-time').hidden=!paused;
- if(paused){
-  const minutes=Math.max(0,Math.ceil((MAX_SECONDS-sessionSeconds)/60));
-  $('pause-time').textContent=`剩余 ${minutes} 分钟`;
- }
- for(const [id,notice] of [['time-reminder',timeNotice],['combo-reminder',comboNotice]]){
-  const el=$(id);
-  el.hidden=!started||finished||!notice||sessionSeconds<notice.at||sessionSeconds>=notice.at+NOTICE_SECONDS;
-  if(notice)el.textContent=notice.text;
- }
+function updateTrainingHeader(){
+ $('training-header').hidden=!started||finished;
+ const stage=stages[stageIndex];
+ const parent=nodeById.get(stage?.parent);
+ $('training-name').textContent=stage?(parent&&!parent.project?`${parent.name}-${stage.name}`:stage.name.replace(/\n/g,'')):'';
 }
 function showResult(result){
  setStars($('result-stars'),result.stars);
@@ -451,7 +428,6 @@ function appendCard(){
   const chord=document.createElement('span');chord.className='chord';chord.textContent=card.label;
   el.append(chord);
   if(card.freeOctaves){
-   const rule=document.createElement('span');rule.className='chord-rule';rule.textContent='低区根音 · 其余自由';el.append(rule);
    el.setAttribute('aria-label',`${card.label}，根音在最左八度，其余四音可跨八度，五音齐全`);
   }
   $('falling').append(el);elements.push(el);cards.push(card);
@@ -461,7 +437,7 @@ function reset(){
  releaseScreenLock();stopMetronome();
  running=false;started=false;finished=false;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
  scheduler=stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
- streak=0;timeNotice=null;comboNotice=null;paintReminders();$('result-dialog').close();$('lanes').style.setProperty('--beat-glow','0');
+ updateTrainingHeader();$('result-dialog').close();$('lanes').style.setProperty('--beat-glow','0');
  cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
 }
 function pause(){
@@ -494,16 +470,15 @@ function complete(){
  results[id]={last:result,best:!results[id]||result.score>results[id].best.score?result:results[id].best};
  save('voicing-results-v1',results);
  if($('settings-dialog').open)$('settings-dialog').close();
- elements.forEach(el=>{el.hidden=true;});paintReminders();$('lanes').style.setProperty('--beat-glow','0');showHome();focusCurrentStage();showResult(result);
+ elements.forEach(el=>{el.hidden=true;});updateTrainingHeader();$('lanes').style.setProperty('--beat-glow','0');showHome();focusCurrentStage();showResult(result);
 }
 function settleAnswers(){
  while(settled<cards.length&&canSettle(cards[settled],sessionSeconds)){
   const card=cards[settled++];card.ended=true;run.total++;
   if(isCorrect(card)){
-   run.correct++;streak++;
-   if(streak%100===0)showCombo(streak,card.endAt);
+   run.correct++;
    if(!card.assisted&&scheduler.record(card.id,'correct'))save('voicing-weakness-v1',levels);
-  }else streak=0;
+  }
  }
 }
 function advance(now){
@@ -515,13 +490,13 @@ function advance(now){
   if(MAX_SECONDS-sessionSeconds<1e-9)sessionSeconds=MAX_SECONDS;
   recordConditions(run,{seconds:dt,bpm,visible:!keyboardBlurOn});
   syncCards();
-  stampBoundaries(cards,fromProgress,elapsed,fromSeconds,bpm);settleAnswers();updateTimer();updateReminder(fromSeconds);
+  stampBoundaries(cards,fromProgress,elapsed,fromSeconds,bpm);settleAnswers();updateTimer();
   if(sessionSeconds>=MAX_SECONDS)complete();
  }
  previous=now;
 }
 function paintScene(){
- paintReminders();
+ updateTrainingHeader();
  if(started&&!finished){
   syncCards();
   const height=$('falling').clientHeight;

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111a1b"><title>Voicing — 和弦转位训练</title><link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icon-192.png"><link rel="stylesheet" href="./style.css"></head><body>
 <main><section id="instrument" class="instrument" aria-label="和弦掉落区和 C3 至 C6 参照键盘">
-<div id="lanes"></div><div id="pause-time" role="status" hidden></div><div id="training-reminders"><div id="combo-reminder" role="status" hidden></div><div id="time-reminder" role="status" hidden></div></div><div id="falling"></div>
+<div id="lanes"></div><div id="training-header" hidden><span id="training-name"></span><span id="training-time">00:00</span></div><div id="falling"></div>
 <section id="overlay" aria-label="训练主页">
 <header class="app-heading"><h1>VOICING <span>和弦转位训练</span></h1><span id="version"></span></header>
 <div class="home-content"><nav id="route" aria-label="训练路线">
@@ -19,7 +19,7 @@
 <h2 id="settings-title">设置</h2>
 <div class="dialog-content">
 <label class="speed-setting" for="speed">速度<select id="speed"></select></label>
-<div class="switch-row"><span>节拍器</span><button id="metronome" class="secondary" type="button" aria-pressed="true">节拍器：开</button></div>
+<div class="switch-row"><span>节拍器</span><button id="metronome" class="secondary" type="button" aria-label="节拍器" aria-pressed="true">开</button></div>
 <label id="keyboard-blur-setting" class="switch-row" for="keyboard-blur"><span>遮挡／隐藏琴键</span><input id="keyboard-blur" type="checkbox" checked></label>
 <div class="midi-settings"><div class="midi-actions"><button id="midi-connect" class="secondary" type="button">连接 MIDI</button><button id="midi-clear" class="secondary" type="button">清除亮键</button></div><p id="midi-status" role="status"></p><p id="midi-notes"></p></div>
 <div id="session-stats" hidden><div><span>训练时间</span><strong id="count">00:00 / 30:00</strong></div><div><span>正确／已结束题数</span><strong id="answer-count">0 / 0</strong></div><div><span>正确率</span><strong id="accuracy">—</strong></div></div>

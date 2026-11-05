@@ -666,24 +666,6 @@ test('slowing near the end removes only unreachable tail and speeding resumes ge
  assert.equal(run('cards.every((c,i)=>canReachLine(i))'),true);
  const trimmed=run('cards.length');run('pause();bpm=140;play()');assert.ok(run('cards.length')>trimmed);
 });
-test('remaining time reminders are static, last four active seconds and skip opening',()=>{
- const {run,nodes}=session();run('play();render(0)');assert.equal(nodes.get('time-reminder').hidden,true);
- for(const minutes of [24,18,12,6,1]){
-  const ms=(1800-minutes*60)*1000;
-  run(`now=${ms};render(now)`);assert.equal(nodes.get('time-reminder').hidden,false);
-  assert.equal(nodes.get('time-reminder').textContent,`剩余 ${minutes} 分钟`);
-  run(`now=${ms+3999};render(now)`);assert.equal(nodes.get('time-reminder').hidden,false);
-  run(`now=${ms+4000};render(now)`);assert.equal(nodes.get('time-reminder').hidden,true);
- }
- run('now=1800000;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
-});
-test('pausing freezes a reminder and restarting clears it',()=>{
- const {run,nodes}=session();run('play();now=361000;pause();now=400000;render(now)');
- assert.equal(nodes.get('time-reminder').hidden,false);
- run('play();now=402999;render(now)');assert.equal(nodes.get('time-reminder').hidden,false);
- run('now=403000;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
- run('reset()');assert.equal(nodes.get('time-reminder').hidden,true);
-});
 test('result dialog reports results, blocks background starts and retries explicitly',()=>{
  const {run,nodes,documentHandlers}=session();run('play();now=1800000;render(now)');
  assert.equal(nodes.get('result-dialog').open,true);
@@ -703,52 +685,6 @@ test('pulse follows a changed BPM without resetting beat phase',()=>{
 });
 
 
-test('each 100 consecutive settled correct answers triggers a combo; misses reset it',()=>{
- const {run,nodes}=session();run('play()');
- const settle=(correct)=>run(`{const card=cards[0];card.ended=false;card.endAt=sessionSeconds;card.hits=new Set(${correct} ? card.targets : []);card.wrong=false;settled=0;settleAnswers();paintReminders();}`);
- for(let i=0;i<99;i++)settle(true);
- assert.equal(nodes.get('combo-reminder').hidden,true);
- settle(true);assert.equal(nodes.get('combo-reminder').textContent,'100连击');assert.equal(nodes.get('combo-reminder').hidden,false);
- for(let i=0;i<100;i++)settle(true);
- assert.equal(nodes.get('combo-reminder').textContent,'200连击');
- settle(false);assert.equal(run('streak'),0);settle(true);assert.equal(run('streak'),1);
- run('reset()');assert.equal(run('streak'),0);assert.equal(nodes.get('combo-reminder').hidden,true);
-});
-test('simultaneous notices show combo first, then a one-second blank gap and time in sequence',()=>{
- const {run,nodes}=session();run('play();sessionSeconds=360;showCombo(200,360);updateReminder(359)');
- assert.equal(nodes.get('combo-reminder').textContent,'200连击');assert.equal(nodes.get('combo-reminder').hidden,false);assert.equal(nodes.get('time-reminder').hidden,true);
- for(const seconds of [363.999,364,364.999]){
-  run(`sessionSeconds=${seconds};paintReminders()`);
-  assert.equal(nodes.get('time-reminder').hidden,true);
-  assert.equal(nodes.get('combo-reminder').hidden,seconds>=364);
- }
- run('sessionSeconds=365;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);assert.equal(nodes.get('combo-reminder').hidden,true);
- run('sessionSeconds=368.999;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);
- run('sessionSeconds=369;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,true);
-});
-test('combo arriving during a time notice delays its full display and pause freezes notices',()=>{
- const {run,nodes}=session();run('play();now=360000;render(now);now=360500;pause();showCombo(100,sessionSeconds);paintReminders()');
- assert.equal(nodes.get('time-reminder').hidden,true);assert.equal(nodes.get('combo-reminder').hidden,false);
- run('now=500000;render(now)');assert.equal(nodes.get('combo-reminder').hidden,false);assert.equal(nodes.get('time-reminder').hidden,true);
- run('play();now=504999;render(now)');assert.equal(nodes.get('time-reminder').hidden,true);
- run('now=505000;render(now)');assert.equal(nodes.get('time-reminder').hidden,false);
- run('complete()');assert.equal(nodes.get('combo-reminder').hidden,true);assert.equal(nodes.get('time-reminder').hidden,true);
-});
-
-test('time threshold during the gap waits until five seconds after combo onset',()=>{
- const {run,nodes}=session();run('play();sessionSeconds=360;showCombo(100,355.5);updateReminder(359)');
- assert.equal(nodes.get('combo-reminder').hidden,true);assert.equal(nodes.get('time-reminder').hidden,true);
- run('sessionSeconds=360.5;paintReminders()');assert.equal(nodes.get('time-reminder').hidden,false);
-});
-
-test('pause shows frozen remaining minutes until resume or completion',()=>{
- const {run,nodes}=session();assert.equal(nodes.get('pause-time').hidden,true);
- run('play();now=123456;pause()');assert.equal(nodes.get('pause-time').hidden,false);
- assert.equal(nodes.get('pause-time').textContent,'剩余 28 分钟');assert.equal(nodes.get('training-reminders').hidden,true);
- run('now=500000;render(now)');assert.equal(nodes.get('pause-time').textContent,'剩余 28 分钟');
- run('play()');assert.equal(nodes.get('pause-time').hidden,true);assert.equal(nodes.get('training-reminders').hidden,false);
- run('pause();complete()');assert.equal(nodes.get('pause-time').hidden,true);
-});
 test('result stars preserve half-star ratings without a numerical score',()=>{
  const {run,nodes}=session();run('showResult({stars:2.5,total:10,correct:8,accuracy:.8,seconds:300,factors:{pause:1,keyboard:1,speed:1,duration:1}})');
  assert.equal(nodes.get('result-stars').children[1].style.width,`${2.5/3*100}%`);
@@ -786,7 +722,6 @@ test('ninth training entry point renders the special card and accepts freely spr
   const {run,nodes}=session();run(`selectNode('quality-${q}');play();now=9000;render(now)`);
   assert.equal(nodes.get('route-third').hidden,true);
   assert.equal(run('elements[0].dataset.freeOctaves'),'true');
-  assert.equal(run('elements[0].children[2].textContent'),'低区根音 · 其余自由');
   assert.ok(run('cards[0].root>=48&&cards[0].root<60'));
   run('for(const [i,pitch] of cards[0].targets.slice(1).entries())judgeMidi(pitch+12*(i%3))');
   assert.equal(run('cards[0].hits.size'),4);assert.notEqual(run('cards[0].feedback'),'correct');
@@ -796,4 +731,21 @@ test('ninth training entry point renders the special card and accepts freely spr
   assert.equal(run('answerDots.get(cards[0].root+12).hidden'),true);
   assert.equal(run('answerDots.get(cards[0].targets[1]+12).hidden'),false);
  }
+});
+
+test('training header names stages and tracks active time through pause, resume and restart',()=>{
+ const {run,nodes}=session();assert.equal(nodes.get('training-header').hidden,true);
+ for(const [id,name] of [['chord-10-3','大六和弦-根音左二'],['level-4-v2','Level-4色彩和弦'],['quality-8','加九和弦']]){
+  run(`selectNode('${id}');play()`);
+  assert.equal(nodes.get('training-name').textContent,name);
+  assert.equal(nodes.get('training-header').hidden,false);
+  run('complete();reset()');
+ }
+ run('now=0;play();now=123456;pause()');
+ assert.equal(nodes.get('training-time').textContent,'02:03');
+ assert.equal(nodes.get('training-header').hidden,false);
+ run('now=500000;render(now)');assert.equal(nodes.get('training-time').textContent,'02:03');
+ run('play();now=501000;render(now)');assert.equal(nodes.get('training-time').textContent,'02:04');
+ run('complete()');assert.equal(nodes.get('training-header').hidden,true);
+ run('reset();play()');assert.equal(nodes.get('training-time').textContent,'00:00');
 });

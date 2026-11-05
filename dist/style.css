@@ -64,7 +64,6 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 @media(prefers-reduced-motion:reduce){.route-dot,.route-heading .primary{transition:none!important}}
 
 /* Foreground notices share a style; notices take turns in the same position. */
-#training-reminders,#pause-time{position:absolute;top:22%;left:0;right:0;text-align:center;font-size:clamp(28px,5vw,64px);font-weight:500;letter-spacing:.08em;color:rgb(201 237 157 / .42);pointer-events:none;z-index:4;line-height:1.4}
 #falling{z-index:1}
 #result-dialog{width:min(440px,calc(100vw - 40px));max-height:calc(100dvh - 32px);overflow:auto}
 .result-rating{text-align:center;margin:12px 0 24px;color:var(--accent)}
@@ -72,7 +71,6 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 .result-details{margin:0}.result-details>div{display:flex;justify-content:space-between;gap:20px;padding:10px 0;border-bottom:1px solid #ffffff12}.result-details dt{color:var(--muted)}.result-details dd{margin:0}
 #result-factors{font-size:12px;line-height:1.8;color:var(--muted)}
 
-#training-reminders>div{position:absolute;top:0;left:0;right:0}
 
 /* Projects navigate the continuous chain; only training nodes carry ratings. */
 #route-top{flex:1;gap:8px}
@@ -105,8 +103,12 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 
 /* Free-octave ninth chords use a bass rail and dotted field. */
 .card[data-free-octaves="true"] .halo{left:0;right:auto;width:100%;height:36px;border-left:3px solid #92d9dd;border-radius:4px;background:radial-gradient(circle,#a1dbe833 1px,transparent 1.5px) right center / 7px 7px,linear-gradient(90deg,#285c68e6,#244b5dcc)}
-.card[data-free-octaves="true"] .chord{top:-2px;color:#dcf5f5;font-size:clamp(17px,2.1vw,27px);line-height:24px}
-.chord-rule{position:relative;display:block;font-size:9px;line-height:11px;white-space:nowrap;color:#b9dfe2;margin-top:-3px}
+.card[data-free-octaves="true"] .chord{color:#dcf5f5}
 .route-node[data-recommended="true"] .route-dot{outline:1px dashed #94ae7d;outline-offset:4px}
 
 .card[data-free-octaves="true"]{translate:0 0}
+
+#training-header{position:absolute;top:16px;left:16px;right:16px;z-index:4;pointer-events:none;color:#e2f4cf;font-size:clamp(17px,2.3vw,30px);font-weight:600;line-height:1.3}
+#training-name{display:block;max-width:calc(50% - 52px);overflow-wrap:anywhere}
+#training-time{position:absolute;top:0;left:50%;transform:translateX(-50%);font-variant-numeric:tabular-nums}
+#falling{top:64px}
