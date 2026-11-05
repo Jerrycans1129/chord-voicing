@@ -20,9 +20,15 @@ export function attackTargets(cards,seconds){
  const index=activeQuestionIndex(cards,seconds);
  return {indices:index<0?[]:[index]};
 }
+export function targetForNote(card,note){
+ if(!card.freeOctaves)return card.targets.includes(note)?note:undefined;
+ // The bass root is exact. Every other chord tone is octave-independent.
+ return card.targets.find(pitch=>pitch===card.root?note===pitch:note%12===pitch%12);
+}
 export function applyAttack(card,note){
  if(card.ended)return;
- if(card.targets.includes(note))card.hits.add(note);
+ const target=targetForNote(card,note);
+ if(card.targets.includes(target))card.hits.add(target);
  else card.wrong=true;
  card.feedback=card.wrong?'wrong':card.targets.every(n=>card.hits.has(n))?'correct':undefined;
 }

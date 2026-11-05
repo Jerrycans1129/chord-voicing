@@ -44,3 +44,19 @@ test('delayed frames stamp every ended question and settle only once',()=>{
  for(const c of ended)c.ended=true;
  assert.equal(cards.filter(c=>canSettle(c,32)).length,0);assert.equal(activeQuestionIndex(cards,32),6);
 });
+
+test('ninth chords require the exact bass root and every other pitch class in any octave',()=>{
+ for(const q of [11,12,13]){
+  const card=prepareAttempt({kind:'chord',root:49,q,inv:0,freeOctaves:true});
+  const other=card.targets.slice(1).reverse();
+  other.forEach((pitch,i)=>applyAttack(card,pitch+12*(i%3)));
+  assert.equal(isCorrect(card),false);
+  applyAttack(card,49);assert.equal(isCorrect(card),true);
+  const highRoot=prepareAttempt({kind:'chord',root:49,q,inv:0,freeOctaves:true});
+  applyAttack(highRoot,61);assert.equal(highRoot.wrong,true);assert.equal(highRoot.hits.size,0);
+  const incomplete=prepareAttempt({kind:'chord',root:49,q,inv:0,freeOctaves:true});
+  for(const pitch of incomplete.targets.slice(0,4))applyAttack(incomplete,pitch);
+  applyAttack(incomplete,incomplete.targets[1]+12);assert.equal(isCorrect(incomplete),false);
+  applyAttack(incomplete,54);assert.equal(incomplete.wrong,true);
+ }
+});

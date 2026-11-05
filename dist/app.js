@@ -1,14 +1,14 @@
-import {stages,notes,names,qualities,curriculum,selectable,currentProgress,migrateResults} from './theory.js';
+import {stages,names,qualities,curriculum,selectable,currentProgress,migrateResults} from './theory.js';
 import {BUILD_REVISION} from './build.js';
 import {Scheduler,cleanLevels} from './scheduler.js';
 import {VERSION,SPEEDS,TOTAL_SECONDS,normalizeBpm,createRun,recordConditions,calculateScore,cleanResults} from './scoring.js';
-import {JUDGMENT_POLICY,activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,applyAttack,isCorrect,canSettle} from './judgment.js';
+import {JUDGMENT_POLICY,activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,isCorrect,canSettle} from './judgment.js';
 import {TIMING_KEY,MAX_TIMING_EVENTS,createTimingRun,addTimingSegment,recordTimingAttack,analyzeTiming,trimTiming,loadTiming,timingObservation} from './timing.js';
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
 const levels=cleanLevels(read('voicing-weakness-v1',{}));
-const results=cleanResults(migrateResults(read('voicing-results-v1',{})),stages.map(s=>s.id));
+const results=cleanResults(migrateResults(read('voicing-results-v1',{})),[...stages.map(s=>s.id),'level-3','level-4','level-5','level-6']);
 let stageIndex=currentProgress(results);
 let expandedTop=stages[stageIndex].projectId;
 let expandedQuality=stages[stageIndex].id.startsWith('quality-')?stages[stageIndex].id:stages[stageIndex].parent?.startsWith('quality-')?stages[stageIndex].parent:null;
@@ -272,7 +272,8 @@ function updateRoute(){
   node.setAttribute('aria-current',stage.project?(id===expandedTop?'location':'false'):(selected?'step':'false'));
   node.dataset.expanded=String(stage.children? id===expandedTop||id===expandedQuality:false);
   if(stage.children&&!stage.project)node.setAttribute('aria-expanded',node.dataset.expanded);
-  node.setAttribute('aria-label',`${stage.name}${!stage.project&&!selectable(stage,results)?' · 尚未解锁':''}`);
+  node.dataset.recommended=String(stages[currentProgress(results)]?.id===id);
+  node.setAttribute('aria-label',`${stage.name}${node.dataset.recommended==='true'?' · 推荐练习':''}`);
   setStars(node.querySelector('.stars'),results[id]?.best.stars);
  }
  $('overlay-action').disabled=stageIndex<0||!selectable(stages[stageIndex],results);
@@ -371,8 +372,7 @@ function showAnswer(){
  // Pause answers follow the landed label; before the first touch, preview question one.
  const card=cards[visualQuestionIndex()];
  if(card)card.assisted=true;
- const pitches=card?(card.kind==='note'?[card.root]:notes(card.root,card.q,card.inv)):[];
- for(const [midi,dot] of answerDots)dot.hidden=!pitches.includes(midi);
+ for(const [midi,dot] of answerDots)dot.hidden=!card||targetForNote(card,midi)===undefined;
 }
 function openSettings(){
  if(running||$('settings-dialog').open)return;
@@ -437,19 +437,24 @@ function showResult(result){
 }
 function appendCard(){
  const card=prepareAttempt(scheduler.next());
-  const el=document.createElement('div');el.className='card';el.dataset.inv=card.inv;el.dataset.size=card.kind==='note'?1:qualities[card.q].intervals.length;
+  const el=document.createElement('div');el.className='card';el.dataset.inv=card.inv;el.dataset.freeOctaves=String(!!card.freeOctaves);el.dataset.size=card.kind==='note'?1:qualities[card.q].intervals.length;
   el.style.left=`${centers.get(card.root)*100}%`;el.hidden=true;
   if(card.kind!=='note'){
    const bounds=keyBounds.get(card.root);
    const halo=document.createElement('span');halo.className='halo';
    // Keep the label centered while anchoring the halo to the actual key edge.
    const halfKeyWidth=(bounds.right-bounds.left)*50;
-   if(card.inv===0)halo.style.left=`calc(50% - ${halfKeyWidth}cqw)`;
-   if(card.inv===1)halo.style.right=`calc(50% - ${halfKeyWidth}cqw)`;
+   if(!card.freeOctaves&&card.inv===0)halo.style.left=`calc(50% - ${halfKeyWidth}cqw)`;
+   if(!card.freeOctaves&&card.inv===1)halo.style.right=`calc(50% - ${halfKeyWidth}cqw)`;
    el.append(halo);
   }
   const chord=document.createElement('span');chord.className='chord';chord.textContent=card.label;
-  el.append(chord);$('falling').append(el);elements.push(el);cards.push(card);
+  el.append(chord);
+  if(card.freeOctaves){
+   const rule=document.createElement('span');rule.className='chord-rule';rule.textContent='低区根音 · 其余自由';el.append(rule);
+   el.setAttribute('aria-label',`${card.label}，根音在最左八度，其余四音可跨八度，五音齐全`);
+  }
+  $('falling').append(el);elements.push(el);cards.push(card);
 }
 function reset(){
  persistTiming();timingRun=null;

@@ -616,10 +616,10 @@ test('final arpeggio note at the shifted boundary belongs only to the next quest
 test('navigation keeps the continuous chain and distant leaves remain free',()=>{
  const {run,nodes}=session({localStorage:{getItem(){return null;},setItem(){}}});
  assert.equal(run('stageIndex'),0);assert.equal(run('expandedTop'),'project-notes');
- run("selectNode('level-6');play()");assert.equal(run('stageIndex'),-1);assert.equal(run('started'),false);assert.equal(nodes.get('overlay-action').disabled,true);
+ run("selectNode('level-6-v2');play()");assert.ok(run('stageIndex')>=0);assert.equal(run('started'),true);assert.equal(nodes.get('overlay-action').disabled,false);run('complete()');
  run("selectNode('quality-8')");assert.equal(run('expandedQuality'),'quality-8');assert.equal(nodes.get('route-third').children.length,4);
  run("selectNode('chord-8-3');play()");assert.equal(run('started'),true);assert.equal(run('cards[0].targets.length'),4);
- run("complete();selectNode('level-6')");assert.equal(nodes.get('route-second').children.length,18);assert.equal(nodes.get('route-third').hidden,true);
+ run("complete();selectNode('level-6-v2')");assert.equal(nodes.get('route-second').children.length,30);assert.equal(nodes.get('route-third').hidden,true);
 });
 test('eligible parent mixes only its own children and receives independent results',()=>{
  const {run,nodes}=session();
@@ -644,7 +644,7 @@ test('startup expands all ancestors and children of the next quality mixture',()
  const full={started:true,seconds:1800,total:100,correct:100,minBpm:90,paused:false,shownKeyboard:false};
  const saved=Object.fromEntries(theory.stages.slice(0,8).map(n=>[n.id,{last:full,best:full}]));
  const {run,nodes}=session({localStorage:{getItem:key=>key==='voicing-results-v1'?JSON.stringify(saved):null,setItem(){}}});
- assert.equal(run("stages[stageIndex].id"),'quality-0');assert.equal(run('expandedTop'),'project-triads');assert.equal(run('expandedQuality'),'quality-0');
+ assert.equal(run("stages[stageIndex].id"),'quality-0');assert.equal(run('expandedTop'),'project-core');assert.equal(run('expandedQuality'),'quality-0');
  assert.equal(nodes.get('route-third').children.length,3);assert.equal(nodes.get('overlay-action').disabled,false);
 });
 
@@ -758,7 +758,7 @@ test('result stars preserve half-star ratings without a numerical score',()=>{
 test('project browsing preserves selected training and expanded inversions',()=>{
  const {run,nodes}=session();run("selectNode('chord-0-1');selectNode('project-colors')");
  assert.equal(run("stages[stageIndex].id"),'chord-0-1');assert.equal(run('expandedQuality'),'quality-0');
- assert.equal(run('expandedTop'),'project-colors');assert.equal(nodes.get('route-second').children.length,18);
+ assert.equal(run('expandedTop'),'project-colors');assert.equal(nodes.get('route-second').children.length,30);
  assert.equal(nodes.get('route-third').children.length,3);
 });
 test('scroll project tracking uses center and endpoints without selecting training',()=>{
@@ -766,8 +766,8 @@ test('scroll project tracking uses center and endpoints without selecting traini
  const row=nodes.get('route-second');row.clientWidth=400;row.scrollWidth=2200;
  row.getBoundingClientRect=()=>({left:0,right:400,width:400});
  row.children.forEach((node,i)=>{node.getBoundingClientRect=()=>({left:i*120-row.scrollLeft,right:i*120+100-row.scrollLeft});});
- row.scrollLeft=1250;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-sevenths');
- row.scrollLeft=1800;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-finale');
+ row.scrollLeft=1250;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-colors');
+ row.scrollLeft=1800;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-extended');
  row.scrollLeft=0;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-notes');
  assert.equal(run("stages[stageIndex].id"),'chord-0-1');
 });
@@ -779,4 +779,21 @@ test('programmatic end-of-chain navigation keeps the clicked project highlighted
  run("selectNode('project-colors');syncProjectFromScroll()");
  assert.equal(run('expandedTop'),'project-colors');
  assert.equal(run("stages[stageIndex].id"),'chord-0-1');
+});
+
+test('ninth training entry point renders the special card and accepts freely spread MIDI tones',()=>{
+ for(const q of [11,12,13]){
+  const {run,nodes}=session();run(`selectNode('quality-${q}');play();now=9000;render(now)`);
+  assert.equal(nodes.get('route-third').hidden,true);
+  assert.equal(run('elements[0].dataset.freeOctaves'),'true');
+  assert.equal(run('elements[0].children[2].textContent'),'低区根音 · 其余自由');
+  assert.ok(run('cards[0].root>=48&&cards[0].root<60'));
+  run('for(const [i,pitch] of cards[0].targets.slice(1).entries())judgeMidi(pitch+12*(i%3))');
+  assert.equal(run('cards[0].hits.size'),4);assert.notEqual(run('cards[0].feedback'),'correct');
+  run('judgeMidi(cards[0].root)');assert.equal(run('cards[0].feedback'),'correct');
+  run('pause();showAnswer()');
+  assert.equal(run('answerDots.get(cards[0].root).hidden'),false);
+  assert.equal(run('answerDots.get(cards[0].root+12).hidden'),true);
+  assert.equal(run('answerDots.get(cards[0].targets[1]+12).hidden'),false);
+ }
 });
