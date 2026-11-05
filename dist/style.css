@@ -108,7 +108,7 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 
 .card[data-free-octaves="true"]{translate:0 0}
 
-#training-header{position:absolute;top:16px;left:16px;right:16px;z-index:4;pointer-events:none;color:#e2f4cf;font-size:clamp(17px,2.3vw,30px);font-weight:600;line-height:1.3}
-#training-name{display:block;max-width:calc(50% - 52px);overflow-wrap:anywhere}
+#training-header{position:absolute;top:13px;left:10px;right:10px;z-index:4;pointer-events:none;color:#e2f4cf;font-size:clamp(15px,2vw,26px);font-weight:500;line-height:1.3;opacity:.75}
+#training-name{display:block;width:max-content;max-width:calc(50% - 52px);overflow-wrap:anywhere}
 #training-time{position:absolute;top:0;left:50%;transform:translateX(-50%);font-variant-numeric:tabular-nums}
-#falling{top:64px}
+#training-name,#training-time{padding:3px 6px;background:transparent}
