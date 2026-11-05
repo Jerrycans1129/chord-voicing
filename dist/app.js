@@ -41,7 +41,7 @@ $('timing-export').addEventListener('click',()=>{
 let scheduler,settled=0,run=createRun();
 let bpm=normalizeBpm(read('voicing-bpm',90));
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
-let sessionSeconds=0;
+let sessionSeconds=0,strikeFlashAt=-Infinity;
 const MAX_SECONDS=TOTAL_SECONDS;
 let screenLock=null,screenLockGeneration=0;
 function releaseScreenLock(){
@@ -437,13 +437,13 @@ function reset(){
  releaseScreenLock();stopMetronome();
  running=false;started=false;finished=false;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
  scheduler=stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
- updateTrainingHeader();$('result-dialog').close();$('lanes').style.setProperty('--beat-glow','0');
+ updateTrainingHeader();$('result-dialog').close();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
  cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
 }
 function pause(){
  if(!running)return;advance(performance.now());if(finished)return;
  persistTiming();
- running=false;recordConditions(run,{paused:true,visible:true});updateKeyboardBlur();releaseScreenLock();stopMetronome();
+ running=false;strikeFlashAt=-Infinity;recordConditions(run,{paused:true,visible:true});updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();paintScene();
 }
 function canStartTraining(){
@@ -470,7 +470,7 @@ function complete(){
  results[id]={last:result,best:!results[id]||result.score>results[id].best.score?result:results[id].best};
  save('voicing-results-v1',results);
  if($('settings-dialog').open)$('settings-dialog').close();
- elements.forEach(el=>{el.hidden=true;});updateTrainingHeader();$('lanes').style.setProperty('--beat-glow','0');showHome();focusCurrentStage();showResult(result);
+ elements.forEach(el=>{el.hidden=true;});updateTrainingHeader();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');showHome();focusCurrentStage();showResult(result);
 }
 function settleAnswers(){
  while(settled<cards.length&&canSettle(cards[settled],sessionSeconds)){
@@ -490,6 +490,10 @@ function advance(now){
   if(MAX_SECONDS-sessionSeconds<1e-9)sessionSeconds=MAX_SECONDS;
   recordConditions(run,{seconds:dt,bpm,visible:!keyboardBlurOn});
   syncCards();
+  const boundary=Math.floor(elapsed);
+  if(boundary>=2&&boundary>Math.floor(fromProgress)&&cards[boundary-2]){
+   strikeFlashAt=sessionSeconds-(elapsed-boundary)*240/bpm;
+  }
   stampBoundaries(cards,fromProgress,elapsed,fromSeconds,bpm);settleAnswers();updateTimer();
   if(sessionSeconds>=MAX_SECONDS)complete();
  }
@@ -497,12 +501,11 @@ function advance(now){
 }
 function paintScene(){
  updateTrainingHeader();
+ const flash=running&&!finished?Math.max(0,1-(sessionSeconds-strikeFlashAt)/.18):0;
+ $('strike').style.setProperty('--strike-flash',String(flash));
  if(started&&!finished){
   syncCards();
   const height=$('falling').clientHeight;
-  const beats=elapsed*4,beatIndex=Math.floor(beats),phase=beats-beatIndex;
-  const pulse=Math.pow(Math.max(0,1-phase/.7),2);
-  $('lanes').style.setProperty('--beat-glow',String(pulse));
   const landedIndex=Math.floor(elapsed-2),pausedIndex=visualQuestionIndex();
   cards.forEach((_,i)=>{
    const progress=(elapsed-i)/2;const el=elements[i];

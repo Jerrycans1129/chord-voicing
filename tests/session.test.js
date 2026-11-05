@@ -57,16 +57,18 @@ test('chords descend continuously between beats and meet the key edge',()=>{
  assert.ok(first>top);assert.ok(second>first);assert.equal(first-top,second-first);
  run('now=8000;render(now)');assert.equal(y(),264);
 });
-test('background pulse follows tempo and preserves its phase while paused',()=>{
- const {run,nodes}=session();run('bpm=120;play();render(0)');
- const glow=()=>nodes.get('lanes').style['--beat-glow'];
- assert.equal(glow(),'1');
- run('now=250;render(now);pause()');const dim=glow();assert.ok(Number(dim)<1);
- const position=run('elements[0].style.transform');
- run('now=10000;render(now)');assert.equal(glow(),dim);assert.equal(run('elements[0].style.transform'),position);
- run('play();now=10250;render(now)');assert.equal(glow(),'1');
- run('now=14000;render(now)');assert.equal(run('elements[0].dataset.landed'),'true');
- assert.equal(run("elements[0].style['--beat-glow']"),undefined);
+test('strike flashes only on visual contact, fades after 180ms and clears on pause and reset',()=>{
+ const {run,nodes}=session();const flash=()=>Number(nodes.get('strike').style['--strike-flash']);
+ run('bpm=60;play();render(0)');assert.equal(flash(),0);
+ run('now=7820;render(now)');assert.equal(flash(),0);
+ run('now=8000;render(now)');assert.ok(Math.abs(flash()-1)<1e-9);
+ run('now=8090;render(now)');assert.ok(flash()>0&&flash()<1);
+ run('now=8181;render(now)');assert.equal(flash(),0);
+ run('now=12000;render(now)');assert.ok(Math.abs(flash()-1)<1e-9);
+ run('pause()');assert.equal(flash(),0);
+ run('now=20000;play()');assert.equal(flash(),0);
+ run('now=24000;render(now)');assert.ok(Math.abs(flash()-1)<1e-9);
+ run('reset()');assert.equal(flash(),0);
 });
 
 test('metronome schedules accented clicks, cancels on pause and skips missed beats',()=>{
@@ -678,10 +680,12 @@ test('result dialog reports results, blocks background starts and retries explic
  run('pause();complete()');assert.equal(nodes.get('result-dialog').open,true);
  nodes.get('result-home').handlers.click({stopPropagation(){}});assert.equal(run('running'),false);assert.equal(nodes.get('overlay').hidden,false);
 });
-test('pulse follows a changed BPM without resetting beat phase',()=>{
- const {run,nodes}=session();run('bpm=60;play();now=250;pause();bpm=120;play();now=625;render(now)');
- assert.equal(nodes.get('lanes').style['--beat-glow'],'1');
- run('now=875;render(now)');assert.ok(Number(nodes.get('lanes').style['--beat-glow'])<1);
+test('strike contact follows tempo changes and skips stale flashes after delayed frames',()=>{
+ const {run,nodes}=session();const flash=()=>Number(nodes.get('strike').style['--strike-flash']);
+ run('bpm=60;play();now=4000;pause();bpm=120;play();now=5990;render(now)');assert.equal(flash(),0);
+ run('now=6000;render(now)');assert.ok(Math.abs(flash()-1)<1e-9);
+ run('now=8500;render(now)');assert.equal(flash(),0);
+ run('complete()');assert.equal(flash(),0);
 });
 
 
