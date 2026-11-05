@@ -1,4 +1,4 @@
-import {trainingItems,positions,shuffle} from './theory.js';
+import {trainingItems,positions,shuffle,supportsPractice} from './theory.js';
 export const reviewWeights=[0,1,3,7];
 export function cleanLevels(value){
  const result=Object.create(null);
@@ -41,5 +41,22 @@ export class Scheduler{
   if(!roots?.length){roots=shuffle(positions(item.pc,item.q,item.inv),this.rng);this.rootBags.set(item.id,roots);}
   this.lastSeen.set(item.id,this.index++);
   return {...item,root:roots.pop(),source,reviewSlot};
+ }
+}
+
+// Practice repeats the same root cycle, with no weakness or spelling weighting.
+export class PracticeScheduler{
+ constructor(stage,{rng=Math.random}={}){
+  if(!supportsPractice(stage))throw new Error('Practice requires a single chord quality');
+  this.items=trainingItems(stage);this.rng=rng;this.index=0;
+ }
+ next(){
+  const pc=(2+this.index*5)%12;
+  const spelling=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'][pc];
+  const candidates=this.items.filter(item=>item.pc===pc&&item.name===spelling);
+  const item=candidates[Math.floor(this.rng()*candidates.length)];
+  const roots=positions(pc,item.q,item.inv);
+  this.index=(this.index+1)%12;
+  return {...item,root:roots[Math.floor(this.rng()*roots.length)]};
  }
 }

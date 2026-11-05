@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import * as theory from '../dist/theory.js';
 import {BUILD_REVISION} from '../dist/build.js';
-import {Scheduler,cleanLevels} from '../dist/scheduler.js';
+import {Scheduler,PracticeScheduler,cleanLevels} from '../dist/scheduler.js';
 import * as scoring from '../dist/scoring.js';
 import * as judgment from '../dist/judgment.js';
 import * as timing from '../dist/timing.js';
@@ -12,7 +12,7 @@ function session(extras={},connected=true){
  const nodes=new Map(),documentHandlers={},alerts=[];
  const element=()=>({open:false,click(){this.clicked=true;},showModal(){this.open=true;},close(){this.open=false;},style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},children:[],append(...items){this.children.push(...items);},replaceChildren(...items){this.children=[...items];},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},queries:new Map(),querySelector(selector){if(!this.queries.has(selector))this.queries.set(selector,element());return this.queries.get(selector);},scrollLeft:0,scrollIntoView(){},setPointerCapture(){},hasPointerCapture(){return false;},releasePointerCapture(){}});
  const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
- const context=vm.createContext({alert:message=>alerts.push(message),...theory,BUILD_REVISION,Scheduler,cleanLevels,...scoring,...judgment,...timing,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
+ const context=vm.createContext({alert:message=>alerts.push(message),...theory,BUILD_REVISION,Scheduler,PracticeScheduler,cleanLevels,...scoring,...judgment,...timing,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
  if(!extras.localStorage)vm.runInContext('selectStage(5)',context);
  if(connected)vm.runInContext("midiInputs.set('fixture',{state:'connected'})",context);
@@ -519,9 +519,9 @@ test('disconnect pauses immediately and a partial last question is not settled o
  run('complete()');assert.equal(run('run.total'),0);
 });
 test('mouse drag scrolls without selecting; click and keyboard activation still select',()=>{
- const {run,nodes}=session();const route=nodes.get('route-second');
+ const {run,nodes}=session();const route=nodes.get('route-surface');
  route.handlers.pointerdown({pointerType:'mouse',button:0,pointerId:1,clientX:300});route.handlers.pointermove({pointerId:1,clientX:100,preventDefault(){}});route.handlers.pointerup({pointerId:1});
- assert.equal(route.scrollLeft,200);let prevented=false;route.handlers.click({detail:1,preventDefault(){prevented=true;},stopPropagation(){}});assert.equal(prevented,true);
+ assert.equal(nodes.get('route-second').scrollLeft,200);let prevented=false;route.handlers.click({detail:1,preventDefault(){prevented=true;},stopPropagation(){}});assert.equal(prevented,true);
  run('routeNodes[1].handlers.click()');assert.equal(run('stageIndex'),1);
 });
 
@@ -752,4 +752,104 @@ test('training header names stages and tracks active time through pause, resume 
  run('play();now=501000;render(now)');assert.equal(nodes.get('training-time').textContent,'02:04');
  run('complete()');assert.equal(nodes.get('training-header').hidden,true);
  run('reset();play()');assert.equal(nodes.get('training-time').textContent,'00:00');
+});
+
+
+test('practice availability follows the selected node and challenge remains available',()=>{
+ const {run,nodes}=session();
+ for(const id of ['notes-two','notes-all','level-2','level-6-v2']){
+  run(`selectNode('${id}')`);assert.equal(nodes.get('practice-action').hidden,true);
+  assert.equal(nodes.get('overlay-action').disabled,false);
+  run("startMode('practice')");assert.equal(run('started'),false);
+ }
+ for(const id of ['quality-0','chord-10-3','quality-11']){
+  run(`selectNode('${id}')`);assert.equal(nodes.get('practice-action').hidden,false);
+  nodes.get('practice-action').handlers.click({stopPropagation(){}});
+  assert.equal(run('mode'),'practice');assert.equal(run('cards[0].pc'),2);
+  run('complete()');assert.equal(nodes.get('result-dialog').open,false);
+ }
+});
+
+test('practice misses pause at visual contact, reveal A and rewind pending B by four beats',()=>{
+ const {run,nodes}=session();run("startMode('practice');now=8000;render(now)");
+ const pending=run('JSON.stringify(cards.slice(1).map(c=>[c.id,c.root]))');
+ run('now=11820;render(now)');assert.equal(run('running'),true);
+ run('now=12000;render(now)');assert.equal(run('running'),false);
+ assert.equal(run('practiceMistake'),true);assert.equal(run('sessionSeconds'),12);
+ assert.equal(run('cards[0].label'),'D');assert.equal(run('visualQuestionIndex()'),0);
+ assert.equal(run('elements[0].hidden'),false);assert.equal(run('elements[1].hidden'),true);
+ assert.equal(run('cards[0].targets.every(n=>!answerDots.get(n).hidden)'),true);
+ run('for(const note of cards[0].targets)judgeMidi(note)');assert.equal(run('cards[0].hits.size'),0);
+ run('now=40000;play()');assert.equal(run('elapsed'),1);assert.equal(run('sessionSeconds'),12);
+ assert.equal(run('JSON.stringify(cards.slice(0,2).map(c=>[c.id,c.root]))'),pending);
+ assert.equal(run('cards[0].label'),'G');assert.equal(run('cards[0].hits.size'),0);
+ run('now=43820;for(const n of cards[0].targets)judgeMidi(n)');assert.equal(run('cards[0].hits.size'),0);
+ run('now=44000;for(const n of cards[0].targets)judgeMidi(n)');assert.equal(run('cards[0].feedback'),'correct');
+ run('now=48000;render(now)');assert.equal(run('running'),true);assert.equal(run('cards[0].label'),'C');
+ assert.equal(run('run.total'),2);assert.equal(run('run.correct'),1);
+ assert.equal(run('Object.keys(levels).length'),0);assert.equal(run('Object.keys(results).length'),0);
+ run('complete()');assert.equal(nodes.get('result-dialog').open,false);assert.equal(run('timingRuns.length'),0);
+});
+
+test('practice detects wrong notes and incomplete answers, caps delayed frames at the error and accepts tempo changes',()=>{
+ const {run}=session();run("startMode('practice');now=8000;render(now);judgeMidi(1);now=50000;render(now)");
+ assert.equal(run('cards[0].wrong'),true);assert.equal(run('sessionSeconds'),12);
+ assert.equal(run('running'),false);
+ run('bpm=120;play();now=52000;render(now)');assert.equal(run('elapsed'),2);
+ run('judgeMidi(cards[0].targets[0]);now=54000;render(now)');
+ assert.equal(run('running'),false);assert.equal(run('sessionSeconds'),16);
+ assert.equal(run('cards[0].label'),'G');
+ run('play();now=56000;for(const n of cards[0].targets)judgeMidi(n);now=58000;render(now)');
+ assert.equal(run('running'),true);assert.equal(run('cards[0].label'),'F');
+});
+
+test('manual pause does not rewind practice or count paused time',()=>{
+ const {run}=session();run("startMode('practice');now=9000;pause()");
+ const progress=run('elapsed');run('now=100000;play()');assert.equal(run('elapsed'),progress);
+ assert.equal(run('practiceMistake'),false);assert.equal(run('sessionSeconds'),9);
+ run('now=101000;render(now)');assert.equal(run('sessionSeconds'),10);
+});
+
+test('practice runs beyond an hour while keeping a bounded card queue and separate progress',()=>{
+ const {run,nodes}=session();run("startMode('practice');now=8000;render(now)");
+ run(`for(let i=0;i<1000;i++){
+  for(const note of cards[0].targets)judgeMidi(note);
+  now+=4000;render(now);
+  if(!running||cards.length>4||elements.length>4)throw new Error('Practice queue stopped or grew');
+ }`);
+ assert.equal(run('sessionSeconds'),4008);assert.equal(run('run.seconds'),4008);
+ assert.equal(nodes.get('training-time').textContent,'66:48');assert.equal(nodes.get('count').textContent,'66:48');
+ assert.equal(run('run.total'),1000);assert.equal(run('run.correct'),1000);
+ assert.equal(run('timingRuns.length'),0);assert.equal(run('Object.keys(levels).length'),0);
+ run('complete()');assert.equal(run('Object.keys(results).length'),0);
+});
+
+test('expanded route surface handles touch dragging and wheel without starting a mode',()=>{
+ const {run,nodes}=session(),surface=nodes.get('route-surface'),row=nodes.get('route-second');
+ surface.handlers.pointerdown({pointerType:'touch',pointerId:3,clientX:300});
+ surface.handlers.pointermove({pointerId:3,clientX:100,preventDefault(){}});
+ surface.handlers.pointerup({pointerId:3});assert.equal(row.scrollLeft,200);
+ surface.handlers.wheel({deltaX:0,deltaY:40,deltaMode:0,preventDefault(){}});assert.equal(row.scrollLeft,240);
+ assert.equal(run('started'),false);
+});
+
+test('held practice keys must be released and attacked again after error recovery',async()=>{
+ const {run,send}=midiSession();await run('connectMidi()');run("startMode('practice');now=12000;render(now)");
+ const target=run('cards[1].targets[0]');send([0x90,target,100]);
+ assert.equal(run('cards[0].hits.size'),0);
+ run('play();now=16000;render(now)');send([0x90,target,100]);
+ assert.equal(run('cards[0].hits.size'),0);
+ send([0x80,target,0]);send([0x90,target,100]);assert.equal(run('cards[0].hits.size'),1);
+});
+
+test('practice windows stay aligned across repeated fractional-tempo boundaries',()=>{
+ for(const tempo of [40,90,140]){
+  const {run}=session();run(`bpm=${tempo};startMode('practice');now=480000/bpm;render(now)`);
+  run(`for(let i=0;i<100;i++){
+   for(const note of cards[0].targets)judgeMidi(note);
+   now+=(3-elapsed)*240000/bpm;render(now);
+   if(!running)throw new Error('Practice lost a correct answer at a fractional boundary');
+  }`);
+  assert.equal(run('run.correct'),100);
+ }
 });

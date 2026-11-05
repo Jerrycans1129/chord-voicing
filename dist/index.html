@@ -7,10 +7,10 @@
 <div class="home-content"><nav id="route" aria-label="训练路线">
 <svg id="route-branches" aria-hidden="true"><path id="branch-top"/><path id="branch-quality"/></svg>
 <div id="route-top" class="route-row" aria-label="训练项目"></div>
-<div class="route-heading"><button id="overlay-action" class="primary" type="button">开始训练</button></div>
+<div id="route-surface"><div class="route-heading"><button id="practice-action" class="primary" type="button" aria-label="训练模式" hidden>训练</button><button id="overlay-action" class="primary" type="button" aria-label="闯关模式">闯关</button></div>
 <div id="route-second" class="route-row" aria-label="训练内容"></div>
 <div id="route-details"><div id="route-third" class="route-row" aria-label="根音位置"></div></div>
-</nav></div>
+</div></nav></div>
 </section>
 <button id="settings-toggle" class="secondary" type="button" aria-label="打开训练设置" title="训练设置"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m9 3-.6 2.2-2 .9-2-.6-2 3.5 1.5 1.6v2.8L2.4 15l2 3.5 2-.6 2 .9L9 21h4l.6-2.2 2-.9 2 .6 2-3.5-1.5-1.6v-2.8l1.5-1.6-2-3.5-2 .6-2-.9L13 3Z"/><circle cx="11" cy="12" r="3"/></svg></button>
 <div id="strike"></div><div id="keyboard" aria-label="无音名标记的钢琴参照键盘"></div><div id="keyboard-frost" aria-hidden="true" hidden></div>
@@ -27,7 +27,7 @@
 </div><div class="dialog-actions"><button id="exit-training" class="secondary" type="button" hidden>退出训练</button><button id="settings-close" class="primary" type="button" autofocus>关闭</button></div>
 </dialog>
 <dialog id="result-dialog" aria-labelledby="result-title">
-<h2 id="result-title">训练成绩</h2>
+<h2 id="result-title">闯关成绩</h2>
 <div class="dialog-content">
 <div class="result-rating"><span id="result-stars" class="stars"></span></div>
 <dl class="result-details"><div><dt>正确率</dt><dd id="result-accuracy"></dd></div><div><dt>正确／已结算题数</dt><dd id="result-count"></dd></div><div><dt>训练时长</dt><dd id="result-duration"></dd></div></dl>

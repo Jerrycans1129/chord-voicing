@@ -1,6 +1,6 @@
-import {stages,names,qualities,curriculum,selectable,currentProgress,migrateResults} from './theory.js';
+import {stages,names,qualities,curriculum,selectable,supportsPractice,currentProgress,migrateResults} from './theory.js';
 import {BUILD_REVISION} from './build.js';
-import {Scheduler,cleanLevels} from './scheduler.js';
+import {Scheduler,PracticeScheduler,cleanLevels} from './scheduler.js';
 import {VERSION,SPEEDS,TOTAL_SECONDS,normalizeBpm,createRun,recordConditions,calculateScore,cleanResults} from './scoring.js';
 import {JUDGMENT_POLICY,activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,isCorrect,canSettle} from './judgment.js';
 import {TIMING_KEY,MAX_TIMING_EVENTS,createTimingRun,addTimingSegment,recordTimingAttack,analyzeTiming,trimTiming,loadTiming,timingObservation} from './timing.js';
@@ -39,6 +39,7 @@ $('timing-export').addEventListener('click',()=>{
  paintTiming();
 });
 let scheduler,settled=0,run=createRun();
+let mode='challenge',practiceMistake=false;
 let bpm=normalizeBpm(read('voicing-bpm',90));
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0,strikeFlashAt=-Infinity;
@@ -112,7 +113,7 @@ function scheduleMetronome(){
  if(nextAudioBeat<beat-.1)nextAudioBeat=Math.ceil(beat);
  while((nextAudioBeat-beat)*secondsPerBeat<.12){
   const delay=Math.max(0,(nextAudioBeat-beat)*secondsPerBeat);
-  if(sessionSeconds+delay>=MAX_SECONDS)break;
+  if(mode==='challenge'&&sessionSeconds+delay>=MAX_SECONDS)break;
   const time=audioContext.currentTime+delay;
   const oscillator=audioContext.createOscillator(),gain=audioContext.createGain();
   const accent=nextAudioBeat%4===0;
@@ -130,7 +131,7 @@ updateMetronome();
 function updateTimer(){
  const seconds=Math.floor(sessionSeconds);
  const time=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
- $('count').textContent=`${time} / 30:00`;
+ $('count').textContent=mode==='practice'?time:`${time} / 30:00`;
  $('training-time').textContent=time;
  $('answer-count').textContent=`${run.correct} / ${run.total}`;
  $('accuracy').textContent=run.total?`${(100*run.correct/run.total).toFixed(1)}%`:'—';
@@ -195,7 +196,7 @@ function judgeMidi(note,meta={}){
  const {indices}=attackTargets(cards,sessionSeconds);
  for(const index of indices){
   const card=cards[index];applyAttack(card,note);
-  if(card.wrong&&!card.errorRecorded){card.errorRecorded=true;if(scheduler.record(card.id,'wrong'))save('voicing-weakness-v1',levels);}
+  if(mode==='challenge'&&card.wrong&&!card.errorRecorded){card.errorRecorded=true;if(scheduler.record(card.id,'wrong'))save('voicing-weakness-v1',levels);}
   paintFeedback(index);
  }
 }
@@ -278,6 +279,7 @@ function updateRoute(){
   setStars(node.querySelector('.stars'),results[id]?.best.stars);
  }
  $('overlay-action').disabled=stageIndex<0||!selectable(stages[stageIndex],results);
+ $('practice-action').hidden=!supportsPractice(stages[stageIndex]);
  requestAnimationFrame(drawBranches);
 }
 // Keep the inversion group centered directly beneath its chord while scrolling.
@@ -333,7 +335,7 @@ function selectNode(id){
  expandedTop=stage.projectId;
  expandedQuality=stage.children?stage.id:stage.parent?.startsWith('quality-')?stage.parent:null;
  stageIndex=selectable(stage,results)?stages.indexOf(stage):-1;
- reset();focusCurrentStage();
+ mode='challenge';reset();focusCurrentStage();
  if(stageIndex<0)stageButtons.get(id)?.scrollIntoView?.({block:'nearest',inline:'center'});
  programmaticScrollLeft=routeRows[1].scrollLeft;
 }
@@ -341,19 +343,21 @@ function selectStage(index){if(stages[index])selectNode(stages[index].id);}
 $('version').textContent=`v${VERSION}+${BUILD_REVISION}`;
 for(const speed of SPEEDS){const option=document.createElement('option');option.value=speed.bpm;option.textContent=`${speed.name} · ${speed.bpm} BPM`;$('speed').append(option);}
 $('speed').value=bpm;
-// Native touch scrolling; mouse dragging captures only after a real drag.
+// Capture horizontal gestures across the content surface after a real drag.
 let routeDrag=null,suppressRouteClick=false;
-for(const route of routeRows.slice(0,2)){
+for(const route of [routeRows[0],$('route-surface')]){
+const scrollRow=route===routeRows[0]?route:routeRows[1];
 route.addEventListener('pointerdown',e=>{
  suppressRouteClick=false;
- if(e.pointerType!=='mouse'||e.button!==0)return;
- routeDrag={id:e.pointerId,x:route===routeRows[0]?e.clientY:e.clientX,left:route===routeRows[0]?route.scrollTop:route.scrollLeft,moved:false};
+ if(e.pointerType==='mouse'&&e.button!==0)return;
+ if(route===routeRows[0]&&e.pointerType!=='mouse')return;
+ routeDrag={id:e.pointerId,x:route===routeRows[0]?e.clientY:e.clientX,left:route===routeRows[0]?scrollRow.scrollTop:scrollRow.scrollLeft,moved:false};
 });
 route.addEventListener('pointermove',e=>{
  if(!routeDrag||routeDrag.id!==e.pointerId)return;
  const dx=(route===routeRows[0]?e.clientY:e.clientX)-routeDrag.x;
  if(!routeDrag.moved&&Math.abs(dx)>6){routeDrag.moved=true;route.setPointerCapture(e.pointerId);route.dataset.dragging='true';}
- if(routeDrag.moved){e.preventDefault();if(route===routeRows[0])route.scrollTop=routeDrag.left-dx;else route.scrollLeft=routeDrag.left-dx;}
+ if(routeDrag.moved){e.preventDefault();if(route===routeRows[0])scrollRow.scrollTop=routeDrag.left-dx;else{scrollRow.scrollLeft=routeDrag.left-dx;programmaticScrollLeft=null;}}
 });
 function endRouteDrag(e){
  if(!routeDrag||routeDrag.id!==e.pointerId)return;
@@ -363,12 +367,18 @@ function endRouteDrag(e){
 route.addEventListener('pointerup',endRouteDrag);route.addEventListener('pointercancel',endRouteDrag);
 route.addEventListener('click',e=>{if(suppressRouteClick&&e.detail!==0){e.preventDefault();e.stopPropagation();suppressRouteClick=false;}},true);
 }
+$('route-surface').addEventListener('wheel',e=>{
+ if(e.ctrlKey)return;
+ const delta=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;
+ if(!delta)return;
+ e.preventDefault();programmaticScrollLeft=null;routeRows[1].scrollLeft+=delta*(e.deltaMode===1?16:e.deltaMode===2?routeRows[1].clientWidth:1);
+},{passive:false});
 document.addEventListener('dragstart',e=>e.preventDefault());
 function hidePauseControls(){
  $('settings-toggle').hidden=true;
  for(const dot of answerDots.values())dot.hidden=true;
 }
-function visualQuestionIndex(){return Math.max(0,Math.floor(elapsed-2));}
+function visualQuestionIndex(){if(practiceMistake)return 0;return Math.max(0,Math.floor(elapsed-2));}
 function showAnswer(){
  // Pause answers follow the landed label; before the first touch, preview question one.
  const card=cards[visualQuestionIndex()];
@@ -386,6 +396,7 @@ function showHome(){
 }
 // A card at index i touches the line at musical progress i + 2.
 function canReachLine(index){
+ if(mode==='practice')return true;
  return sessionSeconds+(index+2-elapsed)*240/bpm<MAX_SECONDS-1e-9;
 }
 function syncCards(){
@@ -435,13 +446,17 @@ function appendCard(){
 function reset(){
  persistTiming();timingRun=null;
  releaseScreenLock();stopMetronome();
- running=false;started=false;finished=false;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
- scheduler=stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
+ running=false;started=false;finished=false;practiceMistake=false;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
+ const SchedulerClass=mode==='practice'?PracticeScheduler:Scheduler;
+ scheduler=stageIndex>=0?new SchedulerClass(stages[stageIndex],{levels}):null;
  updateTrainingHeader();$('result-dialog').close();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
  cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
 }
 function pause(){
- if(!running)return;advance(performance.now());if(finished)return;
+ if(!running)return;advance(performance.now());if(!running)return;
+ pauseSession();
+}
+function pauseSession(){
  persistTiming();
  running=false;strikeFlashAt=-Infinity;recordConditions(run,{paused:true,visible:true});updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();paintScene();
@@ -455,10 +470,18 @@ function play(){
  if(running){pause();return;}
  if(!canStartTraining())return;
  if(finished)reset();
- if(!timingRun){timingRun=createTimingRun(stages[stageIndex].id,VERSION);timingRuns.push(timingRun);timingRuns=trimTiming(timingRuns);}
+ if(mode==='challenge'&&!timingRun){timingRun=createTimingRun(stages[stageIndex].id,VERSION);timingRuns.push(timingRun);timingRuns=trimTiming(timingRuns);}
+ if(practiceMistake){
+  discardPracticeCard();elapsed-=1;
+  cards=cards.map(card=>{
+   const {startAt,endAt,feedback,errorRecorded,...item}=card;
+   return prepareAttempt(item);
+  });
+  practiceMistake=false;
+ }
  run.started=true;started=true;running=true;
  syncCards();
- stampBoundaries(cards,elapsed,elapsed,sessionSeconds,bpm);settleAnswers();updateTimer();
+ stampSessionBoundaries(elapsed,elapsed,sessionSeconds);settleAnswers();updateTimer();
  recordConditions(run,{visible:!keyboardBlurOn});
  hidePauseControls();updateKeyboardBlur();previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;paintScene();
 }
@@ -466,6 +489,12 @@ function complete(){
  if(!started||finished)return;
  persistTiming();
  running=false;finished=true;releaseScreenLock();stopMetronome();
+ if(mode==='practice'){
+  if($('settings-dialog').open)$('settings-dialog').close();
+  elements.forEach(el=>{el.hidden=true;});updateTrainingHeader();
+  strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
+  showHome();focusCurrentStage();return;
+ }
  const result=calculateScore(run),id=stages[stageIndex].id;
  results[id]={last:result,best:!results[id]||result.score>results[id].best.score?result:results[id].best};
  save('voicing-results-v1',results);
@@ -473,6 +502,7 @@ function complete(){
  elements.forEach(el=>{el.hidden=true;});updateTrainingHeader();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');showHome();focusCurrentStage();showResult(result);
 }
 function settleAnswers(){
+ if(mode==='practice')return;
  while(settled<cards.length&&canSettle(cards[settled],sessionSeconds)){
   const card=cards[settled++];card.ended=true;run.total++;
   if(isCorrect(card)){
@@ -481,7 +511,44 @@ function settleAnswers(){
   }
  }
 }
+function stampSessionBoundaries(fromProgress,toProgress,fromSeconds){
+ stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm,mode==='practice'?0:undefined);
+}
+function discardPracticeCard(){
+ cards.shift();elements.shift();elapsed-=1;
+ if(nextAudioBeat!==null)nextAudioBeat-=4;
+ $('falling').replaceChildren(...elements);
+}
+function advancePractice(now){
+ let remaining=Math.max(0,(now-previous)/1000);
+ // Stop precisely at the first failed question, even after a delayed frame.
+ while(running&&remaining>0){
+  const fromProgress=elapsed,fromSeconds=sessionSeconds;
+  const untilBoundary=Math.max(0,(3-elapsed)*240/bpm);
+  const reachesBoundary=remaining+1e-9>=untilBoundary;
+  const dt=reachesBoundary?untilBoundary:remaining;
+  sessionSeconds+=dt;elapsed+=dt*bpm/240;remaining-=dt;
+  run.seconds=sessionSeconds;
+  syncCards();stampSessionBoundaries(fromProgress,elapsed,fromSeconds);
+  if(fromProgress<2&&elapsed+1e-9>=2){
+   cards[0].startAt=Math.min(sessionSeconds,sessionSeconds-(elapsed-2)*240/bpm);
+   strikeFlashAt=cards[0].startAt;
+  }
+  if(reachesBoundary){
+   elapsed=3;strikeFlashAt=sessionSeconds;
+   cards[0].endAt=sessionSeconds;cards[1].startAt=sessionSeconds;
+   const card=cards[0];card.ended=true;run.total++;
+   if(isCorrect(card)){
+    run.correct++;discardPracticeCard();
+   }else{
+    practiceMistake=true;pauseSession();
+   }
+  }
+ }
+ updateTimer();previous=now;
+}
 function advance(now){
+ if(running&&mode==='practice'){advancePractice(now);return;}
  if(running){
   const fromSeconds=sessionSeconds,fromProgress=elapsed;
   const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);
@@ -494,7 +561,7 @@ function advance(now){
   if(boundary>=2&&boundary>Math.floor(fromProgress)&&cards[boundary-2]){
    strikeFlashAt=sessionSeconds-(elapsed-boundary)*240/bpm;
   }
-  stampBoundaries(cards,fromProgress,elapsed,fromSeconds,bpm);settleAnswers();updateTimer();
+  stampSessionBoundaries(fromProgress,elapsed,fromSeconds);settleAnswers();updateTimer();
   if(sessionSeconds>=MAX_SECONDS)complete();
  }
  previous=now;
@@ -536,7 +603,14 @@ $('metronome').addEventListener('click',e=>{
  e.stopPropagation();metronomeOn=!metronomeOn;save('voicing-metronome',metronomeOn);
  stopMetronome();if(metronomeOn)unlockAudio();updateMetronome();
 });
-$('overlay-action').addEventListener('click',e=>{e.stopPropagation();play();});
+function startMode(nextMode){
+ if(started&&!finished)return;
+ if(nextMode==='practice'&&!supportsPractice(stages[stageIndex]))return;
+ if(!canStartTraining())return;
+ mode=nextMode;reset();play();
+}
+$('practice-action').addEventListener('click',e=>{e.stopPropagation();startMode('practice');});
+$('overlay-action').addEventListener('click',e=>{e.stopPropagation();startMode('challenge');});
 $('settings-toggle').addEventListener('click',e=>{e.stopPropagation();openSettings();});
 $('settings-dialog').addEventListener('click',e=>e.stopPropagation());
 $('settings-close').addEventListener('click',e=>{e.stopPropagation();$('settings-dialog').close();});
@@ -551,7 +625,7 @@ document.addEventListener('click',()=>{
 });
 $('speed').addEventListener('change',()=>{
  advance(performance.now());stopMetronome();bpm=normalizeBpm($('speed').value);$('speed').value=bpm;save('voicing-bpm',bpm);
- if(running){stampBoundaries(cards,elapsed,elapsed,sessionSeconds,bpm);settleAnswers();updateTimer();}
+ if(running){stampSessionBoundaries(elapsed,elapsed,sessionSeconds);settleAnswers();updateTimer();}
 });
 globalThis.addEventListener?.('pagehide',persistTiming);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();clearMidi();}});

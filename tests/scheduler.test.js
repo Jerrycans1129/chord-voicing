@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {Scheduler,cleanLevels} from '../dist/scheduler.js';
+import {Scheduler,PracticeScheduler,cleanLevels} from '../dist/scheduler.js';
 import {stages,positions} from '../dist/theory.js';
 const rng=()=>{let n=123456;return ()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};};
 test('mistakes are spelling-, quality-, and inversion-specific, but shared across octaves and stages',()=>{
@@ -58,4 +58,20 @@ test('mixed levels enforce five current and five earlier cards despite concentra
   }
   assert.ok(reviews>0);
  }
+});
+
+
+test('practice repeats D–G–C with stable spellings and only permitted voicings',()=>{
+ const order=[2,7,0,5,10,3,8,1,6,11,4,9];
+ for(const id of ['quality-10','chord-10-3','quality-11']){
+  const scheduler=new PracticeScheduler(stages.find(s=>s.id===id),{rng:rng()});
+  for(let i=0;i<120;i++){
+   const card=scheduler.next();assert.equal(card.pc,order[i%12]);
+   assert.ok(positions(card.pc,card.q,card.inv).includes(card.root));
+   if(id==='chord-10-3')assert.equal(card.inv,3);
+   if(id==='quality-11'){assert.equal(card.freeOctaves,true);assert.equal(card.root,48+card.pc);}
+  }
+ }
+ assert.throws(()=>new PracticeScheduler(stages.find(s=>s.id==='notes-two')));
+ assert.throws(()=>new PracticeScheduler(stages.find(s=>s.id==='level-2')));
 });

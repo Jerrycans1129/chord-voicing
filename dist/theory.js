@@ -58,6 +58,7 @@ export const stages=[];
 function visit(node,parent=null,project=node.id){node.parent=parent;node.projectId=project;for(const child of node.children??[])visit(child,node.id,project);if(!node.project)stages.push(node);}
 curriculum.forEach(node=>visit(node));
 export function selectable(node,results){return !!node&&!node.project;}
+export function supportsPractice(node){return !!node&&!node.project&&node.kind!=='note'&&!node.comprehensive&&!!node.combos?.length;}
 export function currentProgress(results){const index=stages.findIndex(node=>selectable(node,results)&&results[node.id]?.best.stars!==3);return index<0?stages.length-1:index;}
 export function migrateResults(saved){const migrated={...saved};if(!migrated['quality-0']&&saved?.['mix-0-0'])migrated['quality-0']=saved['mix-0-0'];return migrated;}
 // inv rotates the sorted, close-position pitch classes; root remains the anchor.

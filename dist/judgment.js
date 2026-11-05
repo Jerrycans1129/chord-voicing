@@ -5,12 +5,12 @@ const EPS=1e-9;
 export function prepareAttempt(card){return {...card,targets:card.kind==='note'?[card.root]:notes(card.root,card.q,card.inv),hits:new Set(),wrong:false,assisted:false,ended:false};}
 // Commit each shifted boundary once, in active training seconds. A tempo change
 // may move a future boundary, but can never reopen or backdate a committed one.
-export function stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm){
+export function stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm,advanceSeconds=WINDOW_ADVANCE_SECONDS){
  const period=240/bpm;
- const boundaryAt=boundary=>Math.max(fromSeconds,fromSeconds+(boundary-fromProgress)*period-WINDOW_ADVANCE_SECONDS);
+ const boundaryAt=boundary=>Math.max(fromSeconds,fromSeconds+(boundary-fromProgress)*period-advanceSeconds);
  cards.forEach((card,i)=>{
-  if(card.startAt===undefined&&toProgress+WINDOW_ADVANCE_SECONDS/period+EPS>=i+2)card.startAt=boundaryAt(i+2);
-  if(card.endAt===undefined&&toProgress+WINDOW_ADVANCE_SECONDS/period+EPS>=i+3)card.endAt=boundaryAt(i+3);
+  if(card.startAt===undefined&&toProgress+advanceSeconds/period+EPS>=i+2)card.startAt=boundaryAt(i+2);
+  if(card.endAt===undefined&&toProgress+advanceSeconds/period+EPS>=i+3)card.endAt=boundaryAt(i+3);
  });
 }
 export function activeQuestionIndex(cards,seconds){
