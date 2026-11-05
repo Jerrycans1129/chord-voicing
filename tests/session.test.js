@@ -864,7 +864,28 @@ test('dragging reverses immediately after reaching the chain edge and capture lo
  surface.handlers.pointerdown({pointerType:'touch',pointerId:5,clientX:300});
  surface.handlers.pointermove({pointerId:5,clientX:0,preventDefault(){}});assert.equal(scroll,100);
  surface.handlers.pointermove({pointerId:5,clientX:20,preventDefault(){}});assert.equal(scroll,80);
- surface.handlers.lostpointercapture({pointerId:5});
+ surface.handlers.lostpointercapture({pointerId:5,target:surface});
  surface.handlers.pointermove({pointerId:5,clientX:40,preventDefault(){}});assert.equal(scroll,80);
  assert.equal(run('stageIndex'),selected);assert.equal(run('expandedQuality'),'quality-10');
+});
+
+
+test('touch capture transferred from a chord or inversion button keeps the drag alive',()=>{
+ for(const id of ['quality-10','chord-10-3']){
+  const {run,nodes}=session(),surface=nodes.get('route-surface'),row=nodes.get('route-second');
+  run(`selectNode('${id}')`);
+  const button=run(`stageButtons.get('${id}')`),selected=run('stageIndex');
+  surface.handlers.pointerdown({pointerType:'touch',pointerId:8,clientX:300,target:button});
+  surface.handlers.pointermove({pointerId:8,clientX:290,preventDefault(){}});
+  assert.equal(row.scrollLeft,10);
+  // Mobile browsers implicitly capture the finger on the button first.
+  // Its loss event bubbles when the scroll surface takes over capture.
+  surface.handlers.lostpointercapture({pointerId:8,target:button});
+  surface.handlers.pointermove({pointerId:8,clientX:200,preventDefault(){}});
+  assert.equal(row.scrollLeft,100);
+  surface.handlers.pointermove({pointerId:8,clientX:100,preventDefault(){}});
+  assert.equal(row.scrollLeft,200);assert.equal(run('stageIndex'),selected);
+  surface.handlers.pointerup({pointerId:8,target:surface});
+  assert.equal(run('routeDrag'),null);
+ }
 });

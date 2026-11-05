@@ -386,7 +386,11 @@ function endRouteDrag(e){
  suppressRouteClick=routeDrag.moved;routeDrag=null;route.dataset.dragging='false';
  if(route.hasPointerCapture(e.pointerId))route.releasePointerCapture(e.pointerId);
 }
-route.addEventListener('pointerup',endRouteDrag);route.addEventListener('pointercancel',endRouteDrag);route.addEventListener('lostpointercapture',endRouteDrag);
+route.addEventListener('pointerup',endRouteDrag);route.addEventListener('pointercancel',endRouteDrag);
+route.addEventListener('lostpointercapture',e=>{
+ // Ignore a child button's implicit capture being transferred to this surface.
+ if(e.target===route)endRouteDrag(e);
+});
 route.addEventListener('click',e=>{if(suppressRouteClick&&e.detail!==0){e.preventDefault();e.stopPropagation();suppressRouteClick=false;}},true);
 }
 $('route-surface').addEventListener('wheel',e=>{
