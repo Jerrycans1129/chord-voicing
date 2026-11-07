@@ -1,6 +1,6 @@
 import {notes} from './theory.js';
-export const WINDOW_ADVANCE_SECONDS=.18;
-export const JUDGMENT_POLICY='advance-180ms';
+export const WINDOW_ADVANCE_SECONDS=0;
+export const JUDGMENT_POLICY='visual-boundary';
 const EPS=1e-9;
 export function prepareAttempt(card){return {...card,targets:card.kind==='note'?[card.root]:notes(card.root,card.q,card.inv),hits:new Set(),wrong:false,assisted:false,ended:false};}
 // Commit each shifted boundary once, in active training seconds. A tempo change

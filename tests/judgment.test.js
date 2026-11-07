@@ -5,40 +5,30 @@ test('arpeggios accumulate every target; later wrong notes are sticky',()=>{
  const [c]=pair();assert.equal(isCorrect(c),false);applyAttack(c,67);applyAttack(c,60);applyAttack(c,60);assert.equal(isCorrect(c),false);
  applyAttack(c,64);assert.equal(isCorrect(c),true);applyAttack(c,61);assert.equal(isCorrect(c),false);assert.equal(c.feedback,'wrong');applyAttack(c,64);assert.equal(c.feedback,'wrong');
 });
-test('every tempo switches once at -180ms, with no overlap or immunity',()=>{
- for(const bpm of [40,60,90,120,140])for(const delta of [-.181,-.18,-.179,0,.179,.18]){
-  const cards=pair(),seconds=3*240/bpm+delta,progress=seconds*bpm/240;
-  stampBoundaries(cards,0,progress,0,bpm);
-  const index=delta<-.18?0:1,target=attackTargets(cards,seconds);assert.deepEqual(target,{indices:[index]});
-  applyAttack(cards[index],60);assert.equal(cards[index].hits.has(60),true);assert.equal(cards[1-index].hits.size,0);
-  applyAttack(cards[index],66);assert.equal(cards[index].wrong,true);assert.equal(cards[1-index].wrong,false);
+test('visual boundaries switch once, including at every practice tempo',()=>{
+ for(const bpm of [40,60,90,120,140])for(const delta of [-.181,-.001,0,.001,.18]){
+  const cards=pair(),seconds=3*240/bpm+delta;
+  stampBoundaries(cards,0,seconds*bpm/240,0,bpm);
+  const index=delta<0?0:1;assert.deepEqual(attackTargets(cards,seconds).indices,[index]);
+  applyAttack(cards[index],60);assert.equal(cards[1-index].hits.size,0);
+  applyAttack(cards[index],66);assert.equal(cards[index].wrong,true);
   assert.equal(canSettle(cards[0],seconds),index===1);
  }
 });
-test('first window starts early and immediately counts incorrect notes',()=>{
- const cards=pair();stampBoundaries(cards,0,7.819/4,0,60);assert.deepEqual(attackTargets(cards,7.819).indices,[]);
- stampBoundaries(cards,7.819/4,7.82/4,7.819,60);assert.deepEqual(attackTargets(cards,7.82).indices,[0]);
- applyAttack(cards[0],66);assert.equal(cards[0].wrong,true);
-});
-test('fixed tempo windows preserve duration and use inclusive start, exclusive end',()=>{
+test('lead-in ignores attacks before touch, start is inclusive and bottom exclusive',()=>{
  const cards=pair();stampBoundaries(cards,0,4,0,60);
- assert.equal(cards[0].startAt,7.82);assert.equal(cards[0].endAt,11.82);assert.equal(cards[1].startAt,11.82);
- assert.equal(cards[0].endAt-cards[0].startAt,4);
- assert.equal(canSettle(cards[0],11.819),false);assert.equal(canSettle(cards[0],11.82),true);
+ assert.equal(cards[0].startAt,8);assert.equal(cards[0].endAt,12);
+ assert.deepEqual(attackTargets(cards,7.999).indices,[]);
+ assert.deepEqual(attackTargets(cards,8).indices,[0]);
+ assert.deepEqual(attackTargets(cards,12).indices,[1]);
  cards[0].ended=true;applyAttack(cards[0],60);assert.equal(cards[0].hits.size,0);
 });
-test('slowing down after a committed boundary never reopens the previous question',()=>{
- const cards=pair();stampBoundaries(cards,0,11.83/4,0,60);cards[0].ended=true;
- stampBoundaries(cards,11.83/4,11.83/4,11.83,40);
- assert.equal(cards[0].endAt,11.82);assert.equal(cards[1].startAt,11.82);assert.equal(activeQuestionIndex(cards,11.83),1);
- stampBoundaries(cards,11.83/4,3.5,11.83,40);assert.equal(cards[0].endAt,11.82);
+test('committed boundaries cannot move after practice tempo changes',()=>{
+ const cards=pair();stampBoundaries(cards,0,3,0,60);cards[0].ended=true;
+ stampBoundaries(cards,3,3,12,40);assert.equal(cards[0].endAt,12);
+ assert.equal(activeQuestionIndex(cards,12),1);
 });
-test('speeding up can commit a boundary now but never backdate it',()=>{
- const cards=pair();stampBoundaries(cards,0,11.7/4,0,60);
- stampBoundaries(cards,11.7/4,11.7/4,11.7,140);
- assert.equal(cards[0].endAt,11.7);assert.equal(cards[1].startAt,11.7);assert.equal(activeQuestionIndex(cards,11.7),1);
-});
-test('delayed frames stamp every ended question and settle only once',()=>{
+test('delayed frames stamp every ended question and settle once',()=>{
  const cards=Array.from({length:10},()=>pair()[0]);stampBoundaries(cards,0,8,0,60);
  const ended=cards.filter(c=>canSettle(c,32));assert.equal(ended.length,6);
  for(const c of ended)c.ended=true;

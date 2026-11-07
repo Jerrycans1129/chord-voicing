@@ -11,20 +11,16 @@ test('half-star thresholds are exact and never round a near miss upward',()=>{
   assert.equal(starsFor(threshold),stars);assert.equal(starsFor(threshold-.00001),stars-.5);
  }
 });
-test('global conditions latch once; only speeds actually run affect the minimum',()=>{
- const r=createRun();recordConditions(r,{seconds:10,bpm:40,visible:true,paused:true});assert.equal(r.minBpm,null);assert.equal(r.paused,false);
- r.started=true;recordConditions(r,{seconds:10,bpm:120});recordConditions(r,{seconds:0,bpm:40});assert.equal(r.minBpm,120);
- recordConditions(r,{seconds:10,bpm:60,visible:true,paused:true});
- const once=calculateScore(r);for(let i=0;i<100;i++)recordConditions(r,{paused:true,visible:true,seconds:0,bpm:40});assert.deepEqual(calculateScore(r),once);
- recordConditions(r,{seconds:1,bpm:140});assert.equal(r.minBpm,60);
+test('pause and training settings do not reduce fixed challenge scores',()=>{
+ for(const changes of [{},{paused:true,shownKeyboard:true},{minBpm:40}])assert.equal(calculateScore(run(changes)).score,100);
+ const r=createRun();recordConditions(r,{seconds:100});assert.equal(r.seconds,0);
+ r.started=true;recordConditions(r,{seconds:900});recordConditions(r,{paused:true});assert.equal(r.seconds,900);
+ assert.equal(calculateScore(run({seconds:900})).stars,1.5);
+ assert.equal(calculateScore(run({seconds:1620})).stars,3);
+ assert.equal(calculateScore(run({failed:true})).stars,0);
 });
-test('approved caps and linear duration apply only to final score, not raw accuracy',()=>{
- for(const [changes,score,stars] of [[{},100,3],[{paused:true,shownKeyboard:true},85.5,2.5],[{minBpm:60,shownKeyboard:true},76.5,2.5],[{minBpm:40,shownKeyboard:true},63,2],[{seconds:900},50,1.5],[{seconds:1},100/1800,.5]]){
-  const r=calculateScore(run(changes));assert.ok(Math.abs(r.score-score)<1e-10);assert.equal(r.stars,stars);assert.equal(r.accuracy,1);
- }
-});
-test('saved results are validated and recalculated, old completion markers are not ratings',()=>{
- assert.deepEqual({...cleanResults({one:{last:{stars:3},best:{stars:3}}},['one'])},{});
- const r=run();const saved=cleanResults({one:{last:{...r,score:999},best:r}},['one']);assert.equal(saved.one.last.score,100);
- assert.equal(normalizeBpm(80),90);assert.equal(normalizeBpm(999),140);assert.equal(normalizeBpm(null),90);assert.equal(VERSION,'0.2.0');
+test('only finite half-star ratings are restored, with no run parameters',()=>{
+ const saved=cleanResults({a:2.5,b:3,c:0,d:4,e:1.2,f:{best:{stars:3}}},['a','b','c','d','e','f']);
+ assert.deepEqual({...saved},{a:{best:{stars:2.5}},b:{best:{stars:3}},c:{best:{stars:0}}});
+ assert.equal(normalizeBpm(80),90);
 });

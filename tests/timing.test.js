@@ -47,10 +47,10 @@ test('opening observations, groups, bounded retention and persistence round trip
 test('new and legacy policies stay separate in analysis and survive loading',()=>{
  const legacy=setup();legacy.policy='overlap-180ms';hit(legacy,11820);
  const current=setup();hit(current,12180);
- assert.equal(current.policy,'advance-180ms');
+ assert.equal(current.policy,'visual-boundary');
  const runs=loadTiming(JSON.parse(JSON.stringify({schema:1,runs:[legacy,current]})));
  const summary=analyzeTiming(runs);
  assert.equal(summary.policies['overlap-180ms'].early180,1);
- assert.equal(summary.policies['advance-180ms'].early180,0);
- assert.equal(summary.policies['advance-180ms'].late180,1);
+ assert.equal(summary.policies['visual-boundary'].early180,0);
+ assert.equal(summary.policies['visual-boundary'].late180,1);
 });

@@ -1,32 +1,29 @@
-import {stages,names,qualities,curriculum,selectable,supportsPractice,currentProgress,migrateResults} from './theory.js';
+import {stages,names,qualities,curriculum,selectable,supportsPractice,currentProgress} from './theory.js';
 import {BUILD_REVISION} from './build.js';
 import {Scheduler,PracticeScheduler,cleanLevels} from './scheduler.js';
 import {VERSION,SPEEDS,TOTAL_SECONDS,normalizeBpm,createRun,recordConditions,calculateScore,cleanResults} from './scoring.js';
 import {JUDGMENT_POLICY,activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,isCorrect,canSettle} from './judgment.js';
-import {TIMING_KEY,MAX_TIMING_EVENTS,createTimingRun,addTimingSegment,recordTimingAttack,analyzeTiming,trimTiming,loadTiming,timingObservation} from './timing.js';
+import {MAX_TIMING_EVENTS,createTimingRun,addTimingSegment,recordTimingAttack,analyzeTiming,trimTiming,timingObservation} from './timing.js';
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
-const levels=cleanLevels(read('voicing-weakness-v1',{}));
-const results=cleanResults(migrateResults(read('voicing-results-v1',{})),[...stages.map(s=>s.id),'level-3','level-4','level-5','level-6']);
+const levels=cleanLevels({});
+// Persist ratings only; settings and diagnostics live for this page session.
+try{for(const key of Object.keys(localStorage))if(key.startsWith('voicing-')&&key!=='voicing-stars')localStorage.removeItem(key);}catch{}
+const results=cleanResults(read('voicing-stars',{}),[...stages.map(s=>s.id),'level-3','level-4','level-5','level-6']);
 let stageIndex=currentProgress(results);
 let expandedTop=stages[stageIndex].projectId;
 let expandedQuality=stages[stageIndex].id.startsWith('quality-')?stages[stageIndex].id:stages[stageIndex].parent?.startsWith('quality-')?stages[stageIndex].parent:null;
-let timingRuns=loadTiming(read(TIMING_KEY,null)),timingRun=null,timingDirty=false,timingSavedAt=0,timingStorageFailed=false;
-function persistTiming(){
- if(!timingDirty)return;
- timingRuns=trimTiming(timingRuns);
- try{localStorage.setItem(TIMING_KEY,JSON.stringify({schema:1,runs:timingRuns}));timingDirty=false;timingStorageFailed=false;}
- catch{timingStorageFailed=true;}
-}
+let timingRuns=[],timingRun=null,timingDirty=false,timingSavedAt=0;
+function persistTiming(){timingRuns=trimTiming(timingRuns);timingDirty=false;}
 function paintTiming(){
  const stats=analyzeTiming(timingRuns.filter(r=>r.policy===JUDGMENT_POLICY)),percent=n=>n===null?'—':`${n.toFixed(1)}%`;
  $('timing-summary').textContent=stats.recorded
-  ?`当前规则（提前 180ms）：已记录 ${stats.recorded} 次按键；可分析 ${stats.total} 次，涉及 ${stats.sampledBoundaries} 个分界。触线前 180ms：${stats.early180} 次（${percent(stats.early180Percent)}）；后 180ms：${stats.late180} 次（${percent(stats.late180Percent)}）；正好触线：${stats.onBoundary} 次。开场排除 ${stats.opening} 次，分界待确定 ${stats.pending} 次。`
+  ?`按视觉边界判定：已记录 ${stats.recorded} 次按键；可分析 ${stats.total} 次，涉及 ${stats.sampledBoundaries} 个分界。触线前 180ms：${stats.early180} 次（${percent(stats.early180Percent)}）；后 180ms：${stats.late180} 次（${percent(stats.late180Percent)}）；正好触线：${stats.onBoundary} 次。开场排除 ${stats.opening} 次，分界待确定 ${stats.pending} 次。`
   :'尚无弹奏数据。开始训练后自动记录。';
  const candidate=stats.candidates.find(c=>c.ms===180);
  $('timing-detail').textContent=stats.total?`前 180ms 中：仅匹配下一题 ${candidate.nextOnly} 次，仅匹配上一题 ${candidate.previousOnly} 次，共有音 ${candidate.shared} 次，均不匹配 ${candidate.neither} 次。共有音不能确定换题意图。`:'';
- $('timing-storage').textContent=timingStorageFailed?'本地保存失败，数据暂留在当前页面，请及时导出。':`旧规则数据保留在导出中。仅保存在此浏览器，保留最近 ${MAX_TIMING_EVENTS} 次按键。导出包含逐次记录、速度分组和 80／120／180／240ms 对比。`;
+ $('timing-storage').textContent=`弹奏数据仅在当前页面暂存，刷新后清除；可导出最近 ${MAX_TIMING_EVENTS} 次按键。`;
  $('timing-export').disabled=!timingRuns.some(r=>r.events.length);
 }
 $('timing-export').addEventListener('click',()=>{
@@ -40,7 +37,9 @@ $('timing-export').addEventListener('click',()=>{
 });
 let scheduler,settled=0,run=createRun();
 let mode='challenge',practiceMistake=false;
-let bpm=normalizeBpm(read('voicing-bpm',90));
+let bpm=90;
+const practiceSettings={bpm:90,keyboardBlurOn:true,metronomeOn:true};
+const mistakeStacks=new Map();
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0,strikeFlashAt=-Infinity;
 const MAX_SECONDS=TOTAL_SECONDS;
@@ -73,9 +72,11 @@ function isPhoneDevice(){
 }
 const phoneLayout=isPhoneDevice();
 $('instrument').dataset.phone=String(phoneLayout);
-let keyboardBlurOn=read('voicing-keyboard-blur',true)!==false;
+let keyboardBlurOn=true;
 function updateKeyboardBlur(){
  $('instrument').dataset.running=String(running);
+ $('instrument').dataset.challenge=String(mode==='challenge'&&started&&!finished);
+ $('instrument').dataset.paused=String(mode==='challenge'&&started&&!finished&&!running);
  $('instrument').dataset.hideKeys=String(phoneLayout&&keyboardBlurOn);
  $('keyboard').dataset.obscured=String(running&&keyboardBlurOn&&!phoneLayout);
  $('keyboard-frost').hidden=phoneLayout||!keyboardBlurOn;
@@ -83,7 +84,7 @@ function updateKeyboardBlur(){
  $('keyboard-blur-setting').hidden=false;
  $('keyboard-blur').checked=keyboardBlurOn;
 }
-let metronomeOn=read('voicing-metronome',true)!==false;
+let metronomeOn=true;
 let audioContext=null,nextAudioBeat=null;
 const clicks=new Set();
 function updateMetronome(){
@@ -196,7 +197,7 @@ function judgeMidi(note,meta={}){
  const {indices}=attackTargets(cards,sessionSeconds);
  for(const index of indices){
   const card=cards[index];applyAttack(card,note);
-  if(mode==='challenge'&&card.wrong&&!card.errorRecorded){card.errorRecorded=true;if(scheduler.record(card.id,'wrong'))save('voicing-weakness-v1',levels);}
+  if(mode==='challenge'&&card.wrong&&!card.errorRecorded){card.errorRecorded=true;scheduler.record(card.id,'wrong');}
   paintFeedback(index);
  }
 }
@@ -235,7 +236,7 @@ async function connectMidi(){
 $('midi-connect').addEventListener('click',event=>{event.stopPropagation();void connectMidi();});
 $('midi-warning').addEventListener('click',event=>event.stopPropagation());
 $('midi-warning-close').addEventListener('click',event=>{event.stopPropagation();$('midi-warning').close();});
-$('midi-warning-connect').addEventListener('click',event=>{event.stopPropagation();$('midi-warning').close();openSettings();void connectMidi();});
+$('midi-warning-connect').addEventListener('click',event=>{event.stopPropagation();void connectMidi();});
 $('midi-clear').addEventListener('click',event=>{event.stopPropagation();clearMidi();});
 void connectMidi();
 paintMidi();
@@ -276,7 +277,7 @@ function updateRoute(){
   if(stage.children&&!stage.project)node.setAttribute('aria-expanded',node.dataset.expanded);
   node.dataset.recommended=String(stages[currentProgress(results)]?.id===id);
   node.setAttribute('aria-label',`${stage.name}${node.dataset.recommended==='true'?' · 推荐练习':''}`);
-  setStars(node.querySelector('.stars'),results[id]?.best.stars);
+  setStars(node.querySelector('.stars'),results[id]?.best.stars||undefined);
  }
  $('overlay-action').disabled=stageIndex<0||!selectable(stages[stageIndex],results);
  $('practice-action').hidden=!supportsPractice(stages[stageIndex]);
@@ -412,13 +413,17 @@ function showAnswer(){
  for(const [midi,dot] of answerDots)dot.hidden=!card||targetForNote(card,midi)===undefined;
 }
 function openSettings(){
- if(running||$('settings-dialog').open)return;
+ if(running||$('settings-dialog').open||(mode==='challenge'&&started&&!finished))return;
+ $('speed').value=practiceSettings.bpm;
+ $('keyboard-blur').checked=practiceSettings.keyboardBlurOn;
+ $('metronome').textContent=practiceSettings.metronomeOn?'开':'关';
+ $('metronome').setAttribute('aria-pressed',String(practiceSettings.metronomeOn));
  updateTimer();$('session-stats').hidden=!started||finished;$('exit-training').hidden=!started||finished;
  persistTiming();paintTiming();
  $('settings-dialog').showModal();
 }
 function showHome(){
- updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('settings-toggle').hidden=false;updateRoute();
+ $('pause-screen').hidden=true;updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('settings-toggle').hidden=false;updateRoute();
 }
 // A card at index i touches the line at musical progress i + 2.
 function canReachLine(index){
@@ -445,8 +450,7 @@ function showResult(result){
  $('result-count').textContent=`${result.correct} / ${result.total}`;
  const seconds=Math.floor(result.seconds);
  $('result-duration').textContent=`${Math.floor(seconds/60)} 分 ${seconds%60} 秒`;
- const f=result.factors;
- $('result-factors').textContent=`计分系数：暂停 ×${f.pause} · 琴键提示 ×${f.keyboard} · 速度 ×${f.speed} · 时长 ×${f.duration.toFixed(3)}`;
+ $('result-factors').textContent=result.failed?'错块堆叠触线，本轮 0 星。':`得分 ${Math.floor(result.score*10)/10} · 正确率 × 有效时长比例`;
  $('result-dialog').showModal();
 }
 function appendCard(){
@@ -472,7 +476,7 @@ function appendCard(){
 function reset(){
  persistTiming();timingRun=null;
  releaseScreenLock();stopMetronome();
- running=false;started=false;finished=false;practiceMistake=false;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
+ running=false;started=false;finished=false;practiceMistake=false;mistakeStacks.clear();$('mistake-blocks').replaceChildren();$('pause-screen').hidden=true;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
  const SchedulerClass=mode==='practice'?PracticeScheduler:Scheduler;
  scheduler=stageIndex>=0?new SchedulerClass(stages[stageIndex],{levels}):null;
  updateTrainingHeader();$('result-dialog').close();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
@@ -484,8 +488,11 @@ function pause(){
 }
 function pauseSession(){
  persistTiming();
- running=false;strikeFlashAt=-Infinity;recordConditions(run,{paused:true,visible:true});updateKeyboardBlur();releaseScreenLock();stopMetronome();
- $('overlay').hidden=true;$('settings-toggle').hidden=false;showAnswer();paintScene();
+ running=false;strikeFlashAt=-Infinity;updateKeyboardBlur();releaseScreenLock();stopMetronome();
+ $('overlay').hidden=true;
+ if(mode==='challenge'){hidePauseControls();$('pause-screen').hidden=false;}
+ else{$('settings-toggle').hidden=false;showAnswer();}
+ paintScene();
 }
 function canStartTraining(){
  if(!selectable(stages[stageIndex],results)||$('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return false;
@@ -496,6 +503,8 @@ function play(){
  if(running){pause();return;}
  if(!canStartTraining())return;
  if(finished)reset();
+ if(mode==='challenge'){bpm=90;keyboardBlurOn=true;metronomeOn=true;}
+ $('pause-screen').hidden=true;
  if(mode==='challenge'&&!timingRun){timingRun=createTimingRun(stages[stageIndex].id,VERSION);timingRuns.push(timingRun);timingRuns=trimTiming(timingRuns);}
  if(practiceMistake){
   discardPracticeCard();elapsed-=1;
@@ -508,11 +517,14 @@ function play(){
  run.started=true;started=true;running=true;
  syncCards();
  stampSessionBoundaries(elapsed,elapsed,sessionSeconds);settleAnswers();updateTimer();
- recordConditions(run,{visible:!keyboardBlurOn});
  hidePauseControls();updateKeyboardBlur();previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;paintScene();
 }
 function complete(){
  if(!started||finished)return;
+ if(mode==='challenge'&&!run.failed){
+  const active=cards[activeQuestionIndex(cards,sessionSeconds)];
+  if(active&&!active.ended)settleCard(active);
+ }
  persistTiming();
  running=false;finished=true;releaseScreenLock();stopMetronome();
  if(mode==='practice'){
@@ -522,23 +534,33 @@ function complete(){
   showHome();focusCurrentStage();return;
  }
  const result=calculateScore(run),id=stages[stageIndex].id;
- results[id]={last:result,best:!results[id]||result.score>results[id].best.score?result:results[id].best};
- save('voicing-results-v1',results);
+ results[id]={best:{stars:Math.max(result.stars,results[id]?.best.stars||0)}};
+ save('voicing-stars',Object.fromEntries(Object.entries(results).map(([key,value])=>[key,value.best.stars])));
  if($('settings-dialog').open)$('settings-dialog').close();
  elements.forEach(el=>{el.hidden=true;});updateTrainingHeader();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');showHome();focusCurrentStage();showResult(result);
+}
+function settleCard(card){
+ if(card.ended)return;
+ card.ended=true;run.total++;
+ if(isCorrect(card)){run.correct++;if(!card.assisted)scheduler.record(card.id,'correct');return;}
+ if(!card.errorRecorded){card.errorRecorded=true;scheduler.record(card.id,'wrong');}
+ const count=(mistakeStacks.get(card.root)||0)+1;mistakeStacks.set(card.root,count);
+ const pc=card.root%12,shift=pc===0||pc===5?-.145:pc===4||pc===11?.145:0;
+ const block=document.createElement('div');block.className='mistake-block';
+ block.style.left=`${(centers.get(card.root)+(shift-.21)/22)*100}%`;
+ block.style.bottom=`calc(${count-1} * var(--block-h))`;
+ block.dataset.note=card.root;block.dataset.layer=count;$('mistake-blocks').append(block);
+ if(count>=8)run.failed=true;
 }
 function settleAnswers(){
  if(mode==='practice')return;
  while(settled<cards.length&&canSettle(cards[settled],sessionSeconds)){
-  const card=cards[settled++];card.ended=true;run.total++;
-  if(isCorrect(card)){
-   run.correct++;
-   if(!card.assisted&&scheduler.record(card.id,'correct'))save('voicing-weakness-v1',levels);
-  }
+  settleCard(cards[settled++]);
+  if(run.failed){complete();break;}
  }
 }
 function stampSessionBoundaries(fromProgress,toProgress,fromSeconds){
- stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm,mode==='practice'?0:undefined);
+ stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm,0);
 }
 function discardPracticeCard(){
  cards.shift();elements.shift();elapsed-=1;
@@ -578,17 +600,19 @@ function advance(now){
  if(running){
   const fromSeconds=sessionSeconds,fromProgress=elapsed;
   const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);
+  const nextBoundary=(Math.floor(elapsed+1e-9)+1)*240/bpm;
+  if(sessionSeconds+dt>nextBoundary+1e-9){const end=now;advance(previous+(nextBoundary-sessionSeconds)*1000);if(running)advance(end);return;}
   if(timingRun){addTimingSegment(timingRun,previous,previous+dt*1000,fromSeconds,fromProgress,bpm);timingDirty=true;}
   sessionSeconds+=dt;elapsed+=dt*bpm/240;
   if(MAX_SECONDS-sessionSeconds<1e-9)sessionSeconds=MAX_SECONDS;
-  recordConditions(run,{seconds:dt,bpm,visible:!keyboardBlurOn});
+  recordConditions(run,{seconds:dt});
   syncCards();
   const boundary=Math.floor(elapsed);
   if(boundary>=2&&boundary>Math.floor(fromProgress)&&cards[boundary-2]){
    strikeFlashAt=sessionSeconds-(elapsed-boundary)*240/bpm;
   }
   stampSessionBoundaries(fromProgress,elapsed,fromSeconds);settleAnswers();updateTimer();
-  if(sessionSeconds>=MAX_SECONDS)complete();
+  if(!finished&&sessionSeconds>=MAX_SECONDS)complete();
  }
  previous=now;
 }
@@ -599,6 +623,18 @@ function paintScene(){
  if(started&&!finished){
   syncCards();
   const height=$('falling').clientHeight;
+  if(mode==='challenge'){
+   const zoneHeight=$('performance-frost').clientHeight;
+   const line=height-zoneHeight;
+   cards.forEach((card,i)=>{
+    const phase=elapsed-i,el=elements[i];
+    el.hidden=phase<0||card.ended;
+    if(el.hidden)return;
+    el.dataset.landed=String(phase>=2);el.dataset.feedback=card.feedback||'waiting';el.style.opacity='1';
+    const y=phase<2?-44+(phase/2)*(line+8):line-36+Math.min(1,phase-2)*zoneHeight;
+    el.style.transform=`translateY(${y}px)`;
+   });return;
+  }
   const landedIndex=Math.floor(elapsed-2),pausedIndex=visualQuestionIndex();
   cards.forEach((_,i)=>{
    const progress=(elapsed-i)/2;const el=elements[i];
@@ -622,19 +658,26 @@ function render(now){
  requestAnimationFrame(render);
 }
 $('keyboard-blur').addEventListener('change',()=>{
- keyboardBlurOn=$('keyboard-blur').checked;save('voicing-keyboard-blur',keyboardBlurOn);updateKeyboardBlur();
- if(started&&!finished&&!keyboardBlurOn)recordConditions(run,{visible:true});
+ if(mode==='challenge'&&started&&!finished)return;
+ practiceSettings.keyboardBlurOn=$('keyboard-blur').checked;keyboardBlurOn=practiceSettings.keyboardBlurOn;updateKeyboardBlur();
 });
 $('metronome').addEventListener('click',e=>{
- e.stopPropagation();metronomeOn=!metronomeOn;save('voicing-metronome',metronomeOn);
+ e.stopPropagation();if(mode==='challenge'&&started&&!finished)return;
+ practiceSettings.metronomeOn=!practiceSettings.metronomeOn;metronomeOn=practiceSettings.metronomeOn;
  stopMetronome();if(metronomeOn)unlockAudio();updateMetronome();
 });
 function startMode(nextMode){
  if(started&&!finished)return;
  if(nextMode==='practice'&&!supportsPractice(stages[stageIndex]))return;
  if(!canStartTraining())return;
- mode=nextMode;reset();play();
+ mode=nextMode;
+ if(mode==='practice'){bpm=practiceSettings.bpm;keyboardBlurOn=practiceSettings.keyboardBlurOn;metronomeOn=practiceSettings.metronomeOn;}
+ else{bpm=90;keyboardBlurOn=true;metronomeOn=true;}
+ reset();play();
 }
+$('pause-screen').addEventListener('click',e=>e.stopPropagation());
+$('pause-resume').addEventListener('click',e=>{e.stopPropagation();play();});
+$('pause-exit').addEventListener('click',e=>{e.stopPropagation();complete();});
 $('practice-action').addEventListener('click',e=>{e.stopPropagation();startMode('practice');});
 $('overlay-action').addEventListener('click',e=>{e.stopPropagation();startMode('challenge');});
 $('settings-toggle').addEventListener('click',e=>{e.stopPropagation();openSettings();});
@@ -647,10 +690,11 @@ $('result-retry').addEventListener('click',e=>{e.stopPropagation();$('result-dia
 $('overlay').addEventListener('click',e=>e.stopPropagation());
 document.addEventListener('click',()=>{
  if($('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return;
- if(running)pause();else if(started&&!finished&&$('overlay').hidden)play();
+ if(running)pause();else if(mode==='practice'&&started&&!finished&&$('overlay').hidden)play();
 });
 $('speed').addEventListener('change',()=>{
- advance(performance.now());stopMetronome();bpm=normalizeBpm($('speed').value);$('speed').value=bpm;save('voicing-bpm',bpm);
+ if(mode==='challenge'&&started&&!finished)return;
+ advance(performance.now());stopMetronome();bpm=normalizeBpm($('speed').value);practiceSettings.bpm=bpm;$('speed').value=bpm;
  if(running){stampSessionBoundaries(elapsed,elapsed,sessionSeconds);settleAnswers();updateTimer();}
 });
 globalThis.addEventListener?.('pagehide',persistTiming);
