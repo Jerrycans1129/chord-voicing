@@ -526,6 +526,7 @@ test('free play has no questions or scoring and uses the shared pause controls',
  const {run,nodes,send,documentHandlers}=midiSession();await run('connectMidi()');
  nodes.get('free-action').handlers.click({stopPropagation(){}});
  assert.equal(run('mode'),'free');assert.equal(nodes.get('training-name').textContent,'自由弹奏');
+ assert.equal(nodes.get('instrument').dataset.midiFeedback,'true');
  assert.equal(run('cards.length'),0);assert.equal(run('keyboardBlurOn'),false);
  send([0x90,60,100]);assert.equal(run('midiKeys.get(60).dataset.midiPressed'),'true');
  run('now=3600000;render(now)');assert.equal(run('running'),true);assert.equal(run('cards.length'),0);
@@ -540,8 +541,10 @@ test('free play has no questions or scoring and uses the shared pause controls',
 test('single notes use the same solve-once training flow and paused answer',()=>{
  const {run,nodes}=session();run("selectNode('notes-two');startMode('practice');now=3000;render(now);pause()");
  assert.equal(nodes.get('pause-screen').hidden,false);assert.equal(run('cards[0].targets.length'),1);
+ assert.equal(nodes.get('instrument').dataset.midiFeedback,'true');
  assert.equal(run('answerDots.get(cards[0].root).hidden'),false);
  run('play();judgeMidi(cards[0].root)');assert.equal(run('cards[0].practiceSolved'),true);
+ assert.equal(nodes.get('instrument').dataset.midiFeedback,'false');
  run('judgeMidi(cards[1].root)');assert.equal(run('cards.length'),1);
  run('now+=240000/90;render(now);judgeMidi(cards[1].root)');assert.equal(run('cards.length'),1);
 });

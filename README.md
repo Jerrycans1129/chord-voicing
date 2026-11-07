@@ -110,7 +110,7 @@ sus2 与 sus4 的部分配音会出现相同实际琴键，例如 Csus2 与 Gsus
 
 ## MIDI 与 PWA
 
-使用 HTTPS 或本机 localhost 连接 Web MIDI，浏览器需要提供 `navigator.requestMIDIAccess`。局域网普通 HTTP 不提供安全上下文。支持多设备、多通道、热插拔；训练和自由弹奏实时显示按键；延音踏板（CC64）踩下后松键仍保持较淡亮色，松开踏板后清除延音亮键，不影响答题判定。断开或切后台清除对应输入。支持 All Sound Off、All Notes Off 和 Reset All Controllers。
+使用 HTTPS 或本机 localhost 连接 Web MIDI，浏览器需要提供 `navigator.requestMIDIAccess`。局域网普通 HTTP 不提供安全上下文。支持多设备、多通道、热插拔；训练进行时不显示 MIDI 按键或延音亮键，仅保留答案提示；训练暂停后实时显示按键与延音。自由弹奏始终实时显示按键；延音踏板（CC64）踩下后松键仍保持较淡亮色，松开踏板后清除延音亮键，不影响答题判定。断开或切后台清除对应输入。支持 All Sound Off、All Notes Off 和 Reset All Controllers。
 
 启动前未连接 MIDI 的提示是网页 HTML 模态窗，不调用浏览器 alert。提示打开时背景操作不会启动或重复累计次数，关闭不自动开始训练。
 

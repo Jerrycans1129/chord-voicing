@@ -55,6 +55,7 @@ $('instrument').dataset.phone=String(phoneLayout);
 let keyboardBlurOn=true;
 function updateKeyboardBlur(){
  $('instrument').dataset.running=String(running);
+ $('instrument').dataset.midiFeedback=String(mode!=='practice'||!running);
  $('instrument').dataset.challenge=String(mode==='challenge'&&started&&!finished);
  $('instrument').dataset.paused=String(mode==='challenge'&&started&&!finished&&!running);
  $('instrument').dataset.hideKeys=String(phoneLayout&&keyboardBlurOn);
