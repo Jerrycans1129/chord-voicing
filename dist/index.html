@@ -7,22 +7,20 @@
 <div class="home-content"><nav id="route" aria-label="训练路线">
 <svg id="route-branches" aria-hidden="true"><path id="branch-top"/><path id="branch-quality"/></svg>
 <div id="route-top" class="route-row" aria-label="训练项目"></div>
-<div id="route-surface"><div class="route-heading"><button id="practice-action" class="primary" type="button" aria-label="训练模式" hidden>训练</button><button id="overlay-action" class="primary" type="button" aria-label="闯关模式">闯关</button></div>
+<div id="route-surface"><div class="route-heading"><button id="practice-action" class="primary" type="button" aria-label="训练模式" hidden>训练</button><button id="overlay-action" class="primary" type="button" aria-label="闯关模式">闯关</button><button id="free-action" class="primary" type="button">自由弹奏</button></div>
 <div id="route-second" class="route-row" aria-label="训练内容"></div>
 <div id="route-details"><div id="route-third" class="route-row" aria-label="根音位置"></div></div>
 </div></nav></div>
 </section>
 <button id="settings-toggle" class="secondary" type="button" aria-label="打开训练设置" title="训练设置"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m9 3-.6 2.2-2 .9-2-.6-2 3.5 1.5 1.6v2.8L2.4 15l2 3.5 2-.6 2 .9L9 21h4l.6-2.2 2-.9 2 .6 2-3.5-1.5-1.6v-2.8l1.5-1.6-2-3.5-2 .6-2-.9L13 3Z"/><circle cx="11" cy="12" r="3"/></svg></button>
-<div id="performance-frost" aria-hidden="true"></div><div id="mistake-blocks" aria-hidden="true"></div><div id="pause-screen" hidden role="dialog" aria-modal="true" aria-label="闯关已暂停"><button id="pause-resume" class="primary">继续</button><button id="pause-exit" class="secondary">退出</button></div><div id="strike"></div><div id="keyboard" aria-label="无音名标记的钢琴参照键盘"></div><div id="keyboard-frost" aria-hidden="true" hidden></div>
+<div id="performance-frost" aria-hidden="true"></div><div id="mistake-blocks" aria-hidden="true"></div><div id="pause-screen" hidden role="dialog" aria-modal="true" aria-label="已暂停"><button id="pause-resume" class="primary">继续</button><button id="pause-settings" class="secondary">设置</button><button id="pause-exit" class="secondary">退出</button></div><div id="strike"></div><div id="keyboard" aria-label="无音名标记的钢琴参照键盘"></div><div id="keyboard-frost" aria-hidden="true" hidden></div>
 </section></main>
 <dialog id="settings-dialog" aria-labelledby="settings-title">
 <h2 id="settings-title">训练设置</h2>
 <div class="dialog-content">
 <div class="switch-row"><span>节拍器</span><button id="metronome" class="secondary" type="button" aria-label="节拍器" aria-pressed="true">开</button></div>
-<div class="midi-settings"><div class="midi-actions"><button id="midi-connect" class="secondary" type="button">连接 MIDI</button><button id="midi-clear" class="secondary" type="button">清除亮键</button></div><p id="midi-status" role="status"></p><p id="midi-notes"></p></div>
-<div id="session-stats" hidden><div><span>训练时间</span><strong id="count">00:00 / 30:00</strong></div><div><span>正确／已结束题数</span><strong id="answer-count">0 / 0</strong></div><div><span>正确率</span><strong id="accuracy">—</strong></div></div>
-<section class="timing-stats" aria-labelledby="timing-title"><h3 id="timing-title">弹奏时机统计</h3><p id="timing-summary"></p><p id="timing-detail"></p><p id="timing-storage"></p><button id="timing-export" class="secondary" type="button">导出弹奏数据</button></section>
-</div><div class="dialog-actions"><button id="exit-training" class="secondary" type="button" hidden>退出训练</button><button id="settings-close" class="primary" type="button" autofocus>关闭</button></div>
+<div class="midi-settings"><button id="midi-connect" class="secondary" type="button">刷新 MIDI 设备</button><p id="midi-status" role="status"></p></div>
+</div><div class="dialog-actions"><button id="settings-close" class="primary" type="button" autofocus>关闭</button></div>
 </dialog>
 <dialog id="result-dialog" aria-labelledby="result-title">
 <h2 id="result-title">闯关成绩</h2>

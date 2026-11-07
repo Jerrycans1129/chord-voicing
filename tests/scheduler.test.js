@@ -75,12 +75,23 @@ test('practice samples legal voicings without consecutive labels on the same key
   }
   assert.equal(seen.size,plain.items.length);assert.ok(breaksCycle);
  }
- assert.throws(()=>new PracticeScheduler(stages.find(s=>s.id==='notes-two')));
  assert.throws(()=>new PracticeScheduler(stages.find(s=>s.id==='level-2')));
 });
 test('practice excludes repeated physical keys even with a constant random source',()=>{
  for(const stage of stages.filter(supportsPractice)){
   const scheduler=new PracticeScheduler(stage,{rng:()=>0});let previous=null;
   for(let i=0;i<20;i++){const card=scheduler.next();assert.notEqual(card.root,previous);previous=card.root;}
+ }
+});
+
+test('challenge never repeats a physical label key, including enharmonic spellings',()=>{
+ for(const stage of stages){
+  const items=new Scheduler(stage).items;
+  const scheduler=new Scheduler(stage,{rng:rng(),levels:Object.fromEntries(items.map(item=>[item.id,3]))});
+  let previous=null;
+  for(let i=0;i<1000;i++){
+   const card=scheduler.next();assert.notEqual(card.root,previous);
+   assert.ok(positions(card.pc,card.q,card.inv).includes(card.root));previous=card.root;
+  }
  }
 });

@@ -10,7 +10,7 @@ main{height:100vh;height:100dvh;padding:env(safe-area-inset-top) max(8px,env(saf
 #strike{position:absolute;bottom:var(--key-h);left:0;right:0;height:2px;background:#c5ec9877;z-index:3}
 #keyboard{position:absolute;bottom:0;left:0;right:0;height:var(--key-h);background:#17201d}.key{position:absolute;top:0;border-radius:0 0 5px 5px}.white{height:100%;background:linear-gradient(#d8ded4,#f0f0e5 85%,#c4ccbf);border:1px solid #6e796c;border-top:0;z-index:1}.black{height:62%;background:linear-gradient(90deg,#18221f,#303c35 80%,#121b18);border:1px solid #101a15;border-bottom:5px solid #0e1813;z-index:2;box-shadow:2px 4px 3px #0005}
 .answer-dot{position:absolute;left:50%;bottom:18%;width:10px;height:10px;transform:translateX(-50%);border-radius:50%;background:#9fe66c;box-shadow:0 0 0 2px #254b2e,0 0 9px #9fe66c66;pointer-events:none}
-.instrument[data-running="false"] .white[data-midi-pressed="true"]{background:linear-gradient(#6fbdd5,#b1eaff 85%,#68b6ce);box-shadow:inset 0 -4px 0 #3388aa}.instrument[data-running="false"] .black[data-midi-pressed="true"]{background:linear-gradient(#286a91,#55b8e4);border-bottom-color:#1e658a}
+.instrument .white[data-midi-pressed="true"],.instrument .white[data-midi-sustained="true"]{background:linear-gradient(#6fbdd5,#b1eaff 85%,#68b6ce);box-shadow:inset 0 -4px 0 #3388aa}.instrument .black[data-midi-pressed="true"],.instrument .black[data-midi-sustained="true"]{background:linear-gradient(#286a91,#55b8e4);border-bottom-color:#1e658a}
 .instrument[data-phone="false"] #keyboard{filter:blur(0);clip-path:inset(0);transition:filter 320ms ease-in-out}.instrument[data-phone="false"] #keyboard[data-obscured="true"]{filter:blur(24px)}
 #keyboard-frost{opacity:0;transition:opacity 320ms ease-in-out;position:absolute;bottom:0;left:0;right:0;height:var(--key-h);z-index:3;pointer-events:none;background:linear-gradient(135deg,rgb(22 34 34 / .94),rgb(26 39 38 / .96))}#keyboard-frost[data-obscured="true"]{opacity:1}
 #overlay{position:absolute;inset:0;z-index:5;background:#152120;display:flex;flex-direction:column;padding:28px clamp(20px,4vw,64px);gap:24px}
@@ -32,9 +32,9 @@ main{height:100vh;height:100dvh;padding:env(safe-area-inset-top) max(8px,env(saf
 .stars{position:relative;display:inline-block;font-size:12px;letter-spacing:2px;line-height:16px;height:16px;background:#152120}.stars:empty{visibility:hidden}.stars-base{color:#394d40}.stars-fill{position:absolute;left:0;top:0;color:#bdd59c;overflow:hidden;white-space:nowrap}
 @media(hover:hover){.route-node:hover .route-dot{border-color:#a6be95;box-shadow:0 0 0 4px #b6d4990b}.route-heading .primary:enabled:hover{box-shadow:0 3px 22px #c9ed9d18}}
 dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin:auto;padding:24px;border:1px solid #526658;border-radius:16px;background:#1a2924;color:#e5eae4;box-shadow:0 24px 80px #0008;cursor:default}dialog::backdrop{background:#07100ccc}dialog h2{margin:0 0 20px;font-size:21px;font-weight:550}
-#settings-dialog[open]{display:flex;flex-direction:column;overflow:hidden}.dialog-content{overflow-y:auto;min-height:0;padding:2px 3px;display:flex;flex-direction:column;gap:18px}.dialog-actions,.midi-warning-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;flex-shrink:0;margin-top:20px}.dialog-actions #exit-training{margin-right:auto}
+#settings-dialog[open]{display:flex;flex-direction:column;overflow:hidden}.dialog-content{overflow-y:auto;min-height:0;padding:2px 3px;display:flex;flex-direction:column;gap:18px}.dialog-actions,.midi-warning-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;flex-shrink:0;margin-top:20px}
 .speed-setting,.switch-row{font-size:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0}.speed-setting select{width:65%;min-height:48px;padding:0 12px;border:1px solid #425148;border-radius:8px;background:#22302a;color:#e5eae4}.switch-row input{width:24px;height:24px;accent-color:var(--accent);margin:12px;cursor:pointer}.switch-row{min-height:48px}
-#midi-status,#midi-notes{font-size:12px;color:var(--muted);line-height:1.6;margin:8px 0 0;overflow-wrap:anywhere}.midi-actions{display:flex;gap:10px}#session-stats{border-top:1px solid #425148;padding-top:16px;display:grid;gap:12px}#session-stats div{display:flex;justify-content:space-between;gap:16px;font-size:13px;color:var(--muted)}#session-stats strong{color:#e5eae4;font-weight:500;font-variant-numeric:tabular-nums}
+#midi-status{font-size:12px;color:var(--muted);line-height:1.6;margin:8px 0 0;overflow-wrap:anywhere}
 #midi-warning p{margin:0 0 24px;color:#b8c8bf;font-size:14px;line-height:1.7}
 #rotate{display:none}
 @media(max-width:950px){#overlay{padding:20px 18px;gap:16px}.app-heading h1 span{display:none}.home-content{gap:20px}}
@@ -48,7 +48,6 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 .instrument[data-running="false"] .card:not([data-feedback="wrong"]) .chord{color:#e2f4cf}
 .instrument[data-running="false"] .card .halo{opacity:1}
 
-.timing-stats{border-top:1px solid #425148;padding-top:16px}.timing-stats h3{font-size:14px;font-weight:500;margin:0 0 10px}.timing-stats p{font-size:12px;line-height:1.7;color:var(--muted);margin:8px 0}.timing-stats button{margin-top:6px}
 
 /* Interior positions preserve the left/right root cue for four-note voicings. */
 .card[data-size="4"][data-inv="2"] .halo{left:calc(-100cqw / 22 * 2);width:calc(100% + 100cqw / 22 * 3);background:linear-gradient(90deg,transparent,#b9e39352 calc(100cqw / 22 * 2),#b9e39352 calc(100% - 100cqw / 22),transparent)}
@@ -123,6 +122,8 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 .instrument[data-challenge="true"] #performance-frost{display:block;z-index:2;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
 .instrument[data-challenge="true"] #mistake-blocks{display:block;z-index:3}
 .mistake-block{position:absolute;width:calc(100% * .42 / 22);height:var(--block-h);border-radius:4px;background:#b47d6d;box-shadow:inset 0 0 0 1px #182524,inset 0 2px 0 #edb29b40}
-#pause-screen{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;gap:clamp(24px,5vw,56px);background:#16222255;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+#pause-screen{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;gap:clamp(24px,5vw,56px);background:transparent}
 #pause-screen button{font-size:clamp(28px,4vw,40px);min-width:clamp(110px,17vw,168px);min-height:80px}
-.instrument[data-paused="true"] .chord{filter:blur(8px)}
+
+
+.key[data-midi-sustained="true"]{filter:saturate(.55)}

@@ -2,39 +2,17 @@ import {stages,names,qualities,curriculum,selectable,supportsPractice,currentPro
 import {BUILD_REVISION} from './build.js';
 import {Scheduler,PracticeScheduler,cleanLevels} from './scheduler.js';
 import {VERSION,TOTAL_SECONDS,createRun,recordConditions,calculateScore,cleanResults} from './scoring.js';
-import {JUDGMENT_POLICY,activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,isCorrect,canSettle} from './judgment.js';
-import {MAX_TIMING_EVENTS,createTimingRun,addTimingSegment,recordTimingAttack,analyzeTiming,trimTiming,timingObservation} from './timing.js';
+import {activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,isCorrect,canSettle} from './judgment.js';
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
 const levels=cleanLevels({});
-// Persist ratings only; settings and diagnostics live for this page session.
+// Persist ratings only; performance input is never recorded or saved.
 try{for(const key of Object.keys(localStorage))if(key.startsWith('voicing-')&&key!=='voicing-stars')localStorage.removeItem(key);}catch{}
 const results=cleanResults(read('voicing-stars',{}),[...stages.map(s=>s.id),'level-3','level-4','level-5','level-6']);
 let stageIndex=currentProgress(results);
 let expandedTop=stages[stageIndex].projectId;
 let expandedQuality=stages[stageIndex].id.startsWith('quality-')?stages[stageIndex].id:stages[stageIndex].parent?.startsWith('quality-')?stages[stageIndex].parent:null;
-let timingRuns=[],timingRun=null,timingDirty=false,timingSavedAt=0;
-function persistTiming(){timingRuns=trimTiming(timingRuns);timingDirty=false;}
-function paintTiming(){
- const stats=analyzeTiming(timingRuns.filter(r=>r.policy===JUDGMENT_POLICY)),percent=n=>n===null?'—':`${n.toFixed(1)}%`;
- $('timing-summary').textContent=stats.recorded
-  ?`按视觉边界判定：已记录 ${stats.recorded} 次按键；可分析 ${stats.total} 次，涉及 ${stats.sampledBoundaries} 个分界。触线前 180ms：${stats.early180} 次（${percent(stats.early180Percent)}）；后 180ms：${stats.late180} 次（${percent(stats.late180Percent)}）；正好触线：${stats.onBoundary} 次。开场排除 ${stats.opening} 次，分界待确定 ${stats.pending} 次。`
-  :'尚无弹奏数据。开始训练后自动记录。';
- const candidate=stats.candidates.find(c=>c.ms===180);
- $('timing-detail').textContent=stats.total?`前 180ms 中：仅匹配下一题 ${candidate.nextOnly} 次，仅匹配上一题 ${candidate.previousOnly} 次，共有音 ${candidate.shared} 次，均不匹配 ${candidate.neither} 次。共有音不能确定换题意图。`:'';
- $('timing-storage').textContent=`弹奏数据仅在当前页面暂存，刷新后清除；可导出最近 ${MAX_TIMING_EVENTS} 次按键。`;
- $('timing-export').disabled=!timingRuns.some(r=>r.events.length);
-}
-$('timing-export').addEventListener('click',()=>{
- persistTiming();
- const payload={schema:1,exportedAt:new Date().toISOString(),limit:MAX_TIMING_EVENTS,
-  reference:'Nearest actual visual question boundary in active training time; negative is early. Opening and unresolved boundaries excluded from percentages. Each fresh Note On is one sample, not one chord.',
-  summary:analyzeTiming(timingRuns),runs:timingRuns.map(r=>({...r,events:r.events.map(e=>({...e,observation:timingObservation(r,e)}))}))};
- const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
- const link=document.createElement('a');link.href=url;link.download=`voicing-timing-${Date.now()}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
- paintTiming();
-});
 let scheduler,settled=0,run=createRun();
 let mode='challenge';
 const PRACTICE_FALL_BARS=6;
@@ -131,12 +109,8 @@ function scheduleMetronome(){
 }
 updateMetronome();
 function updateTimer(){
- const seconds=Math.floor(sessionSeconds);
- const time=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
- $('count').textContent=mode==='practice'?time:`${time} / 30:00`;
- $('training-time').textContent=time;
- $('answer-count').textContent=`${run.correct} / ${run.total}`;
- $('accuracy').textContent=run.total?`${(100*run.correct/run.total).toFixed(1)}%`:'—';
+ const seconds=mode==='challenge'?Math.max(0,Math.ceil(MAX_SECONDS-sessionSeconds)):Math.floor(sessionSeconds);
+ $('training-time').textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
 }
 
 const whitePC=[0,2,4,5,7,9,11],centers=new Map(),keyBounds=new Map(),answerDots=new Map(),midiKeys=new Map();let whiteCount=0;
@@ -152,16 +126,15 @@ for(let midi=48;midi<=84;midi++){
  if(white){const lane=document.createElement('div');lane.className=`lane ${midi%12===0?'octave':''}`;lane.style.left=`${whiteCount/22*100}%`;$('lanes').append(lane);whiteCount++;}
 }
 // MIDI is input-only: track physical keys separately for each device/channel.
-// Sustain does not keep a released physical key highlighted.
+// Sustain affects visual sounding notes only, never answer recognition.
 let midiAccess=null,midiConnecting=false;
-const midiInputs=new Map(),midiHeld=new Map();
+const midiInputs=new Map(),midiHeld=new Map(),midiPedals=new Map();
 function paintMidi(){
  const held=new Set([...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys])));
- for(const [note,key] of midiKeys)key.dataset.midiPressed=String(held.has(note));
- const outside=[...held].filter(note=>!midiKeys.has(note)).length;
- $('midi-notes').textContent=held.size?`按下 ${held.size} 键${outside?` · ${outside} 键超出 C3–C6`:''}`:'等待演奏';
+ const sustained=new Set([...midiPedals.values()].flatMap(channels=>[...channels.values()].flatMap(state=>[...state.notes])));
+ for(const [note,key] of midiKeys){key.dataset.midiPressed=String(held.has(note));key.dataset.midiSustained=String(sustained.has(note)&&!held.has(note));}
 }
-function clearMidi(){midiHeld.clear();paintMidi();}
+function clearMidi(){midiHeld.clear();midiPedals.clear();paintMidi();}
 function receiveMidi(id,event){
  if(document.hidden||!midiInputs.has(id))return;
  const data=event.data;
@@ -173,9 +146,14 @@ function receiveMidi(id,event){
  if(![0x80,0x90,0xb0].includes(command))return;
  let channels=midiHeld.get(id);if(!channels){channels=new Map();midiHeld.set(id,channels);}
  let keys=channels.get(channel);if(!keys){keys=new Set();channels.set(channel,keys);}
- if(command===0x90&&velocity>0){const fresh=!keys.has(note);keys.add(note);if(fresh)judgeMidi(note,{timeStamp:event.timeStamp,velocity,channel});}
- else if(command===0x80||command===0x90)keys.delete(note);
- else if(note===120||note===123||(note>=124&&note<=127))keys.clear();
+ let pedals=midiPedals.get(id);if(!pedals){pedals=new Map();midiPedals.set(id,pedals);}
+ let pedal=pedals.get(channel);if(!pedal){pedal={down:false,notes:new Set()};pedals.set(channel,pedal);}
+ if(command===0x90&&velocity>0){const fresh=!keys.has(note);keys.add(note);pedal.notes.delete(note);if(fresh)judgeMidi(note);}
+ else if(command===0x80||command===0x90){if(keys.delete(note)&&pedal.down)pedal.notes.add(note);}
+ else if(note===64){pedal.down=velocity>=64;if(!pedal.down)pedal.notes.clear();}
+ else if(note===121){pedal.down=false;pedal.notes.clear();}
+ else if(note===120){keys.clear();pedal.notes.clear();}
+ else if(note===123||(note>=124&&note<=127)){if(pedal.down)for(const key of keys)pedal.notes.add(key);keys.clear();}
  else return;
  paintMidi();
 }
@@ -189,14 +167,14 @@ function paintFeedback(index){
  el.style.opacity=!running||card.feedback!=='correct'?'1'
   :String(Math.max(0,Math.min(1,index+3-elapsed)));
 }
-function judgeMidi(note,meta={}){
+function judgeMidi(note){
  if(!running)return;
  // MIDI can arrive between animation frames; judge against the current clock.
  const handledMs=performance.now();advance(handledMs);
  if(!running)return;
  syncCards();
+ if(mode==='free')return;
  if(mode==='practice'){recognizePracticePreview(note);return;}
- if(timingRun){recordTimingAttack(timingRun,cards,note,{...meta,metronome:metronomeOn,judgmentIndex:activeQuestionIndex(cards,sessionSeconds)},handledMs);timingDirty=true;timingRuns=trimTiming(timingRuns);}
  const {indices}=attackTargets(cards,sessionSeconds);
  for(const index of indices){
   const card=cards[index];applyAttack(card,note);
@@ -228,7 +206,7 @@ function recognizePracticePreview(note){
 function syncMidiInputs(){
  const connected=new Map([...midiAccess.inputs.values()].filter(input=>input.state==='connected').map(input=>[input.id,input]));
  for(const [id,input] of midiInputs){
-  if(connected.get(id)!==input){if(running)advance(performance.now());input.onmidimessage=null;midiInputs.delete(id);midiHeld.delete(id);const active=cards[activeQuestionIndex(cards,sessionSeconds)];if(active)active.assisted=true;}
+  if(connected.get(id)!==input){if(running)advance(performance.now());input.onmidimessage=null;midiInputs.delete(id);midiHeld.delete(id);midiPedals.delete(id);const active=cards[activeQuestionIndex(cards,sessionSeconds)];if(active)active.assisted=true;}
  }
  for(const [id,input] of connected){
   if(midiInputs.has(id))continue;
@@ -260,7 +238,6 @@ $('midi-connect').addEventListener('click',event=>{event.stopPropagation();void 
 $('midi-warning').addEventListener('click',event=>event.stopPropagation());
 $('midi-warning-close').addEventListener('click',event=>{event.stopPropagation();$('midi-warning').close();});
 $('midi-warning-connect').addEventListener('click',event=>{event.stopPropagation();void connectMidi();});
-$('midi-clear').addEventListener('click',event=>{event.stopPropagation();clearMidi();});
 void connectMidi();
 paintMidi();
 const routeNodes=[],stageButtons=new Map();
@@ -428,20 +405,18 @@ function hidePauseControls(){
 }
 function visualQuestionIndex(){return mode==='practice'?0:Math.max(0,Math.floor(elapsed-2));}
 function showAnswer(){
- // Practice reveals an answer only after that card has been solved.
+ // Practice reveals solved answers while running, or the current answer while paused.
  const active=cards[visualQuestionIndex()];
- const card=mode==='practice'&&!active?.practiceSolved?null:active;
+ const card=mode==='free'||(mode==='practice'&&running&&!active?.practiceSolved)?null:active;
  if(card)card.assisted=true;
  for(const [midi,dot] of answerDots)dot.hidden=!card||targetForNote(card,midi)===undefined;
 }
 function openSettings(){
- if(running||$('settings-dialog').open||(mode==='challenge'&&started&&!finished))return;
- $('metronome').textContent=practiceSettings.metronomeOn?'开':'关';
- $('metronome').setAttribute('aria-pressed',String(practiceSettings.metronomeOn));
- updateTimer();$('session-stats').hidden=mode==='practice'||!started||finished;$('exit-training').hidden=!started||finished;
- persistTiming();paintTiming();
+ if(running||$('settings-dialog').open)return;
+ updateMetronome();
  $('settings-dialog').showModal();
 }
+
 function showHome(){
  $('pause-screen').hidden=true;updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('settings-toggle').hidden=false;updateRoute();
 }
@@ -451,6 +426,7 @@ function canReachLine(index){
  return sessionSeconds+(index+2-elapsed)*240/bpm<MAX_SECONDS-1e-9;
 }
 function syncCards(){
+ if(mode==='free')return;
  if(mode==='practice'){
   if(!cards.length)appendCard();
   if(started&&!finished&&practiceFallProgress>=PRACTICE_FALL_BARS&&cards.length===1)appendCard();
@@ -467,7 +443,7 @@ function updateTrainingHeader(){
  $('training-header').hidden=!started||finished;
  const stage=stages[stageIndex];
  const parent=nodeById.get(stage?.parent);
- $('training-name').textContent=stage?(parent&&!parent.project?`${parent.name}-${stage.name}`:stage.name.replace(/\n/g,'')):'';
+ $('training-name').textContent=mode==='free'?'自由弹奏':stage?(parent&&!parent.project?`${parent.name}-${stage.name}`:stage.name.replace(/\n/g,'')):'';
 }
 function showResult(result){
  setStars($('result-stars'),result.stars);
@@ -499,11 +475,10 @@ function appendCard(){
   $('falling').append(el);elements.push(el);cards.push(card);
 }
 function reset(){
- persistTiming();timingRun=null;
  releaseScreenLock();stopMetronome();
  running=false;started=false;finished=false;practiceFallProgress=mode==='practice'?PRACTICE_FALL_BARS-1:0;mistakeStacks.clear();$('mistake-blocks').replaceChildren();$('pause-screen').hidden=true;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
  const SchedulerClass=mode==='practice'?PracticeScheduler:Scheduler;
- scheduler=stageIndex>=0?new SchedulerClass(stages[stageIndex],{levels}):null;
+ scheduler=mode!=='free'&&stageIndex>=0?new SchedulerClass(stages[stageIndex],{levels}):null;
  updateTrainingHeader();$('result-dialog').close();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
  cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
 }
@@ -513,15 +488,14 @@ function pause(){
 }
 function pauseSession(){
  if(mode==='practice')for(const card of cards)card.hits.clear();
- persistTiming();
  running=false;strikeFlashAt=-Infinity;updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;
- if(mode==='challenge'){hidePauseControls();$('pause-screen').hidden=false;}
- else{$('settings-toggle').hidden=false;showAnswer();}
+ hidePauseControls();$('pause-screen').hidden=false;
+ if(mode==='practice')showAnswer();
  paintScene();
 }
 function canStartTraining(){
- if(!selectable(stages[stageIndex],results)||$('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return false;
+ if((mode!=='free'&&!selectable(stages[stageIndex],results))||$('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return false;
  if([...midiInputs.values()].some(input=>input.state==='connected'))return true;
  $('midi-warning').showModal();return false;
 }
@@ -530,10 +504,8 @@ function play(){
  if(!canStartTraining())return;
  if(finished)reset();
  bpm=90;
- if(mode==='challenge'){keyboardBlurOn=true;metronomeOn=true;}
- else keyboardBlurOn=false;
+ keyboardBlurOn=mode==='challenge';
  $('pause-screen').hidden=true;
- if(mode==='challenge'&&!timingRun){timingRun=createTimingRun(stages[stageIndex].id,VERSION);timingRuns.push(timingRun);timingRuns=trimTiming(timingRuns);}
  run.started=true;started=true;running=true;
  syncCards();
  stampSessionBoundaries(elapsed,elapsed,sessionSeconds);settleAnswers();updateTimer();
@@ -545,9 +517,8 @@ function complete(){
   const active=cards[activeQuestionIndex(cards,sessionSeconds)];
   if(active&&!active.ended)settleCard(active);
  }
- persistTiming();
  running=false;finished=true;releaseScreenLock();stopMetronome();
- if(mode==='practice'){
+ if(mode!=='challenge'){
   if($('settings-dialog').open)$('settings-dialog').close();
   elements.forEach(el=>{el.hidden=true;});updateTrainingHeader();
   strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
@@ -573,14 +544,14 @@ function settleCard(card){
  if(count>=8)run.failed=true;
 }
 function settleAnswers(){
- if(mode==='practice')return;
+ if(mode!=='challenge')return;
  while(settled<cards.length&&canSettle(cards[settled],sessionSeconds)){
   settleCard(cards[settled++]);
   if(run.failed){complete();break;}
  }
 }
 function stampSessionBoundaries(fromProgress,toProgress,fromSeconds){
- if(mode==='practice')return;
+ if(mode!=='challenge')return;
  stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm,0);
 }
 function advancePractice(now){
@@ -594,13 +565,13 @@ function advancePractice(now){
  syncCards();updateTimer();previous=now;
 }
 function advance(now){
+ if(running&&mode==='free'){sessionSeconds+=Math.max(0,(now-previous)/1000);previous=now;updateTimer();return;}
  if(running&&mode==='practice'){advancePractice(now);return;}
  if(running){
   const fromSeconds=sessionSeconds,fromProgress=elapsed;
   const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);
   const nextBoundary=(Math.floor(elapsed+1e-9)+1)*240/bpm;
   if(sessionSeconds+dt>nextBoundary+1e-9){const end=now;advance(previous+(nextBoundary-sessionSeconds)*1000);if(running)advance(end);return;}
-  if(timingRun){addTimingSegment(timingRun,previous,previous+dt*1000,fromSeconds,fromProgress,bpm);timingDirty=true;}
   sessionSeconds+=dt;elapsed+=dt*bpm/240;
   if(MAX_SECONDS-sessionSeconds<1e-9)sessionSeconds=MAX_SECONDS;
   recordConditions(run,{seconds:dt});
@@ -620,6 +591,7 @@ function paintScene(){
  $('strike').style.setProperty('--strike-flash',String(flash));
  if(started&&!finished){
   syncCards();
+  if(mode==='free')return;
   const height=$('falling').clientHeight;
   if(mode==='challenge'){
    const zoneHeight=$('performance-frost').clientHeight;
@@ -645,14 +617,13 @@ function paintScene(){
 }
 function render(now){
  advance(now);
- if(now-timingSavedAt>=5000){persistTiming();timingSavedAt=now;}
  scheduleMetronome();
  paintScene();
  requestAnimationFrame(render);
 }
 $('metronome').addEventListener('click',e=>{
- e.stopPropagation();if(mode==='challenge'&&started&&!finished)return;
- practiceSettings.metronomeOn=!practiceSettings.metronomeOn;metronomeOn=practiceSettings.metronomeOn;
+ e.stopPropagation();metronomeOn=!metronomeOn;
+ if(mode!=='challenge'||!started||finished)practiceSettings.metronomeOn=metronomeOn;
  stopMetronome();if(metronomeOn)unlockAudio();updateMetronome();
 });
 function startMode(nextMode){
@@ -660,28 +631,28 @@ function startMode(nextMode){
  if(nextMode==='practice'&&!supportsPractice(stages[stageIndex]))return;
  if(!canStartTraining())return;
  mode=nextMode;bpm=90;
- if(mode==='practice'){keyboardBlurOn=false;metronomeOn=practiceSettings.metronomeOn;}
+ if(mode!=='challenge'){keyboardBlurOn=false;metronomeOn=practiceSettings.metronomeOn;}
  else{bpm=90;keyboardBlurOn=true;metronomeOn=true;}
  reset();play();
 }
 $('pause-screen').addEventListener('click',e=>e.stopPropagation());
 $('pause-resume').addEventListener('click',e=>{e.stopPropagation();play();});
+$('pause-settings').addEventListener('click',e=>{e.stopPropagation();openSettings();});
+$('free-action').addEventListener('click',e=>{e.stopPropagation();startMode('free');});
 $('pause-exit').addEventListener('click',e=>{e.stopPropagation();complete();});
 $('practice-action').addEventListener('click',e=>{e.stopPropagation();startMode('practice');});
 $('overlay-action').addEventListener('click',e=>{e.stopPropagation();startMode('challenge');});
 $('settings-toggle').addEventListener('click',e=>{e.stopPropagation();openSettings();});
 $('settings-dialog').addEventListener('click',e=>e.stopPropagation());
 $('settings-close').addEventListener('click',e=>{e.stopPropagation();$('settings-dialog').close();});
-$('exit-training').addEventListener('click',e=>{e.stopPropagation();complete();});
 $('result-dialog').addEventListener('click',e=>e.stopPropagation());
 $('result-home').addEventListener('click',e=>{e.stopPropagation();$('result-dialog').close();});
 $('result-retry').addEventListener('click',e=>{e.stopPropagation();$('result-dialog').close();play();});
 $('overlay').addEventListener('click',e=>e.stopPropagation());
 document.addEventListener('click',()=>{
  if($('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return;
- if(running)pause();else if(mode==='practice'&&started&&!finished&&$('overlay').hidden)play();
+ if(running)pause();
 });
-globalThis.addEventListener?.('pagehide',persistTiming);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();clearMidi();}});
 const portrait=matchMedia('(orientation: portrait) and (max-width: 1100px) and (any-pointer: coarse)');portrait.addEventListener('change',e=>{if(e.matches)pause();});
 document.addEventListener('keydown',e=>{
