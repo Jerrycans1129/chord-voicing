@@ -44,19 +44,17 @@ export class Scheduler{
  }
 }
 
-// Practice repeats the same root cycle, with no weakness or spelling weighting.
+// Practice samples independently, excluding the previous label's physical key.
 export class PracticeScheduler{
  constructor(stage,{rng=Math.random}={}){
   if(!supportsPractice(stage))throw new Error('Practice requires a single chord quality');
-  this.items=trainingItems(stage);this.rng=rng;this.index=0;this.startPc=Math.floor(rng()*12);
+  this.items=trainingItems(stage);this.rng=rng;this.lastRoot=null;
  }
  next(){
-  const pc=(this.startPc+this.index*5)%12;
-  const spelling=['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'][pc];
-  const candidates=this.items.filter(item=>item.pc===pc&&item.name===spelling);
-  const item=candidates[Math.floor(this.rng()*candidates.length)];
-  const roots=positions(pc,item.q,item.inv);
-  this.index=(this.index+1)%12;
-  return {...item,root:roots[Math.floor(this.rng()*roots.length)]};
+  const candidates=this.items.map(item=>({item,roots:positions(item.pc,item.q,item.inv).filter(root=>root!==this.lastRoot)})).filter(candidate=>candidate.roots.length);
+  const {item,roots}=candidates[Math.floor(this.rng()*candidates.length)];
+  const root=roots[Math.floor(this.rng()*roots.length)];
+  this.lastRoot=root;
+  return {...item,root};
  }
 }

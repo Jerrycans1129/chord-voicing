@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {Scheduler,PracticeScheduler,cleanLevels} from '../dist/scheduler.js';
-import {stages,positions} from '../dist/theory.js';
+import {stages,positions,supportsPractice} from '../dist/theory.js';
 const rng=()=>{let n=123456;return ()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};};
 test('mistakes are spelling-, quality-, and inversion-specific, but shared across octaves and stages',()=>{
  const levels=cleanLevels({});const s=new Scheduler(stages.find(s=>s.id==='level-6-v2'),{levels,rng:rng()});
@@ -61,17 +61,26 @@ test('mixed levels enforce five current and five earlier cards despite concentra
 });
 
 
-test('practice randomly starts on any pitch and preserves its cycle and permitted voicings',()=>{
- for(const id of ['quality-10','chord-10-3','quality-11'])for(let start=0;start<12;start++){
-  const random=rng();let first=true;
-  const scheduler=new PracticeScheduler(stages.find(s=>s.id===id),{rng:()=>{if(first){first=false;return (start+.5)/12;}return random();}});
-  for(let i=0;i<120;i++){
-   const card=scheduler.next();assert.equal(card.pc,(start+i*5)%12);
+test('practice samples legal voicings without consecutive labels on the same key or weakness weighting',()=>{
+ for(const stage of stages.filter(supportsPractice)){
+  const plain=new PracticeScheduler(stage,{rng:rng()});
+  const weighted=new PracticeScheduler(stage,{rng:rng(),levels:Object.fromEntries(plain.items.map(item=>[item.id,3]))});
+  const seen=new Set();let previous=null,breaksCycle=false;
+  for(let i=0;i<2000;i++){
+   const card=plain.next();assert.deepEqual(card,weighted.next());
    assert.ok(positions(card.pc,card.q,card.inv).includes(card.root));
-   if(id==='chord-10-3')assert.equal(card.inv,3);
-   if(id==='quality-11'){assert.equal(card.freeOctaves,true);assert.equal(card.root,48+card.pc);}
+   assert.notEqual(card.root,previous?.root);
+   if(previous&&card.pc!==(previous.pc+5)%12)breaksCycle=true;
+   seen.add(card.id);previous=card;
   }
+  assert.equal(seen.size,plain.items.length);assert.ok(breaksCycle);
  }
  assert.throws(()=>new PracticeScheduler(stages.find(s=>s.id==='notes-two')));
  assert.throws(()=>new PracticeScheduler(stages.find(s=>s.id==='level-2')));
+});
+test('practice excludes repeated physical keys even with a constant random source',()=>{
+ for(const stage of stages.filter(supportsPractice)){
+  const scheduler=new PracticeScheduler(stage,{rng:()=>0});let previous=null;
+  for(let i=0;i<20;i++){const card=scheduler.next();assert.notEqual(card.root,previous);previous=card.root;}
+ }
 });

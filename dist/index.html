@@ -18,9 +18,7 @@
 <dialog id="settings-dialog" aria-labelledby="settings-title">
 <h2 id="settings-title">训练设置</h2>
 <div class="dialog-content">
-<label class="speed-setting" for="speed">速度<select id="speed"></select></label>
 <div class="switch-row"><span>节拍器</span><button id="metronome" class="secondary" type="button" aria-label="节拍器" aria-pressed="true">开</button></div>
-<label id="keyboard-blur-setting" class="switch-row" for="keyboard-blur"><span>遮挡／隐藏琴键</span><input id="keyboard-blur" type="checkbox" checked></label>
 <div class="midi-settings"><div class="midi-actions"><button id="midi-connect" class="secondary" type="button">连接 MIDI</button><button id="midi-clear" class="secondary" type="button">清除亮键</button></div><p id="midi-status" role="status"></p><p id="midi-notes"></p></div>
 <div id="session-stats" hidden><div><span>训练时间</span><strong id="count">00:00 / 30:00</strong></div><div><span>正确／已结束题数</span><strong id="answer-count">0 / 0</strong></div><div><span>正确率</span><strong id="accuracy">—</strong></div></div>
 <section class="timing-stats" aria-labelledby="timing-title"><h3 id="timing-title">弹奏时机统计</h3><p id="timing-summary"></p><p id="timing-detail"></p><p id="timing-storage"></p><button id="timing-export" class="secondary" type="button">导出弹奏数据</button></section>
