@@ -433,12 +433,12 @@ test('zero-star home ratings are blank and do not replace previously earned star
 });
 
 
-test('practice is fixed at 90 BPM, shows only A during its initial four-beat descent, and shows its answer',()=>{
+test('practice is fixed at 90 BPM, shows only A during its initial four-beat descent, and hides its answer until solved',()=>{
  for(const userAgent of ['iPhone','iPad','Macintosh']){
   const {run,nodes}=session({navigator:{userAgent}});run("startMode('practice');const first=cards[0]");
-  assert.equal(run('bpm'),90);assert.equal(run('cards.length'),1);assert.equal(run('keyboardBlurOn'),false);
+  assert.equal(run('metronomeOn'),false);assert.equal(run('bpm'),90);assert.equal(run('cards.length'),1);assert.equal(run('keyboardBlurOn'),false);
   assert.equal(nodes.get('keyboard-frost').hidden,true);
-  assert.equal(run('cards[0].targets.every(n=>!answerDots.get(n).hidden)'),true);
+  assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
   assert.equal(run('elements[0].style.transform'),'translateY(220px)');
   run('now=1333.3333333333;render(now)');assert.ok(Math.abs(parseFloat(run('elements[0].style.transform').slice(11))-242)<1e-8);
   run('now=2666;render(now)');assert.equal(run('cards.length'),1);
@@ -464,7 +464,7 @@ test('playing A, missing notes or wrong notes leaves both labels unchanged and p
  assert.equal(run('practiceFallProgress'),5);assert.equal(run('cards[0].targets.every(n=>!answerDots.get(n).hidden)'),true);
 });
 test('correct B starts a four-beat descent at the same position and C appears only on contact',()=>{
- const {run}=session();run("startMode('practice');now=16000;render(now);const preview=cards[1];const before=elements[1].style.transform;for(const n of preview.targets)judgeMidi(n)");
+ const {run}=session();run("startMode('practice');now=16000;render(now);for(const n of cards[0].targets)judgeMidi(n);const preview=cards[1];const before=elements[1].style.transform;for(const n of preview.targets)judgeMidi(n)");
  assert.equal(run('elements[0].style.transform'),run('before'));assert.equal(run('cards.length'),1);
  run('now=17333.3333333333;render(now)');assert.ok(Math.abs(run('practiceFallProgress')-5.5)<1e-8);
  run('now=18666.6666666667;render(now)');assert.equal(run('cards.length'),2);
@@ -472,14 +472,14 @@ test('correct B starts a four-beat descent at the same position and C appears on
  assert.equal(run('elements[0].style.transform'),'translateY(264px)');assert.equal(run('elements[1].style.transform'),'translateY(220px)');
 });
 test('preview recognition requires fresh MIDI attacks and rejects extra held wrong notes',async()=>{
- const {run,send}=midiSession();await run('connectMidi()');run("startMode('practice');now=16000;render(now);cards[1].targets=[60,64,67];const preview=cards[1]");
+ const {run,send}=midiSession();await run('connectMidi()');run("startMode('practice');now=16000;render(now);for(const n of cards[0].targets)judgeMidi(n);cards[1].targets=[60,64,67];const preview=cards[1]");
  send([0x90,61,100]);for(const n of [60,64,67])send([0x90,n,100]);
  assert.equal(run('cards[1]===preview'),true);
  send([0x80,61,0]);send([0x90,67,100]);assert.equal(run('cards.length'),2);
  send([0x80,67,0]);send([0x90,67,100]);assert.equal(run('cards[0]===preview'),true);assert.equal(run('cards.length'),1);
 });
 test('pause freezes the moving label and timer and cannot advance through MIDI',()=>{
- const {run}=session();run("startMode('practice');now=16000;render(now);for(const n of cards[1].targets)judgeMidi(n);now=17000;pause();const phase=practiceFallProgress");
+ const {run}=session();run("startMode('practice');now=16000;render(now);for(const n of cards[0].targets)judgeMidi(n);for(const n of cards[1].targets)judgeMidi(n);now=17000;pause();const phase=practiceFallProgress");
  run('now=117000;render(now)');assert.equal(run('practiceFallProgress'),run('phase'));assert.equal(run('sessionSeconds'),17);
  run('play();now=118666.6666666667;render(now)');assert.equal(run('cards.length'),2);
  run('pause();const first=cards[0];for(const n of cards[1].targets)judgeMidi(n)');assert.equal(run('cards[0]===first'),true);
@@ -487,11 +487,35 @@ test('pause freezes the moving label and timer and cannot advance through MIDI',
 });
 test('repeated self-paced transitions keep only A and B and never score or accumulate blocks',()=>{
  const {run}=session();run("startMode('practice');now=16000;render(now)");
- run(`for(let i=0;i<100;i++){
+ run(`for(const n of cards[0].targets)judgeMidi(n);for(let i=0;i<100;i++){
   for(const n of cards[1].targets)judgeMidi(n);
   if(cards.length!==1)throw Error('Preview did not advance');
   now+=240000/90;render(now);
   if(cards.length!==2||practiceFallProgress!==6)throw Error('Next preview missing');
  }`);
  assert.equal(run('run.total'),0);assert.equal(run('mistakeStacks.size'),0);assert.equal(run('Object.keys(results).length'),0);
+});
+
+test('practice requires the first answer before unlocking previews and never reuses its final attack',()=>{
+ const {run}=session();run("startMode('practice');now=3000;render(now);cards[0].targets=[60,64,67];cards[1].targets=[62,65,67]");
+ run('for(const n of cards[1].targets)judgeMidi(n)');
+ assert.equal(run('cards[1].hits.size'),0);assert.equal(run('cards.length'),2);
+ assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
+ run('judgeMidi(1);for(const n of cards[0].targets)judgeMidi(n)');
+ assert.equal(run('cards[0].practiceSolved'),true);assert.equal(run('cards[1].hits.size'),0);
+ assert.equal(run('cards[0].targets.every(n=>!answerDots.get(n).hidden)'),true);
+ run('judgeMidi(62);judgeMidi(65)');assert.equal(run('cards.length'),2);
+ run('judgeMidi(67)');assert.equal(run('cards.length'),1);assert.equal(run('cards[0].practiceSolved'),true);
+ run('now+=240000/90;render(now);for(const n of cards[1].targets)judgeMidi(n)');
+ assert.equal(run('cards.length'),1);
+});
+test('pause preserves first-answer secrecy and clears partial attempts; reset hides answers again',()=>{
+ const {run}=session();run("startMode('practice');now=3000;render(now);judgeMidi(cards[0].targets[0]);pause()");
+ assert.equal(run('cards[0].hits.size'),0);
+ assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
+ run('for(const n of cards[0].targets)judgeMidi(n);play()');
+ assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
+ run('for(const n of cards[0].targets)judgeMidi(n)');
+ assert.equal(run('cards[0].practiceSolved'),true);
+ run('reset();play()');assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
 });

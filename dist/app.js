@@ -40,7 +40,7 @@ let mode='challenge';
 const PRACTICE_FALL_BARS=6;
 let practiceFallProgress=0;
 let bpm=90;
-const practiceSettings={metronomeOn:true};
+const practiceSettings={metronomeOn:false};
 const mistakeStacks=new Map();
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0,strikeFlashAt=-Infinity;
@@ -206,17 +206,22 @@ function judgeMidi(note,meta={}){
 }
 
 function recognizePracticePreview(note){
- const preview=cards[1];
- if(practiceFallProgress<PRACTICE_FALL_BARS||!preview)return;
- const target=targetForNote(preview,note);
- if(target===undefined){preview.hits.clear();return;}
- preview.hits.add(target);
- if(!preview.targets.every(n=>preview.hits.has(n)))return;
+ if(practiceFallProgress<PRACTICE_FALL_BARS)return;
+ const current=cards[0],card=current?.practiceSolved?cards[1]:current;
+ if(!card)return;
+ const target=targetForNote(card,note);
+ if(target===undefined){card.hits.clear();return;}
+ card.hits.add(target);
+ if(!card.targets.every(n=>card.hits.has(n)))return;
  // Extra physically held notes must not turn an incomplete/incorrect voicing into advancement.
  const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
- if(held.some(n=>targetForNote(preview,n)===undefined))return;
- cards.shift();elements.shift();$('falling').replaceChildren(...elements);
- preview.hits.clear();practiceFallProgress=PRACTICE_FALL_BARS-1;
+ if(held.some(n=>targetForNote(card,n)===undefined))return;
+ card.practiceSolved=true;card.hits.clear();
+ if(card!==current){
+  cards.shift();elements.shift();$('falling').replaceChildren(...elements);
+  practiceFallProgress=PRACTICE_FALL_BARS-1;
+ }
+ // This attack completes only one card; the next card requires fresh input.
  showAnswer();paintScene();
 }
 
@@ -423,8 +428,9 @@ function hidePauseControls(){
 }
 function visualQuestionIndex(){return mode==='practice'?0:Math.max(0,Math.floor(elapsed-2));}
 function showAnswer(){
- // Practice shows the one active card throughout descent, dwell and pause.
- const card=cards[visualQuestionIndex()];
+ // Practice reveals an answer only after that card has been solved.
+ const active=cards[visualQuestionIndex()];
+ const card=mode==='practice'&&!active?.practiceSolved?null:active;
  if(card)card.assisted=true;
  for(const [midi,dot] of answerDots)dot.hidden=!card||targetForNote(card,midi)===undefined;
 }
@@ -506,7 +512,7 @@ function pause(){
  pauseSession();
 }
 function pauseSession(){
- if(mode==='practice')cards[1]?.hits.clear();
+ if(mode==='practice')for(const card of cards)card.hits.clear();
  persistTiming();
  running=false;strikeFlashAt=-Infinity;updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;
