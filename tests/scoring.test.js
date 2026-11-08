@@ -17,7 +17,6 @@ test('pause and training settings do not reduce fixed challenge scores',()=>{
  r.started=true;recordConditions(r,{seconds:900});recordConditions(r,{paused:true});assert.equal(r.seconds,900);
  assert.equal(calculateScore(run({seconds:900})).stars,1.5);
  assert.equal(calculateScore(run({seconds:1620})).stars,3);
- assert.equal(calculateScore(run({failed:true})).stars,0);
 });
 test('only finite half-star ratings are restored, with no run parameters',()=>{
  const saved=cleanResults({a:2.5,b:3,c:0,d:4,e:1.2,f:{best:{stars:3}}},['a','b','c','d','e','f']);

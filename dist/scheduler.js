@@ -1,4 +1,4 @@
-import {trainingItems,positions,shuffle,supportsPractice} from './theory.js';
+import {trainingItems,positions,shuffle} from './theory.js';
 export const reviewWeights=[0,1,3,7];
 export function cleanLevels(value){
  const result=Object.create(null);
@@ -47,20 +47,5 @@ export class Scheduler{
   const root=at>=0?roots.splice(at,1)[0]:positions(item.pc,item.q,item.inv).find(root=>root!==this.lastRoot);
   this.lastRoot=root;this.lastSeen.set(item.id,this.index++);
   return {...item,root,source,reviewSlot};
- }
-}
-
-// Practice samples independently, excluding the previous label's physical key.
-export class PracticeScheduler{
- constructor(stage,{rng=Math.random}={}){
-  if(!supportsPractice(stage))throw new Error('Practice requires notes or a single chord quality');
-  this.items=trainingItems(stage);this.rng=rng;this.lastRoot=null;
- }
- next(){
-  const candidates=this.items.map(item=>({item,roots:positions(item.pc,item.q,item.inv).filter(root=>root!==this.lastRoot)})).filter(candidate=>candidate.roots.length);
-  const {item,roots}=candidates[Math.floor(this.rng()*candidates.length)];
-  const root=roots[Math.floor(this.rng()*roots.length)];
-  this.lastRoot=root;
-  return {...item,root};
  }
 }

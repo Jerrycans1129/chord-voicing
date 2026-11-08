@@ -4,14 +4,15 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import * as theory from '../dist/theory.js';
 import {BUILD_REVISION} from '../dist/build.js';
-import {Scheduler,PracticeScheduler,cleanLevels} from '../dist/scheduler.js';
+import {Scheduler,cleanLevels} from '../dist/scheduler.js';
 import * as scoring from '../dist/scoring.js';
 import * as judgment from '../dist/judgment.js';
+import * as performance from '../dist/performance.js';
 function session(extras={},connected=true){
  const nodes=new Map(),documentHandlers={},alerts=[];
  const element=()=>({open:false,click(){this.clicked=true;},showModal(){this.open=true;},close(){this.open=false;},style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},children:[],append(...items){this.children.push(...items);},replaceChildren(...items){this.children=[...items];},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},queries:new Map(),querySelector(selector){if(!this.queries.has(selector))this.queries.set(selector,element());return this.queries.get(selector);},scrollLeft:0,scrollIntoView(){},setPointerCapture(){},hasPointerCapture(){return false;},releasePointerCapture(){}});
  const get=id=>{if(!nodes.has(id)){const node=element();if(id==='performance-frost')node.clientHeight=96;nodes.set(id,node);}return nodes.get(id);};
- const context=vm.createContext({alert:message=>alerts.push(message),...theory,BUILD_REVISION,Scheduler,PracticeScheduler,cleanLevels,...scoring,...judgment,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
+ const context=vm.createContext({alert:message=>alerts.push(message),...theory,BUILD_REVISION,Scheduler,cleanLevels,...scoring,...judgment,...performance,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
  if(!extras.localStorage)vm.runInContext('selectStage(5)',context);
  if(connected)vm.runInContext("midiInputs.set('fixture',{state:'connected'})",context);
@@ -364,21 +365,21 @@ test('challenge pause allows settings and preserves metronome choice on resume',
  run("complete();$('result-dialog').close();startMode('practice')");
  assert.equal(run('bpm'),90);assert.equal(run('keyboardBlurOn'),false);
 });
-test('challenge labels cross the line, settle at the bottom, and incorrect attempts stack once',()=>{
- const {run,nodes}=session();run("$('performance-frost').clientHeight=96");
- run('play();now=5400;render(now)');const first=run('elements[0].style.transform');
- run('now=7000;render(now)');assert.notEqual(run('elements[0].style.transform'),first);assert.equal(run('run.total'),0);
- run('now=8000;render(now)');assert.equal(run('run.total'),1);assert.equal(run('elements[0].hidden'),true);
- assert.equal(nodes.get('mistake-blocks').children.length,1);
- run('render(now)');assert.equal(nodes.get('mistake-blocks').children.length,1);
+test('challenge settles before B touches but A keeps falling through the bottom',()=>{
+ const {run}=session();run('play();now=7950;render(now)');
+ assert.equal(run('run.total'),1);assert.equal(run('elements[0].hidden'),false);
+ run('now=8000;render(now)');assert.equal(run('elements[0].style.transform'),'translateY(264px)');
+ run('now=8500;render(now)');assert.equal(run('elements[0].hidden'),false);
+ assert.ok(parseFloat(run('elements[0].style.transform').slice(11))>264);
+ run('now=9100;render(now)');assert.equal(run('elements[0].hidden'),true);
 });
-test('complete chords disappear without blocks; later wrong notes remain incorrect',()=>{
- for(const wrong of [false,true]){
-  const {run,nodes}=session();run('play();now=5500;for(const n of cards[0].targets)judgeMidi(n)');
-  if(wrong)run('judgeMidi(1)');
-  run('now=8000;render(now)');assert.equal(run('run.correct'),wrong?0:1);assert.equal(nodes.get('mistake-blocks').children.length,wrong?1:0);
- }
+
+test('challenge errors remain sticky until the next early window and never affect the previous card',()=>{
+ const {run}=session();run('play();now=5500;for(const n of cards[0].targets)judgeMidi(n);now=7900;judgeMidi(1);now=7950;render(now)');
+ assert.equal(run('run.correct'),0);assert.equal(run('cards[0].feedback'),'wrong');
+ run('judgeMidi(1)');assert.equal(run('cards[1].wrong'),true);assert.equal(run('run.total'),1);
 });
+
 test('exit settles only the current question, including silence and incomplete chords',()=>{
  for(const kind of ['silent','partial','correct','wrong']){
   const {run}=session();run('play();now=5500;render(now)');
@@ -388,20 +389,18 @@ test('exit settles only the current question, including silence and incomplete c
   run('pause();complete()');assert.equal(run('run.total'),1);assert.equal(run('run.correct'),kind==='correct'?1:0);
  }
 });
-test('eighth mistake on one pitch fails immediately and resets all stacks on retry',()=>{
- const {run,nodes}=session();run(`play();const original=scheduler.next();scheduler.next=()=>({...original,root:60});cards[0].root=60;now=100000;render(now)`);
- assert.equal(run('finished'),true);assert.equal(run('run.failed'),true);assert.equal(run('run.total'),8);
- assert.equal(run('calculateScore(run).stars'),0);assert.ok(run('sessionSeconds')<100);
- assert.equal(nodes.get('mistake-blocks').children.length,8);
- run("$('result-dialog').close();play()");assert.equal(run('mistakeStacks.size'),0);
+test('repeated errors never terminate challenge early or create a failure score',()=>{
+ const {run}=session();run('play();now=100000;render(now)');
+ assert.equal(run('finished'),false);assert.ok(run('run.total')>8);
+ assert.equal(run("'failed' in run"),false);
+ run('now=1800000;render(now)');assert.equal(run('finished'),true);assert.equal(run('run.seconds'),1800);
 });
-test('a delayed frame stops at the first overflowing stack, not at its final wall time',()=>{
- const {run}=session();run(`play();const original=scheduler.next();scheduler.next=()=>({...original,root:60});cards[0].root=60;now=1800000;render(now)`);
- assert.equal(run('run.total'),8);assert.ok(Math.abs(run('sessionSeconds')-80/3)<1e-7);
-});
+
+
+
 test('full thirty minutes with correct MIDI answers finishes and awards three stars',()=>{
  const {run,nodes}=session();run(`play();for(let i=0;i<673;i++){now=(i+2)*240000/90+1;render(now);for(const n of cards[i].targets)judgeMidi(n);}now=1800000;render(now)`);
- assert.equal(run('finished'),true);assert.equal(run('run.failed'),false);assert.equal(run('run.seconds'),1800);
+ assert.equal(run('finished'),true);assert.equal(run('run.seconds'),1800);
  assert.equal(run('calculateScore(run).stars'),3);assert.equal(nodes.get('training-time').textContent,'00:00');
 });
 test('only final best stars persist; performance recording is removed',()=>{
@@ -413,20 +412,18 @@ test('only final best stars persist; performance recording is removed',()=>{
  const restored=session({localStorage:{getItem(k){return k==='voicing-stars'?JSON.stringify(saved):null;},setItem(){}}});
  assert.equal(restored.run('bpm'),90);assert.equal(restored.run('typeof timingRuns'),'undefined');
 });
-test('block centers shift only C E F B, and the twelve pitch lanes do not overlap',()=>{
- const {run,nodes}=session();run('play();for(let root=48;root<60;root++)settleCard(prepareAttempt({...cards[0],root,ended:false}))');
- const blocks=nodes.get('mistake-blocks').children;assert.equal(blocks.length,12);
- const left=blocks.map(b=>parseFloat(b.style.left));for(let i=1;i<12;i++)assert.ok(left[i]-left[i-1]>=.42/22*100-1e-8);
- assert.ok(Math.abs(left[0]-(.355-.21)/22*100)<1e-8);
+test('removed mistake block rules leave no shipped UI or score failure branch',()=>{
+ for(const file of ['app.js','style.css','index.html','scoring.js'])assert.doesNotMatch(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),/mistakeStacks|mistake-block|run\.failed|堆叠触线/);
 });
-test('pausing freezes all cards and ignores MIDI, and exiting a seventh-stack question can fail',()=>{
- const {run,nodes}=session();run('play();now=6000;pause()');
- const position=run('elements[0].style.transform');
+
+test('pausing freezes all cards and ignores MIDI; exit settles the active attempt',()=>{
+ const {run,nodes}=session();run('play();now=6000;pause();const position=elements[0].style.transform');
  run('now=60000;for(const n of cards[0].targets)judgeMidi(n);render(now)');
- assert.equal(run('elements[0].style.transform'),position);assert.equal(run('cards[0].hits.size'),0);
+ assert.equal(run('elements[0].style.transform'),run('position'));assert.equal(run('cards[0].hits.size'),0);
  assert.equal(nodes.get('pause-screen').hidden,false);
- run('mistakeStacks.set(cards[0].root,7);complete()');assert.equal(run('run.failed'),true);assert.equal(run('run.total'),1);
+ run('complete()');assert.equal(run('run.total'),1);
 });
+
 test('zero-star home ratings are blank and do not replace previously earned stars',()=>{
  const {run}=session();run('play();results[stages[stageIndex].id]={best:{stars:2.5}};complete()');
  assert.equal(run('results[stages[stageIndex].id].best.stars'),2.5);
@@ -457,56 +454,55 @@ test('practice uses challenge scheduling, cadence and keyboard-free layout witho
 test('the whole practice queue freezes indefinitely at the line without scoring',()=>{
  const {run,nodes}=session();run("startMode('practice');now=16000;render(now);const positions=elements.map(e=>e.style.transform);now=7200000;render(now)");
  assert.equal(run('JSON.stringify(elements.map(e=>e.style.transform))===JSON.stringify(positions)'),true);
- assert.equal(run('cards.length'),3);assert.equal(run('practiceFallProgress'),2);
+ assert.equal(run('cards.length'),3);assert.equal(run('elapsed'),2);
  assert.equal(nodes.get('training-time').textContent,'120:00');assert.equal(run('run.total'),0);
 });
-test('any next key clears the answer and starts a new A or B attempt',()=>{
- const {run}=session();run("startMode('practice');now=6000;render(now);cards[0].targets=[60,64,67];cards[1].targets=[62,65,69];const first=cards[0],next=cards[1]");
- run('for(const n of next.targets)judgeMidi(n)');assert.equal(run('next.hits.size'),0);
- run('for(const n of first.targets)judgeMidi(n)');assert.equal(run('first.practiceAnswerVisible'),true);
- run('judgeMidi(1)');assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
- run('for(const n of first.targets)judgeMidi(n)');assert.equal(run('first.practiceAnswerVisible'),true);
- run('judgeMidi(60)');assert.equal(run('first.practiceAnswerVisible'),false);assert.equal(run('first.hits.has(60)'),true);
- run('judgeMidi(64);judgeMidi(67)');assert.equal(run('first.practiceAnswerVisible'),true);
- run('judgeMidi(62)');assert.equal(run('first.practiceAnswerVisible'),false);assert.equal(run('next.hits.has(62)'),true);
- run('judgeMidi(65);judgeMidi(69)');assert.equal(run('cards[0]===next'),true);
- assert.equal(run('next.practiceAnswerVisible'),true);assert.equal(run('practiceFallProgress'),1);
- assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
+test('practice retries partial and wrong attempts, then latches passage permanently',()=>{
+ const {run}=session();run("startMode('practice');now=5250;render(now);cards[0].targets=[60,64,67];judgeMidi(60);judgeMidi(1);judgeMidi(64);judgeMidi(67)");
+ assert.equal(run('cards[0].practiceSolved'),undefined);
+ run('now=6000;render(now)');assert.equal(run('elapsed'),2);
+ run('judgeMidi(60)');assert.equal(run('cards[0].practiceSolved'),true);
+ run('judgeMidi(1);now+=1000;render(now)');assert.ok(run('elapsed')>2);
+ assert.equal(run('elements[0].dataset.feedback'),'waiting');assert.equal(run('run.total'),0);
 });
-test('B and the following labels descend together without jumping and replenish the queue',()=>{
- const {run}=session();run("startMode('practice');now=6000;render(now);for(const n of cards[0].targets)judgeMidi(n);const next=cards[1],tail=cards[2];const positions=elements.slice(1).map(e=>e.style.transform);for(const n of next.targets)judgeMidi(n)");
+test('B freezes at the top with A visible at the bottom, then both move without jumps',()=>{
+ const {run}=session();run("startMode('practice');now=5250;render(now);for(const n of cards[0].targets)judgeMidi(n);now=8000;render(now)");
+ assert.equal(run('elapsed'),3);assert.equal(run('elements[0].hidden'),false);
+ assert.equal(run('elements[0].style.transform'),'translateY(264px)');assert.equal(run('elements[1].style.transform'),'translateY(168px)');
+ run('const positions=elements.map(e=>e.style.transform);now=100000;render(now)');
  assert.equal(run('JSON.stringify(elements.map(e=>e.style.transform))===JSON.stringify(positions)'),true);
- run('now+=120000/90;render(now)');assert.equal(run('practiceFallProgress'),1.5);
- run('pause();const phase=practiceFallProgress;now+=100000;render(now)');assert.equal(run('practiceFallProgress'),run('phase'));
- run('play();now+=120000/90;render(now)');assert.equal(run('practiceFallProgress'),2);
- assert.equal(run('cards[0]===next&&cards[1]===tail&&cards.length===3'),true);
- run(`for(let i=0;i<100;i++){
-  for(const n of cards[1].targets)judgeMidi(n);
-  if(practiceFallProgress!==1)throw Error('Next label did not advance');
-  now+=240000/90;render(now);
-  if(cards.length!==3||practiceFallProgress!==2)throw Error('Queue not replenished');
- }`);
- assert.equal(run('run.total'),0);assert.equal(run('mistakeStacks.size'),0);
+ run('for(const n of cards[0].targets)judgeMidi(n)');assert.equal(run('cards[1].practiceSolved'),undefined);
+ run('judgeMidi(1);for(const n of cards[1].targets)judgeMidi(n)');assert.equal(run('cards[1].practiceSolved'),true);
+ assert.equal(run('JSON.stringify(elements.map(e=>e.style.transform))===JSON.stringify(positions)'),true);
+ run('now+=500;render(now)');assert.equal(run('elements[0].hidden'),false);
+ assert.ok(parseFloat(run('elements[0].style.transform').slice(11))>264);
+ run('now+=600;render(now)');assert.equal(run('elements[0].hidden'),true);
 });
-test('practice recognition requires fresh MIDI attacks and rejects extra held notes',async()=>{
+test('both modes share early input ownership and uninterrupted motion when practice answers are early',()=>{
+ for(const bpm of [90,137,180])for(const mode of ['practice','challenge']){
+  const {run}=session();run(`bpm=${bpm};startMode('${mode}');now=(2-1/32)*240000/bpm-1;render(now);cards[0].targets=[60,64,67]`);
+  run('judgeMidi(60)');assert.equal(run('cards[0].hits.size'),0);
+  run('now+=1;for(const n of cards[0].targets)judgeMidi(n)');assert.equal(run('cards[0].hits.size'),3);
+  run('now=2*240000/bpm;render(now)');assert.equal(run('elapsed'),2);
+  run('now=(3-1/32)*240000/bpm;render(now);cards[1].targets=[62,65,69];for(const n of cards[1].targets)judgeMidi(n)');
+  assert.equal(run('cards[0].wrong'),false);assert.equal(run('cards[1].hits.size'),3);
+  run('now=3.5*240000/bpm;render(now)');assert.ok(Math.abs(run('elapsed')-3.5)<1e-8);
+ }
+});
+test('practice recognition requires fresh attacks and ignores sustained notes',async()=>{
  const {run,send}=midiSession();await run('connectMidi()');run("startMode('practice');now=6000;render(now);cards[0].targets=[60,64,67]");
  send([0x90,61,100]);for(const n of [60,64,67])send([0x90,n,100]);
  assert.equal(run('cards[0].practiceSolved'),undefined);
  send([0x80,61,0]);send([0x90,67,100]);assert.equal(run('cards[0].practiceSolved'),undefined);
- send([0x80,67,0]);send([0x90,67,100]);assert.equal(run('cards[0].practiceAnswerVisible'),true);
- send([0x80,60,0]);send([0x90,60,100]);assert.equal(run('cards[0].practiceAnswerVisible'),false);
- assert.equal(run('cards[0].hits.size'),1);
+ send([0x80,67,0]);send([0x90,67,100]);assert.equal(run('cards[0].practiceSolved'),true);
+ send([0x90,61,100]);assert.equal(run('cards[0].practiceSolved'),true);
 });
-test('practice pause hides answers, uses the shared pause overlay and clears partial attempts',()=>{
+test('practice manual pause clears partial attacks but preserves solved passage',()=>{
  const {run,nodes}=session();run("startMode('practice');now=6000;render(now);judgeMidi(cards[0].targets[0]);pause()");
- assert.equal(nodes.get('instrument').dataset.paused,'true');
- assert.equal(nodes.get('pause-screen').hidden,false);
- assert.equal(nodes.get('settings-toggle').hidden,true);
- assert.equal(run('cards[0].hits.size'),0);assert.equal(run('cards[0].practiceSolved'),undefined);
+ assert.equal(nodes.get('instrument').dataset.paused,'true');assert.equal(run('cards[0].hits.size'),0);
+ run('play();for(const n of cards[0].targets)judgeMidi(n);pause();now=60000;render(now)');assert.equal(run('elapsed'),2);
+ run('play();now+=1000;render(now)');assert.ok(run('elapsed')>2);assert.equal(run('cards[0].practiceSolved'),true);
  assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
- run('play()');assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
- run('for(const n of cards[0].targets)judgeMidi(n)');assert.equal(run('cards[0].practiceAnswerVisible'),true);
- run('reset();play()');assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
 });
 
 test('free play has no questions or scoring and uses the shared pause controls',async()=>{
@@ -525,33 +521,14 @@ test('free play has no questions or scoring and uses the shared pause controls',
  assert.equal(nodes.get('overlay').hidden,false);assert.equal(run('Object.keys(results).length'),0);
  assert.equal(nodes.get('result-dialog').open,false);
 });
-test('every single-note stage shares chord practice scheduling, retries, transitions and pause behavior',()=>{
+test('every single-note stage shares the same practice gate and pause behavior',()=>{
  for(const id of ['notes-two','notes-three','notes-black','notes-white','notes-all']){
-  const {run,nodes}=session();run(`selectNode('${id}');startMode('practice');now=6000;render(now);const first=cards[0],next=cards[1]`);
-  assert.equal(run('scheduler instanceof Scheduler'),true);
-  assert.equal(run('cards.length'),3);assert.equal(run('cards.every(card=>card.targets.length===1)'),true);
-  assert.equal(run('metronomeOn'),false);assert.equal(run('keyboardBlurOn'),false);
-  assert.equal(nodes.get('instrument').dataset.midiFeedback,'false');
-  run('judgeMidi(next.root)');assert.equal(run('cards[0]===first'),true);
-  assert.equal(run('first.practiceSolved'),undefined);
-  run('judgeMidi(first.root)');assert.equal(run('first.practiceAnswerVisible'),true);
-  run('judgeMidi(1)');assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
-  run('judgeMidi(first.root)');assert.equal(run('first.practiceAnswerVisible'),true);
-  assert.equal(run('cards[0]===first'),true);
-  run('judgeMidi(first.root)');assert.equal(run('first.practiceAnswerVisible'),true);
-  run('const position=elements[1].style.transform;judgeMidi(next.root)');
-  assert.equal(run('cards[0]===next'),true);assert.equal(run('next.practiceAnswerVisible'),true);
-  assert.equal(run('elements[0].style.transform'),run('position'));
-  assert.equal(run('practiceFallProgress'),1);
-  run('now+=240000/90;render(now);pause()');
-  assert.equal(run('cards.length'),3);assert.equal(run('practiceFallProgress'),2);
-  assert.equal(nodes.get('instrument').dataset.paused,'true');
-  assert.equal(nodes.get('pause-screen').hidden,false);
-  assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
-  run('play()');assert.equal(nodes.get('instrument').dataset.paused,'false');
-  assert.equal(run('answerDots.get(next.root).hidden'),true);
-  run('judgeMidi(1)');assert.equal(run('next.practiceAnswerVisible'),false);
-  assert.equal(run('run.total'),0);
+  const {run,nodes}=session();run(`selectNode('${id}');startMode('practice');now=6000;render(now)`);
+  assert.equal(run('elapsed'),2);assert.equal(run('cards.every(c=>c.targets.length===1)'),true);
+  run('judgeMidi(cards[0].root);now+=240000/bpm;render(now)');assert.equal(run('elapsed'),3);
+  assert.equal(run('elements[0].hidden'),false);
+  run('judgeMidi(cards[1].root);now+=100;render(now);pause()');assert.ok(run('elapsed')>3);
+  assert.equal(nodes.get('instrument').dataset.paused,'true');assert.equal(run('run.total'),0);
  }
 });
 test('sustain follows each device and channel, clears on reset/disconnect, and does not judge released keys',async()=>{
@@ -573,16 +550,8 @@ test('settings include BPM, metronome, MIDI refresh and close without a timing r
  assert.doesNotMatch(app,/recordTimingAttack|createTimingRun|timing-export/);
 });
 
-test('practice fades the old label at the line without falling or showing feedback',()=>{
- const {run}=session();run("startMode('practice');now=6000;render(now);const old=elements[0],position=old.style.transform;for(const n of cards[0].targets)judgeMidi(n);for(const n of cards[1].targets)judgeMidi(n)");
- assert.equal(run('fadingPracticeLabels.length'),1);
- run('now+=90;render(now)');assert.ok(Math.abs(run('Number(old.style.opacity)')-.5)<1e-8);
- assert.equal(run('old.style.transform'),run('position'));
- assert.equal(run('old.dataset.feedback'),'waiting');
- run('now+=100;render(now)');assert.equal(run('fadingPracticeLabels.length'),0);
- assert.equal(run("$('falling').children.includes(old)"),false);
- assert.equal(run('mistakeStacks.size'),0);assert.equal(run('run.total'),0);
-});
+
+
 test('BPM accepts every integer from 90 to 180 and survives pause/resume in both modes',()=>{
  for(const mode of ['practice','challenge']){
   const {run,nodes}=session();run(`startMode('${mode}');now=1000;pause();openSettings()`);
@@ -591,9 +560,9 @@ test('BPM accepts every integer from 90 to 180 and survives pause/resume in both
    nodes.get('bpm').value=String(value);nodes.get('bpm').handlers.change();assert.equal(run('bpm'),value);
   }
   nodes.get('bpm').value='137';nodes.get('bpm').handlers.change();
-  run("$('settings-dialog').close();const phase=mode==='practice'?practiceFallProgress:elapsed;play();now+=1000;render(now)");
+  run("$('settings-dialog').close();const phase=mode==='practice'?elapsed:elapsed;play();now+=1000;render(now)");
   assert.equal(run('bpm'),137);
-  assert.ok(Math.abs(run("(mode==='practice'?practiceFallProgress:elapsed)-phase")-137/240)<1e-8);
+  assert.ok(Math.abs(run("(mode==='practice'?elapsed:elapsed)-phase")-137/240)<1e-8);
  }
 });
 test('tempo changes preserve committed judgment boundaries and correctly stamp future ones',()=>{
@@ -601,6 +570,30 @@ test('tempo changes preserve committed judgment boundaries and correctly stamp f
  nodes.get('bpm').value='180';nodes.get('bpm').handlers.change();
  run('play();now=7000;render(now)');
  assert.equal(run('cards[0].startAt'),run('start'));
- assert.equal(run('cards[0].endAt'),7);assert.equal(run('cards[1].startAt'),7);
+ assert.ok(Math.abs(run('cards[0].endAt')-(7-7.5/180))<1e-8);assert.equal(run('cards[0].endAt'),run('cards[1].startAt'));
  assert.equal(run('elapsed'),3);assert.equal(run('sessionSeconds'),7);
+});
+
+test('practice can play 100 consecutive early answers without freezing or scoring',()=>{
+ for(const bpm of [90,180]){
+  const {run}=session();run(`bpm=${bpm};startMode('practice');
+   for(let i=0;i<100;i++){
+    now=(i+2-1/32)*240000/bpm;render(now);
+    for(const note of cards[i].targets)judgeMidi(note);
+    now=(i+2.1)*240000/bpm;render(now);
+    if(Math.abs(elapsed-(i+2.1))>1e-8)throw Error('Unexpected freeze at '+i);
+   }`);
+  assert.equal(run('run.total'),0);assert.equal(run('running'),true);
+ }
+});
+test('audio scheduling honors practice gates and does not replay contact on manual resume',()=>{
+ const events=[];
+ const audio={currentTime:0,state:'running',resume(){return Promise.resolve();},destination:{},createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}};},createOscillator(){return {frequency:{setValueAtTime(){}},connect(){},disconnect(){},stop(){},start(at){events.push({at,oscillator:this});}};}};
+ const {run}=session({AudioContext:function(){return audio;}});
+ run("startMode('practice');metronomeOn=true;unlockAudio();now=5300;render(now)");
+ assert.equal(events.length,1);assert.equal(events[0].oscillator.scheduledBeat,8);
+ audio.currentTime=.04;run('now=6000;render(now);now=60000;render(now)');assert.equal(events.length,1);
+ run('pause();play();render(now)');assert.equal(events.length,1);
+ run('for(const note of cards[0].targets)judgeMidi(note);render(now)');assert.equal(events.length,1);
+ audio.currentTime=.7;run('now+=240000/90/4;render(now)');assert.equal(events.at(-1).oscillator.scheduledBeat,9);
 });

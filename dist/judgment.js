@@ -1,11 +1,11 @@
 import {notes} from './theory.js';
-export const WINDOW_ADVANCE_SECONDS=0;
-export const JUDGMENT_POLICY='visual-boundary';
+import {earlySeconds} from './performance.js';
+export const JUDGMENT_POLICY='early-thirty-second-note';
 const EPS=1e-9;
 export function prepareAttempt(card){return {...card,targets:card.kind==='note'?[card.root]:notes(card.root,card.q,card.inv),hits:new Set(),wrong:false,assisted:false,ended:false};}
 // Commit each shifted boundary once, in active training seconds. A tempo change
 // may move a future boundary, but can never reopen or backdate a committed one.
-export function stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm,advanceSeconds=WINDOW_ADVANCE_SECONDS){
+export function stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm,advanceSeconds=earlySeconds(bpm)){
  const period=240/bpm;
  const boundaryAt=boundary=>Math.max(fromSeconds,fromSeconds+(boundary-fromProgress)*period-advanceSeconds);
  cards.forEach((card,i)=>{
@@ -34,3 +34,13 @@ export function applyAttack(card,note){
 }
 export function isCorrect(card){return !card.wrong&&card.targets.every(n=>card.hits.has(n));}
 export function canSettle(card,seconds){return !card.ended&&card.endAt!==undefined&&seconds+EPS>=card.endAt;}
+
+// Practice retries are independent of challenge scoring. Success is latched;
+// later attacks cannot revoke passage or transfer old hits to the next label.
+export function applyPracticeAttack(card,note,held=[]){
+ if(card.practiceSolved)return;
+ const target=targetForNote(card,note);
+ if(target===undefined){card.hits.clear();return;}
+ card.hits.add(target);
+ if(card.targets.every(n=>card.hits.has(n))&&!held.some(n=>targetForNote(card,n)===undefined))card.practiceSolved=true;
+}

@@ -1,5 +1,5 @@
 {
-  "gridCases": 160016,
+  "gridCases": 80008,
   "eventCases": 20001,
   "assertions": "passed",
   "examples": [
@@ -9,7 +9,6 @@
       "seconds": 1800,
       "total": 100,
       "correct": 100,
-      "failed": false,
       "accuracy": 1,
       "factors": {
         "duration": 1
@@ -23,7 +22,6 @@
       "seconds": 900,
       "total": 100,
       "correct": 100,
-      "failed": false,
       "accuracy": 1,
       "factors": {
         "duration": 0.5
@@ -37,7 +35,6 @@
       "seconds": 1620,
       "total": 100,
       "correct": 100,
-      "failed": false,
       "accuracy": 1,
       "factors": {
         "duration": 0.9
@@ -51,27 +48,12 @@
       "seconds": 1800,
       "total": 100,
       "correct": 90,
-      "failed": false,
       "accuracy": 0.9,
       "factors": {
         "duration": 1
       },
       "score": 90,
       "stars": 3
-    },
-    {
-      "name": "堆叠触线",
-      "started": true,
-      "seconds": 1790,
-      "total": 100,
-      "correct": 99,
-      "failed": true,
-      "accuracy": 0.99,
-      "factors": {
-        "duration": 0.9944444444444445
-      },
-      "score": 0,
-      "stars": 0
     }
   ]
 }
