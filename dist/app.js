@@ -19,7 +19,8 @@ let mode='challenge';
 let bpm=90;
 const practiceSettings={metronomeOn:false};
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
-let sessionSeconds=0,strikeFlashAt=-Infinity;
+let sessionSeconds=0,strikeFlashAt=-Infinity,outroBeats=0;
+const LABEL_FADE_SECONDS=.18;
 const MAX_SECONDS=TOTAL_SECONDS;
 let screenLock=null,screenLockGeneration=0;
 function releaseScreenLock(){
@@ -90,7 +91,6 @@ function scheduleMetronome(){
  const schedule=metronomeBeats(elapsed,bpm,nextAudioBeat??Math.max(Math.ceil(elapsed*4-EPSILON),lastAudioBeat+1),stopProgress(cards,mode));
  nextAudioBeat=schedule.nextBeat;
  for(const {beat,delay,accent} of schedule.events){
-  if(mode==='challenge'&&sessionSeconds+delay>=MAX_SECONDS)break;
   const time=audioContext.currentTime+delay;
   const oscillator=audioContext.createOscillator(),gain=audioContext.createGain();
   oscillator.frequency.setValueAtTime(accent?1400:1000,time);
@@ -382,6 +382,7 @@ function showHome(){
 // A card at index i touches the line at musical progress i + 2.
 function canReachLine(index){
  if(mode==='practice')return true;
+ if(sessionSeconds>=MAX_SECONDS)return false;
  return sessionSeconds+(index+2-elapsed)*240/bpm<MAX_SECONDS-1e-9;
 }
 function syncCards(){
@@ -430,7 +431,7 @@ function appendCard(){
 }
 function reset(){
  releaseScreenLock();stopMetronome();lastAudioBeat=-1;
- running=false;started=false;finished=false;$('pause-screen').hidden=true;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
+ running=false;started=false;finished=false;$('pause-screen').hidden=true;elapsed=0;previous=0;sessionSeconds=0;outroBeats=0;settled=0;run=createRun();
  scheduler=mode!=='free'&&stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
  updateTrainingHeader();$('result-dialog').close();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
  cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
@@ -486,6 +487,7 @@ function settleCard(card){
  if(card.ended)return;
  card.ended=true;run.total++;
  if(isCorrect(card)){run.correct++;if(!card.assisted)scheduler.record(card.id,'correct');return;}
+ card.feedback='wrong';
  if(!card.errorRecorded){card.errorRecorded=true;scheduler.record(card.id,'wrong');}
 
 }
@@ -506,7 +508,6 @@ function advance(now){
  let remaining=Math.max(0,(now-previous)/1000);
  previous=now;
  if(mode==='free'){sessionSeconds+=remaining;updateTimer();return;}
- if(mode==='challenge')remaining=Math.min(remaining,MAX_SECONDS-sessionSeconds);
  while(remaining>EPSILON){
   syncCards();
   const fromProgress=elapsed,fromSeconds=sessionSeconds;
@@ -521,15 +522,22 @@ function advance(now){
     card.fadeAt=fromSeconds+Math.max(0,index+3-fromProgress)*240/bpm;
    }
   });
+  if(mode==='challenge'&&sessionSeconds>=MAX_SECONDS){
+   const lastFadeAt=cards.at(-1)?.fadeAt;
+   if(lastFadeAt!==undefined){
+    // Count musical beats only after the final label has fully disappeared.
+    const blankSeconds=Math.max(0,sessionSeconds-Math.max(fromSeconds,lastFadeAt+LABEL_FADE_SECONDS));
+    outroBeats+=blankSeconds*bpm/60;
+   }
+  }
   const boundary=Math.floor(elapsed+EPSILON);
   if(boundary>=2&&boundary>Math.floor(fromProgress+EPSILON)&&cards[boundary-2]){
    strikeFlashAt=fromSeconds+(boundary-fromProgress)*240/bpm;
   }
  }
  if(mode==='challenge'){
-  if(MAX_SECONDS-sessionSeconds<EPSILON)sessionSeconds=MAX_SECONDS;
-  run.seconds=sessionSeconds;
-  if(sessionSeconds>=MAX_SECONDS)complete();
+  run.seconds=Math.min(sessionSeconds,MAX_SECONDS);
+  if(outroBeats>=4-EPSILON)complete();
  }
  updateTimer();
 }
@@ -543,8 +551,8 @@ function paintScene(){
  const blocked=mode==='practice'?practiceBlockedIndex(cards):-1;
  cards.forEach((card,index)=>{
   const el=elements[index],geometry=labelGeometry(index,elapsed,height,zoneHeight);
-  const opacity=card.fadeAt===undefined?1:Math.max(0,1-(sessionSeconds-card.fadeAt)/.18);
-  el.hidden=geometry.hidden||opacity<=0;
+  const opacity=card.fadeAt===undefined?1:Math.max(0,1-(sessionSeconds-card.fadeAt)/LABEL_FADE_SECONDS);
+  el.hidden=geometry.hidden||opacity<=EPSILON;
   el.dataset.landed=String(geometry.landed);
   // During dual retries, only A shows errors; B stays neutral until it unlocks.
   el.dataset.feedback=blocked>=0&&index===blocked+1?'waiting':card.feedback||'waiting';

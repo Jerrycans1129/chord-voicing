@@ -142,7 +142,7 @@ test('unplayed labels stay opaque until bottom contact before fading',()=>{
  const {run}=session();run('play();now=5500;render(now)');
  assert.equal(run('elements[0].style.opacity'),'1');
  run('now=7999;render(now)');assert.equal(run('elements[0].style.opacity'),'1');
- assert.equal(run('cards[0].feedback'),undefined);
+ assert.equal(run('cards[0].feedback'),'wrong');
  run('now=8000;render(now)');assert.equal(run('elements[0].hidden'),false);
  run('now=8200;render(now)');assert.equal(run('elements[0].hidden'),true);
  assert.equal(run('elements[1].style.opacity'),'1');
@@ -233,7 +233,8 @@ test('tail cards must touch strictly before the deadline at every tempo',()=>{
    run(`now=${ms};render(now)`);
    assert.equal(run('cards.every((c,i)=>sessionSeconds+(i+2-elapsed)*240/bpm<MAX_SECONDS-1e-9)'),true);
   }
-  run('now=1800000;render(now)');assert.equal(run('finished'),true);
+  run('now=1800000;render(now)');assert.equal(run('finished'),false);
+  run('now=1820000;render(now)');assert.equal(run('finished'),true);
  }
 });
 test('result stars preserve half-star ratings without a numerical score',()=>{
@@ -393,13 +394,16 @@ test('repeated errors never terminate challenge early or create a failure score'
  const {run}=session();run('play();now=100000;render(now)');
  assert.equal(run('finished'),false);assert.ok(run('run.total')>8);
  assert.equal(run("'failed' in run"),false);
- run('now=1800000;render(now)');assert.equal(run('finished'),true);assert.equal(run('run.seconds'),1800);
+ run('now=1800000;render(now)');assert.equal(run('finished'),false);
+  run('now=1820000;render(now)');assert.equal(run('finished'),true);assert.equal(run('run.seconds'),1800);
 });
 
 
 
 test('full thirty minutes with correct MIDI answers finishes and awards three stars',()=>{
  const {run,nodes}=session();run(`play();for(let i=0;i<673;i++){now=(i+2)*240000/90+1;render(now);for(const n of cards[i].targets)judgeMidi(n);}now=1800000;render(now)`);
+ assert.equal(run('finished'),false);
+ run('now=1810000;render(now)');
  assert.equal(run('finished'),true);assert.equal(run('run.seconds'),1800);
  assert.equal(run('calculateScore(run).stars'),3);assert.equal(nodes.get('training-time').textContent,'00:00');
 });
@@ -622,6 +626,69 @@ test('a correct answer followed by a wrong note before close freezes, while part
   if(attempt==='correct-then-wrong')run('for(const n of cards[0].targets)judgeMidi(n);judgeMidi(1)');
   if(attempt==='partial')run('judgeMidi(cards[0].targets[0])');
   run('now=16000;render(now)');assert.equal(run('elapsed'),3);
-  assert.equal(run('elements[0].dataset.feedback'),attempt==='correct-then-wrong'?'wrong':'waiting');
+  assert.equal(run('elements[0].dataset.feedback'),'wrong');
+ }
+});
+
+
+test('challenge waits for the final note or chord fade and then exactly four beats',()=>{
+ for(const stage of ['notes-two','triad'])for(const tempo of [90,137,180]){
+  const {run,nodes}=session();
+  if(stage==='notes-two')run("selectNode('notes-two')");
+  run(`bpm=${tempo};play();now=1800000;render(now)`);
+  const count=run('cards.length');
+  run('now+=(cards.length+2-elapsed)*240000/bpm;render(now)');
+  assert.equal(run('finished'),false);
+  assert.equal(run('elements.at(-1).hidden'),false);
+  run('now+=180;render(now)');
+  assert.equal(run('elements.at(-1).hidden'),true);
+  assert.equal(nodes.get('result-dialog').open,false);
+  run('now+=3.99*60000/bpm;render(now)');
+  assert.equal(nodes.get('result-dialog').open,false);
+  run('now+=.01*60000/bpm;render(now)');
+  assert.equal(nodes.get('result-dialog').open,true);
+  assert.equal(run('cards.length'),count);
+  assert.equal(run('run.total'),count);
+  assert.equal(run('run.seconds'),1800);
+ }
+});
+test('outro pauses, follows tempo changes, and resets on retry',()=>{
+ const {run,nodes}=session();
+ run('play();now=1800180;render(now);now+=60000/bpm;pause()');
+ assert.ok(Math.abs(run('outroBeats')-1)<1e-8);
+ run('now+=60000;render(now)');
+ assert.equal(nodes.get('result-dialog').open,false);
+ run('bpm=180;play();now+=2.99*60000/bpm;render(now)');
+ assert.equal(nodes.get('result-dialog').open,false);
+ run('now+=.01*60000/bpm;render(now)');
+ assert.equal(nodes.get('result-dialog').open,true);
+ run('reset()');assert.equal(run('outroBeats'),0);
+});
+
+
+test('unplayed notes and incomplete chords turn red at window close before bottom contact',()=>{
+ for(const mode of ['challenge','practice'])for(const kind of ['note','silent-chord','partial-chord'])for(const tempo of [90,137,180]){
+  const {run}=session();
+  if(kind==='note')run("selectNode('notes-two')");
+  run(`bpm=${tempo};startMode('${mode}');now=2.5*240000/bpm;render(now)`);
+  if(kind==='partial-chord')run('judgeMidi(cards[0].targets[0])');
+  run('now=(3-1/32)*240000/bpm-1;render(now)');
+  assert.equal(run('elements[0].dataset.feedback'),'waiting');
+  run('now+=1;render(now)');
+  assert.equal(run('elements[0].dataset.feedback'),'wrong');
+  assert.equal(run('elements[0].hidden'),false);
+  assert.ok(run('elapsed')<3);
+  const before=run('elements[0].style.transform');
+  run('now=3*240000/bpm;render(now)');
+  assert.notEqual(run('elements[0].style.transform'),before);
+  assert.equal(run('elements[0].style.transform'),'translateY(264px)');
+  assert.equal(run('elements[0].dataset.feedback'),'wrong');
+  run('now+=200;render(now)');
+  assert.equal(run('elements[0].hidden'),mode==='challenge');
+  if(mode==='practice'){
+   assert.equal(run('elapsed'),3);
+   run('for(const note of cards[0].targets)judgeMidi(note)');
+   assert.equal(run('elements[0].dataset.feedback'),'correct');
+  }
  }
 });

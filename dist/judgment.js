@@ -62,7 +62,7 @@ export function updatePracticeState(cards,progress){
   const card=cards[i];
   if(!card.practiceClosed&&progress>=i+3-EARLY_BARS-EPSILON){
    card.practiceClosed=true;card.practicePassed=isCorrect(card);
-   if(!card.practicePassed)break;
+   if(!card.practicePassed){card.feedback='wrong';break;}
   }
  }
 }
