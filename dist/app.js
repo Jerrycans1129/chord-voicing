@@ -1,6 +1,6 @@
 import {stages,names,qualities,curriculum,selectable,supportsPractice,currentProgress} from './theory.js';
 import {BUILD_REVISION} from './build.js';
-import {Scheduler,PracticeScheduler,cleanLevels} from './scheduler.js';
+import {Scheduler,cleanLevels} from './scheduler.js';
 import {VERSION,TOTAL_SECONDS,createRun,recordConditions,calculateScore,cleanResults} from './scoring.js';
 import {activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,isCorrect,canSettle} from './judgment.js';
 const $=id=>document.getElementById(id);
@@ -15,7 +15,7 @@ let expandedTop=stages[stageIndex].projectId;
 let expandedQuality=stages[stageIndex].id.startsWith('quality-')?stages[stageIndex].id:stages[stageIndex].parent?.startsWith('quality-')?stages[stageIndex].parent:null;
 let scheduler,settled=0,run=createRun();
 let mode='challenge';
-const PRACTICE_FALL_BARS=6;
+const PRACTICE_FALL_BARS=2;
 let practiceFallProgress=0;
 let bpm=90;
 const practiceSettings={metronomeOn:false};
@@ -55,9 +55,9 @@ $('instrument').dataset.phone=String(phoneLayout);
 let keyboardBlurOn=true;
 function updateKeyboardBlur(){
  $('instrument').dataset.running=String(running);
- $('instrument').dataset.midiFeedback=String(mode!=='practice'||!running);
+ $('instrument').dataset.midiFeedback=String(mode!=='practice');
  $('instrument').dataset.challenge=String(mode==='challenge'&&started&&!finished);
- $('instrument').dataset.paused=String(mode==='challenge'&&started&&!finished&&!running);
+ $('instrument').dataset.paused=String(mode!=='free'&&started&&!finished&&!running);
  $('instrument').dataset.hideKeys=String(phoneLayout&&keyboardBlurOn);
  $('keyboard').dataset.obscured=String(running&&keyboardBlurOn&&!phoneLayout);
  $('keyboard-frost').hidden=phoneLayout||!keyboardBlurOn;
@@ -185,23 +185,33 @@ function judgeMidi(note){
 }
 
 function recognizePracticePreview(note){
- if(practiceFallProgress<PRACTICE_FALL_BARS)return;
- const current=cards[0],card=current?.practiceSolved?cards[1]:current;
- if(!card)return;
- const target=targetForNote(card,note);
- if(target===undefined){card.hits.clear();return;}
- card.hits.add(target);
- if(!card.targets.every(n=>card.hits.has(n)))return;
- // Extra physically held notes must not turn an incomplete/incorrect voicing into advancement.
- const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
- if(held.some(n=>targetForNote(card,n)===undefined))return;
- card.practiceSolved=true;card.hits.clear();
- if(card!==current){
-  cards.shift();elements.shift();$('falling').replaceChildren(...elements);
-  practiceFallProgress=PRACTICE_FALL_BARS-1;
+ const current=cards[0];
+ if(!current)return;
+ // The next attack clears the displayed result and starts a fresh attempt.
+ if(current.practiceAnswerVisible){
+  current.practiceAnswerVisible=false;
+  for(const card of cards)card.hits.clear();
+  showAnswer();
  }
- // This attack completes only one card; the next card requires fresh input.
- showAnswer();paintScene();
+ if(practiceFallProgress<PRACTICE_FALL_BARS)return;
+ const candidates=current.practiceSolved?[current,cards[1]]:[current];
+ const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
+ for(const card of candidates){
+  if(!card)continue;
+  const target=targetForNote(card,note);
+  if(target===undefined){card.hits.clear();continue;}
+  card.hits.add(target);
+  if(!card.targets.every(n=>card.hits.has(n)))continue;
+  if(held.some(n=>targetForNote(card,n)===undefined))continue;
+  card.practiceSolved=true;card.practiceAnswerVisible=true;
+  for(const candidate of cards)candidate.hits.clear();
+  if(card!==current){
+   cards.shift();elements.shift();$('falling').replaceChildren(...elements);
+   practiceFallProgress-=1;
+  }
+  // A successful attack belongs to this result only.
+  showAnswer();paintScene();return;
+ }
 }
 
 function syncMidiInputs(){
@@ -406,9 +416,9 @@ function hidePauseControls(){
 }
 function visualQuestionIndex(){return mode==='practice'?0:Math.max(0,Math.floor(elapsed-2));}
 function showAnswer(){
- // Practice reveals solved answers while running, or the current answer while paused.
+ // Practice answers are visible only during active practice.
  const active=cards[visualQuestionIndex()];
- const card=mode==='free'||(mode==='practice'&&running&&!active?.practiceSolved)?null:active;
+ const card=mode==='free'||(mode==='practice'&&(!running||!active?.practiceAnswerVisible))?null:active;
  if(card)card.assisted=true;
  for(const [midi,dot] of answerDots)dot.hidden=!card||targetForNote(card,midi)===undefined;
 }
@@ -429,8 +439,7 @@ function canReachLine(index){
 function syncCards(){
  if(mode==='free')return;
  if(mode==='practice'){
-  if(!cards.length)appendCard();
-  if(started&&!finished&&practiceFallProgress>=PRACTICE_FALL_BARS&&cards.length===1)appendCard();
+  while(cards.length<=Math.floor(practiceFallProgress))appendCard();
   return;
  }
  // Tempo changes can invalidate only the unlanded tail. Keep settled attempts.
@@ -477,9 +486,8 @@ function appendCard(){
 }
 function reset(){
  releaseScreenLock();stopMetronome();
- running=false;started=false;finished=false;practiceFallProgress=mode==='practice'?PRACTICE_FALL_BARS-1:0;mistakeStacks.clear();$('mistake-blocks').replaceChildren();$('pause-screen').hidden=true;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
- const SchedulerClass=mode==='practice'?PracticeScheduler:Scheduler;
- scheduler=mode!=='free'&&stageIndex>=0?new SchedulerClass(stages[stageIndex],{levels}):null;
+ running=false;started=false;finished=false;practiceFallProgress=0;mistakeStacks.clear();$('mistake-blocks').replaceChildren();$('pause-screen').hidden=true;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
+ scheduler=mode!=='free'&&stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
  updateTrainingHeader();$('result-dialog').close();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
  cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
 }
@@ -492,7 +500,6 @@ function pauseSession(){
  running=false;strikeFlashAt=-Infinity;updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;
  hidePauseControls();$('pause-screen').hidden=false;
- if(mode==='practice')showAnswer();
  paintScene();
 }
 function canStartTraining(){
@@ -606,11 +613,12 @@ function paintScene(){
     el.style.transform=`translateY(${y}px)`;
    });return;
   }
-  const bottom=Math.max(0,height-36),barDistance=bottom/PRACTICE_FALL_BARS;
+  const line=height;
   elements.forEach((el,index)=>{
-   el.hidden=false;el.dataset.landed=String(index===0&&practiceFallProgress>=PRACTICE_FALL_BARS);
+   const phase=practiceFallProgress-index;
+   el.hidden=phase<0;el.dataset.landed=String(phase>=PRACTICE_FALL_BARS);
    paintFeedback(index);
-   const y=index===0?practiceFallProgress*barDistance:bottom-barDistance;
+   const y=-44+(phase/PRACTICE_FALL_BARS)*(line+8);
    el.style.transform=`translateY(${y}px)`;
   });
   showAnswer();
