@@ -771,3 +771,36 @@ test('visual count-in hides on pause and exit, resumes at the same beat and clea
  run("startMode('practice')");assert.equal(nodes.get('practice-count-in').hidden,true);
  run('reset()');assert.equal(nodes.get('practice-count-in').hidden,true);
 });
+
+
+test('opening cues occupy the last four approach beats and the first input window opens only a thirty-second note before contact',()=>{
+ for(const mode of ['practice','challenge'])for(const stage of ['notes-two','notes-all','major-root'])for(const tempo of mode==='practice'?[40,90,180]:[120]){
+  const {run,nodes}=session();
+  if(stage!=='major-root')run(`selectNode('${stage}')`);
+  run(`practiceSettings.bpm=${tempo};startMode('${mode}');judgeMidi(cards[0].targets[0]);judgeMidi(1)`);
+  assert.equal(run('cards[0].startAt'),undefined);
+  assert.equal(run('cards[0].hits.size'),0);assert.equal(run('cards[0].wrong'),false);
+  assert.equal(nodes.get('practice-count-in').hidden,true);
+  run('metronomeOn=false;now=240000/bpm-1;render(now)');
+  assert.equal(nodes.get('practice-count-in').hidden,true);
+  for(let beat=0;beat<4;beat++){
+   run(`now=(4+${beat})*60000/bpm;render(now);judgeMidi(cards[0].targets[0]);judgeMidi(1)`);
+   assert.equal(nodes.get('practice-count-in').hidden,false);
+   assert.equal(nodes.get('practice-count-in').textContent,['3','2','1','GO!'][beat]);
+   assert.equal(run('cards[0].hits.size'),0);assert.equal(run('cards[0].wrong'),false);
+  }
+  run('now=(2-1/32)*240000/bpm-1;judgeMidi(cards[0].targets[0])');
+  assert.equal(run('cards[0].hits.size'),0);
+  run('now+=1;judgeMidi(cards[0].targets[0])');
+  assert.equal(run('cards[0].hits.size'),1);
+  assert.equal(nodes.get('practice-count-in').textContent,'GO!');
+  run('now=2*240000/bpm;render(now)');assert.equal(nodes.get('practice-count-in').hidden,true);
+ }
+});
+test('opening count-in survives pause and a practice tempo change without replaying earlier numbers',()=>{
+ const {run,nodes}=session();run("startMode('practice');now=5*60000/bpm;pause()");
+ assert.equal(nodes.get('practice-count-in').hidden,true);
+ nodes.get('bpm-increase').handlers.click({stopPropagation(){}});
+ run('now+=60000;play()');assert.equal(nodes.get('practice-count-in').textContent,'2');
+ run('now+=60000/bpm;render(now)');assert.equal(nodes.get('practice-count-in').textContent,'1');
+});

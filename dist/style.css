@@ -136,4 +136,4 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 
 .instrument[data-challenge="true"] #performance-frost{backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
 
-#practice-count-in{position:absolute;inset:0;z-index:4;display:grid;place-items:center;pointer-events:none;font-size:clamp(80px,min(20vw,30vh),180px);font-weight:800;line-height:1;letter-spacing:.02em;color:var(--accent);text-shadow:0 4px 24px #07100c,0 0 60px #07100ccc}
+#practice-count-in{position:absolute;inset:0;z-index:0;display:grid;place-items:center;pointer-events:none;font-size:clamp(64px,min(16vw,24vh),144px);font-weight:300;line-height:1;letter-spacing:.06em;color:rgb(180 202 170 / .26);text-shadow:none;font-variant-numeric:tabular-nums}

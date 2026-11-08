@@ -574,10 +574,13 @@ function paintScene(){
  updateTrainingHeader();
  const recoveryIndex=mode==='practice'?practiceBlockedIndex(cards):-1;
  const retryBeats=recoveryIndex>=0?cards[recoveryIndex].retryBeats:undefined;
+ // Opening labels travel for eight beats; cue the final bar before contact.
+ const openingBeats=mode!=='free'&&elapsed>=1-EPSILON&&elapsed<2-EPSILON?Math.max(0,(elapsed-1)*4):undefined;
+ const cueBeats=retryBeats??openingBeats;
  const countIn=$('practice-count-in');
- countIn.hidden=!running||finished||retryBeats===undefined||retryBeats>=4-EPSILON;
+ countIn.hidden=!running||finished||cueBeats===undefined||cueBeats>=4-EPSILON;
  if(!countIn.hidden){
-  const label=['3','2','1','GO!'][Math.min(3,Math.floor(retryBeats+EPSILON))];
+  const label=['3','2','1','GO!'][Math.min(3,Math.floor(cueBeats+EPSILON))];
   if(countIn.textContent!==label)countIn.textContent=label;
  }
  const flash=running&&!finished?Math.max(0,1-(sessionSeconds-strikeFlashAt)/.18):0;
