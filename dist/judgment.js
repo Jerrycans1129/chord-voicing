@@ -54,7 +54,9 @@ export function updatePracticeState(cards,progress){
   const card=cards[blocked];
   if(progress>=blocked+3-EPSILON&&!card.practiceRetryStarted){
    card.practiceRetryStarted=true;
-   card.hits.clear();cards[blocked+1]?.hits.clear();
+   card.hits.clear();
+   const next=cards[blocked+1];
+   if(next){next.hits.clear();next.wrong=false;next.feedback=undefined;next.startAt=undefined;}
   }
   return;
  }
@@ -70,16 +72,19 @@ export function practiceAttackTargets(cards,progress,seconds){
  const blocked=practiceBlockedIndex(cards);
  if(blocked<0)return attackTargets(cards,seconds).indices;
  // The small gap before bottom contact deliberately ignores all input.
- return progress<blocked+3-EPSILON?[]:[blocked+1,blocked];
+ if(progress<blocked+3-EPSILON)return [];
+ const recovery=cards[blocked].retryBeats;
+ if(recovery!==undefined)return recovery>=4-EARLY_BARS*4-EPSILON?[blocked+1]:[];
+ return [blocked];
 }
 export function applyPracticeInput(cards,progress,seconds,note,held=[]){
  const blocked=practiceBlockedIndex(cards);
  for(const index of practiceAttackTargets(cards,progress,seconds)){
   const card=cards[index];if(!card)continue;
   applyPracticeAttack(card,note,held);
-  if(blocked>=0&&index===blocked+1&&isCorrect(card)){
-   cards[blocked].practicePassed=true;cards[blocked].fadeAt=seconds;
-   return; // B takes precedence, including identical physical voicings.
+  if(blocked>=0&&index===blocked&&isCorrect(card)){
+   card.retryBeats=0;card.fadeAt=seconds;card.feedback='wrong';
+   return;
   }
  }
 }

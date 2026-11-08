@@ -471,27 +471,31 @@ test('practice correct answers can become wrong and recover during the full meas
  run('now=8100;render(now)');assert.ok(run('elapsed')>3);assert.equal(run('cards[0].practicePassed'),true);
 });
 
-test('failed A creates an input gap then dual retries with B priority and stationary fade',()=>{
+test('failed A retries once, fades red and releases B after a full count-in',()=>{
  for(const bpm of [90,137,180]){
   const {run}=session();run(`bpm=${bpm};startMode('practice');now=2.5*240000/bpm;render(now);cards[0].targets=[60,64,67];cards[1].targets=[62,65,69];judgeMidi(60);now=(3-1/32)*240000/bpm;render(now)`);
   run('for(const n of cards[0].targets)judgeMidi(n);for(const n of cards[1].targets)judgeMidi(n)');
   assert.equal(run('cards[0].hits.size'),1);assert.equal(run('cards[1].hits.size'),0);
-  run('now=3*240000/bpm;render(now)');assert.equal(run('elapsed'),3);assert.equal(run('cards[0].hits.size'),0);
-  assert.equal(run('elements[0].style.transform'),'translateY(264px)');
-  run('for(const n of cards[0].targets)judgeMidi(n)');assert.equal(run('isCorrect(cards[0])'),true);
-  assert.equal(run('cards[0].practicePassed'),false);
-  run('judgeMidi(1)');assert.equal(run('elements[0].dataset.feedback'),'wrong');
-  assert.equal(run('cards[1].wrong'),true);assert.equal(run('elements[1].dataset.feedback'),'waiting');
-  run('for(const n of cards[0].targets)judgeMidi(n)');
-  assert.equal(run('elements[0].dataset.feedback'),'correct');
-  assert.equal(run('elements[1].dataset.feedback'),'waiting');
+  run('now=3*240000/bpm;render(now);for(const n of cards[1].targets)judgeMidi(n)');
+  assert.equal(run('cards[1].hits.size'),0);
+  run('for(const n of cards[0].targets)judgeMidi(n);const retryAt=now');
+  assert.equal(run('cards[0].retryBeats'),0);
+  assert.equal(run('elements[0].dataset.feedback'),'wrong');
+  run('judgeMidi(1);now+=90;render(now)');
+  assert.ok(Math.abs(run('Number(elements[0].style.opacity)')-.5)<1e-8);
   assert.equal(run('elapsed'),3);
-  run('for(const n of cards[1].targets)judgeMidi(n)');assert.equal(run('cards[0].practicePassed'),true);assert.equal(run('isCorrect(cards[1])'),true);
-  run('now+=90;render(now)');assert.ok(Math.abs(run('Number(elements[0].style.opacity)')-.5)<1e-8);
-  assert.equal(run('elements[0].style.transform'),'translateY(264px)');assert.ok(run('elapsed')>3);
-  run('judgeMidi(1)');assert.equal(run('elements[1].dataset.feedback'),'wrong');
-  run('now+=100;render(now)');assert.equal(run('elements[0].hidden'),true);
-  run('now+=240000/bpm;render(now)');assert.equal(run('elapsed'),4);
+  run('now=retryAt+3.875*60000/bpm-1;render(now);for(const n of cards[1].targets)judgeMidi(n)');
+  assert.equal(run('cards[1].hits.size'),0);
+  run('now+=1;render(now);for(const n of cards[1].targets)judgeMidi(n)');
+  assert.equal(run('isCorrect(cards[1])'),true);
+  assert.equal(run('elements[0].hidden'),true);
+  run('now=retryAt+4*60000/bpm;render(now)');
+  assert.equal(run('cards[0].practicePassed'),true);
+  assert.equal(run('elapsed'),3);
+  assert.equal(run('strikeFlashAt'),run('sessionSeconds'));
+  run('now+=100;render(now)');assert.ok(run('elapsed')>3);
+  run('now=retryAt+8*60000/bpm;render(now)');
+  assert.equal(run('cards[1].practicePassed'),true);
  }
 });
 
@@ -543,7 +547,7 @@ test('every single-note stage shares full-window practice and bottom retry behav
   const {run,nodes}=session();run(`selectNode('${id}');startMode('practice');now=8000;render(now)`);
   assert.equal(run('elapsed'),3);assert.equal(run('cards.every(c=>c.targets.length===1)'),true);
   run('judgeMidi(cards[0].root)');assert.equal(run('cards[0].practicePassed'),false);
-  run('judgeMidi(cards[1].root);now+=100;render(now);pause()');assert.ok(run('elapsed')>3);
+  run('judgeMidi(cards[1].root);now+=240000/bpm+100;render(now);pause()');assert.ok(run('elapsed')>3);
   assert.equal(nodes.get('instrument').dataset.paused,'true');assert.equal(run('run.total'),0);
  }
 });
@@ -603,22 +607,48 @@ test('practice can play 100 consecutive early answers without freezing or scorin
   assert.equal(run('run.total'),0);assert.equal(run('running'),true);
  }
 });
-test('audio scheduling honors practice gates and does not replay contact on manual resume',()=>{
+function audioFixture(){
  const events=[];
- const audio={currentTime:0,state:'running',resume(){return Promise.resolve();},destination:{},createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}};},createOscillator(){return {frequency:{setValueAtTime(){}},connect(){},disconnect(){},stop(){},start(at){events.push({at,oscillator:this});}};}};
- const {run}=session({AudioContext:function(){return audio;}});
- run("startMode('practice');metronomeOn=true;unlockAudio();now=7960;render(now)");
- assert.equal(events.length,1);assert.equal(events[0].oscillator.scheduledBeat,12);
- audio.currentTime=.04;run('now=8000;render(now);now=60000;render(now)');assert.equal(events.length,1);
- run('pause();play();render(now)');assert.equal(events.length,1);
- run('for(const note of cards[1].targets)judgeMidi(note);render(now)');assert.equal(events.length,1);
- audio.currentTime=.7;run('now+=240000/90/4;render(now)');assert.equal(events.at(-1).oscillator.scheduledBeat,13);
+ const audio={currentTime:0,state:'running',resume(){return Promise.resolve();},destination:{},createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}};},createOscillator(){const oscillator={frequency:{setValueAtTime(value){oscillator.pitch=value;}},connect(){},disconnect(){},stop(){},start(at){events.push({at,oscillator:this});}};return oscillator;}};
+ const app=session({AudioContext:function(){return audio;}});
+ return {...app,events,audio};
+}
+test('practice defaults to audible count-in with one accent on release and respects mute',()=>{
+ for(const muted of [false,true]){
+  const {run,nodes,events,audio}=audioFixture();
+  run("startMode('practice')");assert.equal(run('metronomeOn'),true);
+  if(muted)nodes.get('metronome').handlers.click({stopPropagation(){}});
+  audio.currentTime=8;run('now=8000;render(now)');
+  const before=events.length;
+  run('cards[0].targets=[60];cards[1].targets=[62];judgeMidi(60)');
+  for(let beat=1;beat<=4;beat++){
+   audio.currentTime=8+beat*60/90;
+   run(`now=8000+${beat}*60000/bpm;render(now)`);
+  }
+  const count=events.slice(before);
+  assert.deepEqual(count.map(e=>e.oscillator.pitch),muted?[]:[1400,1000,1000,1000,1400]);
+  if(!muted)for(let i=0;i<count.length;i++)assert.ok(Math.abs(count[i].at-(8+i*60/90))<1e-8);
+  assert.equal(run('cards[0].practicePassed'),true);
+  assert.equal(run('elapsed'),3);
+  run('render(now)');assert.equal(events.length,before+count.length);
+ }
 });
-
-test('identical voicings during dual detection resolve B first without consuming the attack for A',()=>{
- const {run}=session();run("startMode('practice');now=8000;render(now);cards[0].targets=[60];cards[1].targets=[60];cards[0].wrong=true;judgeMidi(60)");
- assert.equal(run('cards[0].practicePassed'),true);assert.equal(run('cards[0].wrong'),true);
- assert.equal(run('isCorrect(cards[1])'),true);
+test('count-in pauses, changes tempo by remaining beats, and resets on restart',()=>{
+ const {run,audio,events}=audioFixture();
+ run("startMode('practice');now=8000;render(now);for(const n of cards[0].targets)judgeMidi(n)");
+ audio.currentTime=1;run('now+=60000/bpm;pause();const beats=cards[0].retryBeats;now+=60000;render(now)');
+ assert.ok(Math.abs(run('beats')-1)<1e-8);
+ assert.equal(run('cards[0].retryBeats'),run('beats'));
+ run('bpm=180;play();render(now)');const count=events.length;
+ run('render(now)');assert.equal(events.length,count);
+ run('now+=3*60000/bpm;render(now)');assert.equal(run('cards[0].practicePassed'),true);
+ run('reset()');assert.equal(run('audioBarOffset'),0);assert.equal(run('cards[0].retryBeats'),undefined);
+});
+test('identical A and B require separate attacks across the count-in',()=>{
+ const {run}=session();run("startMode('practice');now=8000;render(now);cards[0].targets=[60];cards[1].targets=[60];judgeMidi(60)");
+ assert.equal(run('cards[0].retryBeats'),0);
+ assert.equal(run('isCorrect(cards[1])'),false);
+ run('now+=3.875*60000/bpm;judgeMidi(60)');assert.equal(run('isCorrect(cards[1])'),true);
 });
 test('a correct answer followed by a wrong note before close freezes, while partial answers never pass',()=>{
  for(const attempt of ['correct-then-wrong','partial','silent']){
@@ -688,7 +718,23 @@ test('unplayed notes and incomplete chords turn red at window close before botto
   if(mode==='practice'){
    assert.equal(run('elapsed'),3);
    run('for(const note of cards[0].targets)judgeMidi(note)');
-   assert.equal(run('elements[0].dataset.feedback'),'correct');
+   assert.equal(run('elements[0].dataset.feedback'),'wrong');
+   assert.equal(run('cards[0].retryBeats'),0);
   }
+ }
+});
+
+
+test('successive recoveries survive delayed frames and give B a fresh full window',()=>{
+ const {run}=session();run("startMode('practice');now=20000;render(now)");
+ for(let i=0;i<3;i++){
+  assert.equal(run('elapsed'),i+3);
+  run(`for(const n of cards[${i}].targets)judgeMidi(n);constOrigin=now`);
+  run('now+=240000/bpm+100;render(now)');
+  assert.ok(run('elapsed')>i+3);
+  assert.equal(run('audioBarOffset'),i+1);
+  run('now=constOrigin+2*240000/bpm;render(now)');
+  assert.equal(run('elapsed'),i+4);
+  assert.ok(Math.abs(run(`cards[${i+1}].endAt-cards[${i+1}].startAt`)-240/90)<1e-8);
  }
 });

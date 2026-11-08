@@ -3,7 +3,7 @@ import {BUILD_REVISION} from './build.js';
 import {Scheduler,cleanLevels} from './scheduler.js';
 import {VERSION,TOTAL_SECONDS,normalizeBpm,createRun,calculateScore,cleanResults} from './scoring.js';
 import {activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,applyPracticeInput,updatePracticeState,practiceBlockedIndex,isCorrect,canSettle} from './judgment.js';
-import {motionStep,stopProgress,labelGeometry,metronomeBeats,EPSILON} from './performance.js';
+import {motionStep,stopProgress,labelGeometry,metronomeBeats,EARLY_BARS,EPSILON} from './performance.js';
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
@@ -17,7 +17,7 @@ let expandedQuality=stages[stageIndex].id.startsWith('quality-')?stages[stageInd
 let scheduler,settled=0,run=createRun();
 let mode='challenge';
 let bpm=90;
-const practiceSettings={metronomeOn:false};
+const practiceSettings={metronomeOn:true};
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0,strikeFlashAt=-Infinity,outroBeats=0;
 const LABEL_FADE_SECONDS=.18;
@@ -65,7 +65,7 @@ function updateKeyboardBlur(){
 
 }
 let metronomeOn=true;
-let audioContext=null,nextAudioBeat=null,lastAudioBeat=-1;
+let audioContext=null,nextAudioBeat=null,lastAudioBeat=-1,audioBarOffset=0;
 const clicks=new Set();
 function updateMetronome(){
  $('metronome').textContent=metronomeOn?'开':'关';
@@ -88,7 +88,12 @@ function unlockAudio(){
 }
 function scheduleMetronome(){
  if(!running||!metronomeOn||audioContext?.state!=='running')return;
- const schedule=metronomeBeats(elapsed,bpm,nextAudioBeat??Math.max(Math.ceil(elapsed*4-EPSILON),lastAudioBeat+1),stopProgress(cards,mode));
+ const blocked=mode==='practice'?practiceBlockedIndex(cards):-1;
+ const recovery=blocked>=0?cards[blocked].retryBeats:undefined;
+ // The count-in advances audio while the falling labels remain stationary.
+ const audioProgress=elapsed+audioBarOffset+(recovery??0)/4;
+ const audioStop=recovery===undefined?stopProgress(cards,mode)+audioBarOffset:elapsed+audioBarOffset+1;
+ const schedule=metronomeBeats(audioProgress,bpm,nextAudioBeat??Math.max(Math.ceil(audioProgress*4-EPSILON),lastAudioBeat+1),audioStop);
  nextAudioBeat=schedule.nextBeat;
  for(const {beat,delay,accent} of schedule.events){
   const time=audioContext.currentTime+delay;
@@ -160,7 +165,11 @@ function judgeMidi(note){
  if(!running||mode==='free')return;
  if(mode==='practice'){
   const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
+  const blocked=practiceBlockedIndex(cards),wasRecovering=blocked>=0&&cards[blocked].retryBeats!==undefined;
   applyPracticeInput(cards,elapsed,sessionSeconds,note,held);
+  if(blocked>=0&&!wasRecovering&&cards[blocked].retryBeats!==undefined){
+   stopMetronome();lastAudioBeat=-1;nextAudioBeat=null;scheduleMetronome();
+  }
  }else for(const index of attackTargets(cards,sessionSeconds).indices){
   const card=cards[index];applyAttack(card,note);
   if(card.wrong&&!card.errorRecorded){card.errorRecorded=true;scheduler.record(card.id,'wrong');}
@@ -430,7 +439,7 @@ function appendCard(){
   $('falling').append(el);elements.push(el);cards.push(card);
 }
 function reset(){
- releaseScreenLock();stopMetronome();lastAudioBeat=-1;
+ releaseScreenLock();stopMetronome();lastAudioBeat=-1;audioBarOffset=0;
  running=false;started=false;finished=false;$('pause-screen').hidden=true;elapsed=0;previous=0;sessionSeconds=0;outroBeats=0;settled=0;run=createRun();
  scheduler=mode!=='free'&&stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
  updateTrainingHeader();$('result-dialog').close();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
@@ -499,6 +508,8 @@ function settleAnswers(){
 }
 function stampSessionBoundaries(fromProgress,toProgress,fromSeconds){
  if(mode==='free')return;
+ const blocked=mode==='practice'?practiceBlockedIndex(cards):-1;
+ if(blocked>=0&&fromProgress>=blocked+3-EPSILON)return;
  stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm);
 }
 // Wall time counts practice effort; musical progress stops at unanswered gates.
@@ -510,10 +521,26 @@ function advance(now){
  if(mode==='free'){sessionSeconds+=remaining;updateTimer();return;}
  while(remaining>EPSILON){
   syncCards();
+  const blocked=mode==='practice'?practiceBlockedIndex(cards):-1;
+  const recovery=blocked>=0?cards[blocked]:null;
+  if(recovery?.retryBeats!==undefined){
+   const consumed=Math.min(remaining,(4-recovery.retryBeats)*60/bpm);
+   const before=recovery.retryBeats;
+   recovery.retryBeats=Math.min(4,before+consumed*bpm/60);
+   const next=cards[blocked+1];
+   if(next&&next.startAt===undefined&&recovery.retryBeats>=(4-EARLY_BARS*4)-EPSILON){
+    next.startAt=sessionSeconds+Math.max(0,(4-EARLY_BARS*4)-before)*60/bpm;
+   }
+   sessionSeconds+=consumed;remaining=Math.max(0,remaining-consumed);
+   if(recovery.retryBeats>=4-EPSILON){
+    recovery.practicePassed=true;audioBarOffset++;strikeFlashAt=sessionSeconds;
+   }
+   continue;
+  }
   const fromProgress=elapsed,fromSeconds=sessionSeconds;
   const step=motionStep(elapsed,remaining,bpm,stopProgress(cards,mode));
   elapsed=step.progress;
-  const consumed=step.frozen?remaining:Math.min(remaining,step.movingSeconds);
+  const consumed=step.frozen&&step.movingSeconds<=EPSILON?remaining:Math.min(remaining,step.movingSeconds);
   sessionSeconds+=consumed;remaining=Math.max(0,remaining-consumed);
   syncCards();stampSessionBoundaries(fromProgress,elapsed,fromSeconds);settleAnswers();
   if(mode==='practice')updatePracticeState(cards,elapsed);
@@ -554,8 +581,8 @@ function paintScene(){
   const opacity=card.fadeAt===undefined?1:Math.max(0,1-(sessionSeconds-card.fadeAt)/LABEL_FADE_SECONDS);
   el.hidden=geometry.hidden||opacity<=EPSILON;
   el.dataset.landed=String(geometry.landed);
-  // During dual retries, only A shows errors; B stays neutral until it unlocks.
-  el.dataset.feedback=blocked>=0&&index===blocked+1?'waiting':card.feedback||'waiting';
+  // B stays neutral until its early window opens at the end of the count-in.
+  el.dataset.feedback=blocked>=0&&index===blocked+1&&(cards[blocked].retryBeats??0)<(4-EARLY_BARS*4)?'waiting':card.feedback||'waiting';
   el.style.opacity=String(opacity);el.style.transform=`translateY(${geometry.y}px)`;
  });
 }
