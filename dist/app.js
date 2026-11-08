@@ -1,7 +1,7 @@
 import {stages,names,qualities,curriculum,selectable,supportsPractice,currentProgress} from './theory.js';
 import {BUILD_REVISION} from './build.js';
 import {Scheduler,cleanLevels} from './scheduler.js';
-import {VERSION,TOTAL_SECONDS,createRun,recordConditions,calculateScore,cleanResults} from './scoring.js';
+import {VERSION,TOTAL_SECONDS,normalizeBpm,createRun,recordConditions,calculateScore,cleanResults} from './scoring.js';
 import {activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,isCorrect,canSettle} from './judgment.js';
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
@@ -17,6 +17,7 @@ let scheduler,settled=0,run=createRun();
 let mode='challenge';
 const PRACTICE_FALL_BARS=2;
 let practiceFallProgress=0;
+let fadingPracticeLabels=[];
 let bpm=90;
 const practiceSettings={metronomeOn:false};
 const mistakeStacks=new Map();
@@ -56,6 +57,7 @@ let keyboardBlurOn=true;
 function updateKeyboardBlur(){
  $('instrument').dataset.running=String(running);
  $('instrument').dataset.midiFeedback=String(mode!=='practice');
+ $('instrument').dataset.performance=String(mode!=='free'&&started&&!finished);
  $('instrument').dataset.challenge=String(mode==='challenge'&&started&&!finished);
  $('instrument').dataset.paused=String(mode!=='free'&&started&&!finished&&!running);
  $('instrument').dataset.hideKeys=String(phoneLayout&&keyboardBlurOn);
@@ -206,7 +208,8 @@ function recognizePracticePreview(note){
   card.practiceSolved=true;card.practiceAnswerVisible=true;
   for(const candidate of cards)candidate.hits.clear();
   if(card!==current){
-   cards.shift();elements.shift();$('falling').replaceChildren(...elements);
+   paintScene();
+   cards.shift();fadingPracticeLabels.push({element:elements.shift(),at:sessionSeconds});
    practiceFallProgress-=1;
   }
   // A successful attack belongs to this result only.
@@ -416,15 +419,16 @@ function hidePauseControls(){
 }
 function visualQuestionIndex(){return mode==='practice'?0:Math.max(0,Math.floor(elapsed-2));}
 function showAnswer(){
- // Practice answers are visible only during active practice.
+ // Performance modes keep the keyboard hidden; practice never displays answers.
  const active=cards[visualQuestionIndex()];
- const card=mode==='free'||(mode==='practice'&&(!running||!active?.practiceAnswerVisible))?null:active;
+ const card=mode!=='challenge'?null:active;
  if(card)card.assisted=true;
  for(const [midi,dot] of answerDots)dot.hidden=!card||targetForNote(card,midi)===undefined;
 }
 function openSettings(){
  if(running||$('settings-dialog').open)return;
- updateMetronome();
+ updateMetronome();$('bpm').value=String(bpm);
+ $('tempo-setting').hidden=mode==='free';
  $('settings-dialog').showModal();
 }
 
@@ -489,7 +493,7 @@ function reset(){
  running=false;started=false;finished=false;practiceFallProgress=0;mistakeStacks.clear();$('mistake-blocks').replaceChildren();$('pause-screen').hidden=true;elapsed=0;previous=0;sessionSeconds=0;settled=0;run=createRun();
  scheduler=mode!=='free'&&stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
  updateTrainingHeader();$('result-dialog').close();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
- cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
+ cards=[];elements=[];fadingPracticeLabels=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
 }
 function pause(){
  if(!running)return;advance(performance.now());if(!running)return;
@@ -511,7 +515,6 @@ function play(){
  if(running){pause();return;}
  if(!canStartTraining())return;
  if(finished)reset();
- bpm=90;
  keyboardBlurOn=mode==='challenge';
  $('pause-screen').hidden=true;
  run.started=true;started=true;running=true;
@@ -528,7 +531,9 @@ function complete(){
  running=false;finished=true;releaseScreenLock();stopMetronome();
  if(mode!=='challenge'){
   if($('settings-dialog').open)$('settings-dialog').close();
-  elements.forEach(el=>{el.hidden=true;});updateTrainingHeader();
+  elements.forEach(el=>{el.hidden=true;});
+  for(const {element} of fadingPracticeLabels)element.hidden=true;
+  updateTrainingHeader();
   strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
   showHome();focusCurrentStage();return;
  }
@@ -578,7 +583,7 @@ function advance(now){
  if(running){
   const fromSeconds=sessionSeconds,fromProgress=elapsed;
   const dt=Math.min(Math.max(0,(now-previous)/1000),MAX_SECONDS-sessionSeconds);
-  const nextBoundary=(Math.floor(elapsed+1e-9)+1)*240/bpm;
+  const nextBoundary=sessionSeconds+(Math.floor(elapsed+1e-9)+1-elapsed)*240/bpm;
   if(sessionSeconds+dt>nextBoundary+1e-9){const end=now;advance(previous+(nextBoundary-sessionSeconds)*1000);if(running)advance(end);return;}
   sessionSeconds+=dt;elapsed+=dt*bpm/240;
   if(MAX_SECONDS-sessionSeconds<1e-9)sessionSeconds=MAX_SECONDS;
@@ -613,7 +618,13 @@ function paintScene(){
     el.style.transform=`translateY(${y}px)`;
    });return;
   }
-  const line=height;
+  const line=height-$('performance-frost').clientHeight;
+  const remaining=fadingPracticeLabels.filter(({element,at})=>{
+   element.style.opacity=String(Math.max(0,1-(sessionSeconds-at)/.18));
+   return sessionSeconds-at<.18;
+  });
+  if(remaining.length!==fadingPracticeLabels.length)$('falling').replaceChildren(...remaining.map(label=>label.element),...elements);
+  fadingPracticeLabels=remaining;
   elements.forEach((el,index)=>{
    const phase=practiceFallProgress-index;
    el.hidden=phase<0;el.dataset.landed=String(phase>=PRACTICE_FALL_BARS);
@@ -630,6 +641,10 @@ function render(now){
  paintScene();
  requestAnimationFrame(render);
 }
+$('bpm').addEventListener('change',()=>{
+ bpm=normalizeBpm($('bpm').value);$('bpm').value=String(bpm);
+ stopMetronome();syncCards();paintScene();
+});
 $('metronome').addEventListener('click',e=>{
  e.stopPropagation();metronomeOn=!metronomeOn;
  if(mode!=='challenge'||!started||finished)practiceSettings.metronomeOn=metronomeOn;
@@ -639,9 +654,9 @@ function startMode(nextMode){
  if(started&&!finished)return;
  if(nextMode==='practice'&&!supportsPractice(stages[stageIndex]))return;
  if(!canStartTraining())return;
- mode=nextMode;bpm=90;
+ mode=nextMode;
  if(mode!=='challenge'){keyboardBlurOn=false;metronomeOn=practiceSettings.metronomeOn;}
- else{bpm=90;keyboardBlurOn=true;metronomeOn=true;}
+ else{keyboardBlurOn=true;metronomeOn=true;}
  reset();play();
 }
 $('pause-screen').addEventListener('click',e=>e.stopPropagation());

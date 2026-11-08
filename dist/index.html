@@ -18,6 +18,7 @@
 <dialog id="settings-dialog" aria-labelledby="settings-title">
 <h2 id="settings-title">训练设置</h2>
 <div class="dialog-content">
+<div id="tempo-setting" class="switch-row"><label for="bpm">速度 BPM <small>90–180</small></label><input id="bpm" type="number" min="90" max="180" step="1" value="90" inputmode="numeric"></div>
 <div class="switch-row"><span>节拍器</span><button id="metronome" class="secondary" type="button" aria-label="节拍器" aria-pressed="true">开</button></div>
 <div class="midi-settings"><button id="midi-connect" class="secondary" type="button">刷新 MIDI 设备</button><p id="midi-status" role="status"></p></div>
 </div><div class="dialog-actions"><button id="settings-close" class="primary" type="button" autofocus>关闭</button></div>

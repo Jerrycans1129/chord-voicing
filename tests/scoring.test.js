@@ -24,3 +24,9 @@ test('only finite half-star ratings are restored, with no run parameters',()=>{
  assert.deepEqual({...saved},{a:{best:{stars:2.5}},b:{best:{stars:3}},c:{best:{stars:0}}});
  assert.equal(normalizeBpm(80),90);
 });
+
+test('BPM is clamped to integer 90–180 and does not change ratings',()=>{
+ for(const [input,expected] of [[89,90],[91,91],[137,137],[179.8,180],[999,180],['',90],['bad',90]])assert.equal(normalizeBpm(input),expected);
+ for(let bpm=90;bpm<=180;bpm++)assert.deepEqual(calculateScore(run({bpm})).factors,{duration:1});
+ for(let bpm=90;bpm<=180;bpm++)assert.equal(calculateScore(run({bpm})).stars,3);
+});

@@ -1,9 +1,8 @@
 export const VERSION='0.2.0';
-export const SPEEDS=[{bpm:40,name:'很慢'},{bpm:60,name:'慢'},{bpm:90,name:'标准'},{bpm:120,name:'快'},{bpm:140,name:'很快'}];
 export const TOTAL_SECONDS=1800;
 export function normalizeBpm(value){
- const number=Number(value);if(!Number.isFinite(number)||number<=0)return 90;
- return SPEEDS.reduce((best,s)=>Math.abs(s.bpm-number)<Math.abs(best-number)?s.bpm:best,90);
+ const number=Number(value);
+ return Number.isFinite(number)?Math.max(90,Math.min(180,Math.round(number))):90;
 }
 export function starsFor(score){
  if(score<=0)return 0;
