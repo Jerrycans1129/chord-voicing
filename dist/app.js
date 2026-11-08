@@ -2,7 +2,7 @@ import {stages,names,qualities,curriculum,selectable,supportsPractice,currentPro
 import {BUILD_REVISION} from './build.js';
 import {Scheduler,cleanLevels} from './scheduler.js';
 import {VERSION,TOTAL_SECONDS,normalizeBpm,createRun,calculateScore,cleanResults} from './scoring.js';
-import {activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,applyPracticeAttack,isCorrect,canSettle} from './judgment.js';
+import {activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,applyPracticeInput,updatePracticeState,isCorrect,canSettle} from './judgment.js';
 import {motionStep,stopProgress,labelGeometry,metronomeBeats,EPSILON} from './performance.js';
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
@@ -158,17 +158,14 @@ function judgeMidi(note){
  if(!running)return;
  advance(performance.now());
  if(!running||mode==='free')return;
- const {indices}=attackTargets(cards,sessionSeconds);
- for(const index of indices){
-  const card=cards[index];
-  if(mode==='practice'){
-   const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
-   applyPracticeAttack(card,note,held);
-  }else{
-   applyAttack(card,note);
-   if(card.wrong&&!card.errorRecorded){card.errorRecorded=true;scheduler.record(card.id,'wrong');}
-  }
+ if(mode==='practice'){
+  const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
+  applyPracticeInput(cards,elapsed,sessionSeconds,note,held);
+ }else for(const index of attackTargets(cards,sessionSeconds).indices){
+  const card=cards[index];applyAttack(card,note);
+  if(card.wrong&&!card.errorRecorded){card.errorRecorded=true;scheduler.record(card.id,'wrong');}
  }
+
  paintScene();
 }
 
@@ -443,7 +440,7 @@ function pause(){
  pauseSession();
 }
 function pauseSession(){
- if(mode==='practice')for(const card of cards)card.hits.clear();
+ if(mode==='practice')for(const card of cards)if(!isCorrect(card))card.hits.clear();
  running=false;strikeFlashAt=-Infinity;updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;
  hidePauseControls();$('pause-screen').hidden=false;
@@ -518,6 +515,12 @@ function advance(now){
   const consumed=step.frozen?remaining:Math.min(remaining,step.movingSeconds);
   sessionSeconds+=consumed;remaining=Math.max(0,remaining-consumed);
   syncCards();stampSessionBoundaries(fromProgress,elapsed,fromSeconds);settleAnswers();
+  if(mode==='practice')updatePracticeState(cards,elapsed);
+  cards.forEach((card,index)=>{
+   if(card.fadeAt===undefined&&elapsed>=index+3-EPSILON&&(mode==='challenge'||card.practicePassed)){
+    card.fadeAt=fromSeconds+Math.max(0,index+3-fromProgress)*240/bpm;
+   }
+  });
   const boundary=Math.floor(elapsed+EPSILON);
   if(boundary>=2&&boundary>Math.floor(fromProgress+EPSILON)&&cards[boundary-2]){
    strikeFlashAt=fromSeconds+(boundary-fromProgress)*240/bpm;
@@ -539,10 +542,11 @@ function paintScene(){
  const height=$('falling').clientHeight,zoneHeight=$('performance-frost').clientHeight;
  cards.forEach((card,index)=>{
   const el=elements[index],geometry=labelGeometry(index,elapsed,height,zoneHeight);
-  el.hidden=geometry.hidden;
+  const opacity=card.fadeAt===undefined?1:Math.max(0,1-(sessionSeconds-card.fadeAt)/.18);
+  el.hidden=geometry.hidden||opacity<=0;
   el.dataset.landed=String(geometry.landed);
-  el.dataset.feedback=mode==='practice'?'waiting':card.feedback||'waiting';
-  el.style.opacity='1';el.style.transform=`translateY(${geometry.y}px)`;
+  el.dataset.feedback=card.feedback||'waiting';
+  el.style.opacity=String(opacity);el.style.transform=`translateY(${geometry.y}px)`;
  });
 }
 function render(now){

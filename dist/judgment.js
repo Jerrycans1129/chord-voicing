@@ -1,5 +1,5 @@
 import {notes} from './theory.js';
-import {earlySeconds} from './performance.js';
+import {earlySeconds,EARLY_BARS,EPSILON} from './performance.js';
 export const JUDGMENT_POLICY='early-thirty-second-note';
 const EPS=1e-9;
 export function prepareAttempt(card){return {...card,targets:card.kind==='note'?[card.root]:notes(card.root,card.q,card.inv),hits:new Set(),wrong:false,assisted:false,ended:false};}
@@ -35,12 +35,51 @@ export function applyAttack(card,note){
 export function isCorrect(card){return !card.wrong&&card.targets.every(n=>card.hits.has(n));}
 export function canSettle(card,seconds){return !card.ended&&card.endAt!==undefined&&seconds+EPS>=card.endAt;}
 
-// Practice retries are independent of challenge scoring. Success is latched;
-// later attacks cannot revoke passage or transfer old hits to the next label.
+// Training errors are recoverable; the latest complete attempt determines color.
 export function applyPracticeAttack(card,note,held=[]){
- if(card.practiceSolved)return;
  const target=targetForNote(card,note);
- if(target===undefined){card.hits.clear();return;}
+ if(target===undefined){card.hits.clear();card.wrong=true;card.feedback='wrong';return;}
  card.hits.add(target);
- if(card.targets.every(n=>card.hits.has(n))&&!held.some(n=>targetForNote(card,n)===undefined))card.practiceSolved=true;
+ if(card.targets.every(n=>card.hits.has(n))){
+  card.wrong=held.some(n=>targetForNote(card,n)===undefined);
+  card.feedback=card.wrong?'wrong':'correct';
+ }
+}
+export function practiceBlockedIndex(cards){
+ return cards.findIndex(card=>card.practiceClosed&&!card.practicePassed);
+}
+export function updatePracticeState(cards,progress){
+ const blocked=practiceBlockedIndex(cards);
+ if(blocked>=0){
+  const card=cards[blocked];
+  if(progress>=blocked+3-EPSILON&&!card.practiceRetryStarted){
+   card.practiceRetryStarted=true;
+   card.hits.clear();cards[blocked+1]?.hits.clear();
+  }
+  return;
+ }
+ for(let i=0;i<cards.length;i++){
+  const card=cards[i];
+  if(!card.practiceClosed&&progress>=i+3-EARLY_BARS-EPSILON){
+   card.practiceClosed=true;card.practicePassed=isCorrect(card);
+   if(!card.practicePassed)break;
+  }
+ }
+}
+export function practiceAttackTargets(cards,progress,seconds){
+ const blocked=practiceBlockedIndex(cards);
+ if(blocked<0)return attackTargets(cards,seconds).indices;
+ // The small gap before bottom contact deliberately ignores all input.
+ return progress<blocked+3-EPSILON?[]:[blocked+1,blocked];
+}
+export function applyPracticeInput(cards,progress,seconds,note,held=[]){
+ const blocked=practiceBlockedIndex(cards);
+ for(const index of practiceAttackTargets(cards,progress,seconds)){
+  const card=cards[index];if(!card)continue;
+  applyPracticeAttack(card,note,held);
+  if(blocked>=0&&index===blocked+1&&isCorrect(card)){
+   cards[blocked].practicePassed=true;cards[blocked].fadeAt=seconds;
+   return; // B takes precedence, including identical physical voicings.
+  }
+ }
 }
