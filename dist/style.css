@@ -135,3 +135,5 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 @media(max-width:380px){#tempo-setting{align-items:flex-start;flex-direction:column}.tempo-stepper{width:100%;justify-content:space-between;margin-left:0}}
 
 .instrument[data-challenge="true"] #performance-frost{backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+
+#practice-count-in{position:absolute;inset:0;z-index:4;display:grid;place-items:center;pointer-events:none;font-size:clamp(80px,min(20vw,30vh),180px);font-weight:800;line-height:1;letter-spacing:.02em;color:var(--accent);text-shadow:0 4px 24px #07100c,0 0 60px #07100ccc}

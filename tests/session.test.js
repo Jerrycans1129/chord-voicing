@@ -742,3 +742,32 @@ test('successive recoveries survive delayed frames and give B a fresh full windo
   assert.ok(Math.abs(run(`cards[${i+1}].endAt-cards[${i+1}].startAt`)-240/90)<1e-8);
  }
 });
+
+
+test('visual count-in shows 3 2 1 GO on four beats even when muted',()=>{
+ for(const tempo of [40,90,180])for(const muted of [true,false]){
+  const {run,nodes}=audioFixture();
+  run(`practiceSettings.bpm=${tempo};startMode('practice');metronomeOn=${!muted};now=3*240000/bpm;render(now)`);
+  assert.equal(nodes.get('practice-count-in').hidden,true);
+  run('for(const n of cards[0].targets)judgeMidi(n);const retryAt=now');
+  for(let beat=0;beat<4;beat++){
+   run(`now=retryAt+${beat}*60000/bpm;render(now)`);
+   assert.equal(nodes.get('practice-count-in').hidden,false);
+   assert.equal(nodes.get('practice-count-in').textContent,['3','2','1','GO!'][beat]);
+   assert.equal(run('elapsed'),3);
+  }
+  run('now=retryAt+4*60000/bpm;render(now)');
+  assert.equal(nodes.get('practice-count-in').hidden,true);
+  assert.equal(run('cards[0].practicePassed'),true);
+ }
+});
+test('visual count-in hides on pause and exit, resumes at the same beat and clears on reset',()=>{
+ const {run,nodes}=session();
+ run("startMode('practice');now=8000;render(now);for(const n of cards[0].targets)judgeMidi(n);now+=60000/bpm;pause()");
+ assert.equal(nodes.get('practice-count-in').hidden,true);
+ run('now+=60000;play()');assert.equal(nodes.get('practice-count-in').textContent,'2');
+ assert.equal(nodes.get('practice-count-in').hidden,false);
+ run('complete()');assert.equal(nodes.get('practice-count-in').hidden,true);
+ run("startMode('practice')");assert.equal(nodes.get('practice-count-in').hidden,true);
+ run('reset()');assert.equal(nodes.get('practice-count-in').hidden,true);
+});

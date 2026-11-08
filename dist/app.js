@@ -386,6 +386,7 @@ function openSettings(){
 }
 
 function showHome(){
+ $('practice-count-in').hidden=true;
  $('pause-screen').hidden=true;updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('settings-toggle').hidden=false;updateRoute();
 }
 // A card at index i touches the line at musical progress i + 2.
@@ -571,6 +572,14 @@ function advance(now){
 }
 function paintScene(){
  updateTrainingHeader();
+ const recoveryIndex=mode==='practice'?practiceBlockedIndex(cards):-1;
+ const retryBeats=recoveryIndex>=0?cards[recoveryIndex].retryBeats:undefined;
+ const countIn=$('practice-count-in');
+ countIn.hidden=!running||finished||retryBeats===undefined||retryBeats>=4-EPSILON;
+ if(!countIn.hidden){
+  const label=['3','2','1','GO!'][Math.min(3,Math.floor(retryBeats+EPSILON))];
+  if(countIn.textContent!==label)countIn.textContent=label;
+ }
  const flash=running&&!finished?Math.max(0,1-(sessionSeconds-strikeFlashAt)/.18):0;
  $('strike').style.setProperty('--strike-flash',String(flash));
  if(!started||finished||mode==='free')return;
