@@ -16,8 +16,8 @@ let expandedTop=stages[stageIndex].projectId;
 let expandedQuality=stages[stageIndex].id.startsWith('quality-')?stages[stageIndex].id:stages[stageIndex].parent?.startsWith('quality-')?stages[stageIndex].parent:null;
 let scheduler,settled=0,run=createRun();
 let mode='challenge';
-let bpm=90;
-const practiceSettings={metronomeOn:true};
+let bpm=120;
+const practiceSettings={metronomeOn:true,bpm:90};
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0,strikeFlashAt=-Infinity,outroBeats=0;
 const LABEL_FADE_SECONDS=.18;
@@ -379,8 +379,8 @@ function hidePauseControls(){
  for(const dot of answerDots.values())dot.hidden=true;
 }
 function openSettings(){
- if(running||$('settings-dialog').open)return;
- updateMetronome();$('bpm').value=String(bpm);
+ if(running||$('settings-dialog').open||(mode==='challenge'&&started&&!finished))return;
+ updateMetronome();updateTempoControls();
  $('tempo-setting').hidden=mode==='free';
  $('settings-dialog').showModal();
 }
@@ -453,6 +453,7 @@ function pauseSession(){
  if(mode==='practice')for(const card of cards)if(!isCorrect(card))card.hits.clear();
  running=false;strikeFlashAt=-Infinity;updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;
+ $('pause-settings').hidden=mode==='challenge';
  hidePauseControls();$('pause-screen').hidden=false;
  paintScene();
 }
@@ -592,12 +593,20 @@ function render(now){
  paintScene();
  requestAnimationFrame(render);
 }
-$('bpm').addEventListener('change',()=>{
- bpm=normalizeBpm($('bpm').value);$('bpm').value=String(bpm);
- stopMetronome();syncCards();paintScene();
+function updateTempoControls(){
+ $('bpm').textContent=String(practiceSettings.bpm);
+ $('bpm-decrease').disabled=practiceSettings.bpm<=40;
+ $('bpm-increase').disabled=practiceSettings.bpm>=180;
+}
+for(const [id,delta] of [['bpm-decrease',-10],['bpm-increase',10]])$(id).addEventListener('click',e=>{
+ e.stopPropagation();
+ if(running||(mode==='challenge'&&started&&!finished))return;
+ practiceSettings.bpm=normalizeBpm(practiceSettings.bpm+delta);
+ if(mode==='practice')bpm=practiceSettings.bpm;
+ updateTempoControls();stopMetronome();syncCards();paintScene();
 });
 $('metronome').addEventListener('click',e=>{
- e.stopPropagation();metronomeOn=!metronomeOn;
+ e.stopPropagation();if(mode==='challenge'&&started&&!finished)return;metronomeOn=!metronomeOn;
  if(mode!=='challenge'||!started||finished)practiceSettings.metronomeOn=metronomeOn;
  stopMetronome();if(metronomeOn)unlockAudio();updateMetronome();
 });
@@ -606,8 +615,8 @@ function startMode(nextMode){
  if(nextMode==='practice'&&!supportsPractice(stages[stageIndex]))return;
  if(!canStartTraining())return;
  mode=nextMode;
- if(mode!=='challenge'){keyboardBlurOn=false;metronomeOn=practiceSettings.metronomeOn;}
- else{keyboardBlurOn=true;metronomeOn=true;}
+ if(mode!=='challenge'){bpm=practiceSettings.bpm;keyboardBlurOn=false;metronomeOn=practiceSettings.metronomeOn;}
+ else{bpm=120;keyboardBlurOn=true;metronomeOn=true;}
  reset();play();
 }
 $('pause-screen').addEventListener('click',e=>e.stopPropagation());

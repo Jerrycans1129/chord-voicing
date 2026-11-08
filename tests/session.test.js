@@ -14,6 +14,8 @@ function session(extras={},connected=true){
  const get=id=>{if(!nodes.has(id)){const node=element();if(id==='performance-frost')node.clientHeight=96;nodes.set(id,node);}return nodes.get(id);};
  const context=vm.createContext({alert:message=>alerts.push(message),...theory,BUILD_REVISION,Scheduler,cleanLevels,...scoring,...judgment,...performance,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
+ // Legacy timeline fixtures use 90 BPM; mode entry tests exercise production defaults.
+ vm.runInContext('bpm=90',context);
  if(!extras.localStorage)vm.runInContext('selectStage(5)',context);
  if(connected)vm.runInContext("midiInputs.set('fixture',{state:'connected'})",context);
  return {run:code=>vm.runInContext(code,context),nodes,documentHandlers,alerts};
@@ -352,19 +354,18 @@ test('touch capture transferred from a chord or inversion button keeps the drag 
  }
 });
 
-test('challenge pause allows settings and preserves metronome choice on resume',()=>{
+test('challenge is fixed at 120 BPM and settings stay unavailable until exit',()=>{
  const {run,nodes}=session();
- run("practiceSettings.metronomeOn=false;startMode('challenge');now=6000;pause()");
- assert.equal(run('bpm'),90);assert.equal(run('keyboardBlurOn'),true);
- assert.equal(nodes.get('pause-screen').hidden,false);assert.equal(nodes.get('settings-toggle').hidden,true);
- run('openSettings()');assert.equal(nodes.get('settings-dialog').open,true);
- nodes.get('metronome').handlers.click({stopPropagation(){}});assert.equal(run('metronomeOn'),false);
- nodes.get('settings-close').handlers.click({stopPropagation(){}});
- assert.equal(run('[...answerDots.values()].every(d=>d.hidden)'),true);
- assert.equal(readFileSync(new URL('../dist/index.html',import.meta.url),'utf8').includes('id="speed"'),false);
- run('now=66000;play()');assert.equal(run('sessionSeconds'),6);assert.equal(run('metronomeOn'),false);
- run("complete();$('result-dialog').close();startMode('practice')");
- assert.equal(run('bpm'),90);assert.equal(run('keyboardBlurOn'),false);
+ run("practiceSettings.bpm=40;startMode('challenge');now=6000;pause()");
+ assert.equal(run('bpm'),120);
+ assert.equal(nodes.get('pause-settings').hidden,true);
+ run('openSettings()');assert.equal(nodes.get('settings-dialog').open,false);
+ nodes.get('bpm-decrease').handlers.click({stopPropagation(){}});
+ assert.equal(run('bpm'),120);assert.equal(run('practiceSettings.bpm'),40);
+ nodes.get('metronome').handlers.click({stopPropagation(){}});
+ run('now=66000;play()');assert.equal(run('bpm'),120);
+ run("complete();$('result-dialog').close();startMode('practice');pause()");
+ assert.equal(run('bpm'),40);assert.equal(nodes.get('pause-settings').hidden,false);
 });
 test('challenge settles before B touches and fades in place only after bottom contact',()=>{
  const {run}=session();run('play();now=7950;render(now)');
@@ -472,8 +473,8 @@ test('practice correct answers can become wrong and recover during the full meas
 });
 
 test('failed A retries once, fades red and releases B after a full count-in',()=>{
- for(const bpm of [90,137,180]){
-  const {run}=session();run(`bpm=${bpm};startMode('practice');now=2.5*240000/bpm;render(now);cards[0].targets=[60,64,67];cards[1].targets=[62,65,69];judgeMidi(60);now=(3-1/32)*240000/bpm;render(now)`);
+ for(const bpm of [40,90,137,180]){
+  const {run}=session();run(`startMode('practice');bpm=${bpm};now=2.5*240000/bpm;render(now);cards[0].targets=[60,64,67];cards[1].targets=[62,65,69];judgeMidi(60);now=(3-1/32)*240000/bpm;render(now)`);
   run('for(const n of cards[0].targets)judgeMidi(n);for(const n of cards[1].targets)judgeMidi(n)');
   assert.equal(run('cards[0].hits.size'),1);assert.equal(run('cards[1].hits.size'),0);
   run('now=3*240000/bpm;render(now);for(const n of cards[1].targets)judgeMidi(n)');
@@ -501,7 +502,7 @@ test('failed A retries once, fades red and releases B after a full count-in',()=
 
 test('both modes share early input ownership and uninterrupted motion when practice answers are early',()=>{
  for(const bpm of [90,137,180])for(const mode of ['practice','challenge']){
-  const {run}=session();run(`bpm=${bpm};startMode('${mode}');now=(2-1/32)*240000/bpm-1;render(now);cards[0].targets=[60,64,67]`);
+  const {run}=session();run(`startMode('${mode}');bpm=${bpm};now=(2-1/32)*240000/bpm-1;render(now);cards[0].targets=[60,64,67]`);
   run('judgeMidi(60)');assert.equal(run('cards[0].hits.size'),0);
   run('now+=1;for(const n of cards[0].targets)judgeMidi(n)');assert.equal(run('cards[0].hits.size'),3);
   run('now=2*240000/bpm;render(now)');assert.equal(run('elapsed'),2);
@@ -566,29 +567,32 @@ test('sustain follows each device and channel, clears on reset/disconnect, and d
 test('settings include BPM, metronome, MIDI refresh and close without a timing recorder',()=>{
  const html=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');
  const settings=html.split('<dialog id="settings-dialog"')[1].split('</dialog>')[0];
- assert.deepEqual([...settings.matchAll(/<button id="([^"]+)"/g)].map(m=>m[1]),['metronome','midi-connect','settings-close']);
+ assert.deepEqual([...settings.matchAll(/<button id="([^"]+)"/g)].map(m=>m[1]),['bpm-decrease','bpm-increase','metronome','midi-connect','settings-close']);
  const app=readFileSync(new URL('../dist/app.js',import.meta.url),'utf8');
  assert.doesNotMatch(app,/recordTimingAttack|createTimingRun|timing-export/);
 });
 
 
 
-test('BPM accepts every integer from 90 to 180 and survives pause/resume in both modes',()=>{
- for(const mode of ['practice','challenge']){
-  const {run,nodes}=session();run(`startMode('${mode}');now=1000;pause();openSettings()`);
-  assert.equal(nodes.get('bpm').value,'90');
-  for(let value=90;value<=180;value++){
-   nodes.get('bpm').value=String(value);nodes.get('bpm').handlers.change();assert.equal(run('bpm'),value);
-  }
-  nodes.get('bpm').value='137';nodes.get('bpm').handlers.change();
-  run("$('settings-dialog').close();const phase=mode==='practice'?elapsed:elapsed;play();now+=1000;render(now)");
-  assert.equal(run('bpm'),137);
-  assert.ok(Math.abs(run("(mode==='practice'?elapsed:elapsed)-phase")-137/240)<1e-8);
- }
+test('practice tempo buttons step by ten, clamp at both ends and preserve the choice',()=>{
+ const {run,nodes}=session();run("openSettings()");
+ const click=id=>nodes.get(id).handlers.click({stopPropagation(){}});
+ for(let i=0;i<8;i++)click('bpm-decrease');
+ assert.equal(run('practiceSettings.bpm'),40);assert.equal(nodes.get('bpm-decrease').disabled,true);
+ assert.equal(nodes.get('bpm').textContent,'40');
+ run("$('settings-dialog').close();startMode('practice');now=1000;pause();openSettings()");
+ assert.equal(run('bpm'),40);
+ for(let value=50;value<=180;value+=10){click('bpm-increase');assert.equal(run('bpm'),value);}
+ assert.equal(nodes.get('bpm-increase').disabled,true);click('bpm-increase');assert.equal(run('bpm'),180);
+ click('bpm-decrease');assert.equal(run('bpm'),170);
+ run("$('settings-dialog').close();const phase=elapsed;play();now+=1000;render(now)");
+ assert.ok(Math.abs(run('elapsed-phase')-170/240)<1e-8);
+ run("complete();startMode('challenge')");assert.equal(run('bpm'),120);
+ run("complete();$('result-dialog').close();startMode('practice')");assert.equal(run('bpm'),170);
 });
-test('tempo changes preserve committed judgment boundaries and correctly stamp future ones',()=>{
- const {run,nodes}=session();run('play();now=6000;pause();const start=cards[0].startAt');
- nodes.get('bpm').value='180';nodes.get('bpm').handlers.change();
+test('tempo changes preserve committed practice boundaries and correctly stamp future ones',()=>{
+ const {run,nodes}=session();run("startMode('practice');now=6000;pause();const start=cards[0].startAt;for(const n of cards[0].targets)cards[0].hits.add(n)");
+ for(let i=0;i<9;i++)nodes.get('bpm-increase').handlers.click({stopPropagation(){}});
  run('play();now=7000;render(now)');
  assert.equal(run('cards[0].startAt'),run('start'));
  assert.ok(Math.abs(run('cards[0].endAt')-(7-7.5/180))<1e-8);assert.equal(run('cards[0].endAt'),run('cards[1].startAt'));
@@ -597,7 +601,7 @@ test('tempo changes preserve committed judgment boundaries and correctly stamp f
 
 test('practice can play 100 consecutive early answers without freezing or scoring',()=>{
  for(const bpm of [90,180]){
-  const {run}=session();run(`bpm=${bpm};startMode('practice');
+  const {run}=session();run(`startMode('practice');bpm=${bpm};
    for(let i=0;i<100;i++){
     now=(i+2-1/32)*240000/bpm;render(now);
     for(const note of cards[i].targets)judgeMidi(note);
@@ -700,7 +704,7 @@ test('unplayed notes and incomplete chords turn red at window close before botto
  for(const mode of ['challenge','practice'])for(const kind of ['note','silent-chord','partial-chord'])for(const tempo of [90,137,180]){
   const {run}=session();
   if(kind==='note')run("selectNode('notes-two')");
-  run(`bpm=${tempo};startMode('${mode}');now=2.5*240000/bpm;render(now)`);
+  run(`startMode('${mode}');bpm=${tempo};now=2.5*240000/bpm;render(now)`);
   if(kind==='partial-chord')run('judgeMidi(cards[0].targets[0])');
   run('now=(3-1/32)*240000/bpm-1;render(now)');
   assert.equal(run('elements[0].dataset.feedback'),'waiting');

@@ -2,7 +2,7 @@ export const VERSION='0.2.0';
 export const TOTAL_SECONDS=1800;
 export function normalizeBpm(value){
  const number=Number(value);
- return Number.isFinite(number)?Math.max(90,Math.min(180,Math.round(number))):90;
+ return Number.isFinite(number)?Math.max(40,Math.min(180,Math.round(number/10)*10)):90;
 }
 export function starsFor(score){
  if(score<=0)return 0;

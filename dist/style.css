@@ -127,6 +127,11 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 
 .instrument[data-midi-feedback="true"] .key[data-midi-sustained="true"]{filter:saturate(.55)}
 
-#bpm{width:96px;min-height:48px;padding:10px;border:1px solid #526658;border-radius:9px;background:#111e19;color:#e5eae4;text-align:center;user-select:text}
+#tempo-setting{flex-wrap:wrap;gap:12px}#tempo-label small{display:block;margin-top:5px;color:var(--muted)}
+.tempo-stepper{display:flex;align-items:center;gap:12px;margin-left:auto}
+.tempo-stepper button{width:56px;height:56px;min-width:56px;padding:0;font-size:32px;line-height:1;touch-action:manipulation}
+.tempo-stepper button:disabled{opacity:.35;cursor:default}
+#bpm{display:block;min-width:52px;text-align:center;font-size:24px;font-variant-numeric:tabular-nums}
+@media(max-width:380px){#tempo-setting{align-items:flex-start;flex-direction:column}.tempo-stepper{width:100%;justify-content:space-between;margin-left:0}}
 
 .instrument[data-challenge="true"] #performance-frost{backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}

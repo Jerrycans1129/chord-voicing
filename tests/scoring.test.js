@@ -21,11 +21,11 @@ test('pause and training settings do not reduce fixed challenge scores',()=>{
 test('only finite half-star ratings are restored, with no run parameters',()=>{
  const saved=cleanResults({a:2.5,b:3,c:0,d:4,e:1.2,f:{best:{stars:3}}},['a','b','c','d','e','f']);
  assert.deepEqual({...saved},{a:{best:{stars:2.5}},b:{best:{stars:3}},c:{best:{stars:0}}});
- assert.equal(normalizeBpm(80),90);
+ assert.equal(normalizeBpm(80),80);
 });
 
-test('BPM is clamped to integer 90–180 and does not change ratings',()=>{
- for(const [input,expected] of [[89,90],[91,91],[137,137],[179.8,180],[999,180],['',90],['bad',90]])assert.equal(normalizeBpm(input),expected);
+test('BPM is clamped to steps of ten from 40–180 and does not change ratings',()=>{
+ for(const [input,expected] of [[0,40],[39,40],[40,40],[89,90],[91,90],[137,140],[179.8,180],[999,180],['',40],['bad',90]])assert.equal(normalizeBpm(input),expected);
  for(let bpm=90;bpm<=180;bpm++)assert.deepEqual(calculateScore(run({bpm})).factors,{duration:1});
  for(let bpm=90;bpm<=180;bpm++)assert.equal(calculateScore(run({bpm})).stars,3);
 });
