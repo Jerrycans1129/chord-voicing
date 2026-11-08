@@ -477,6 +477,11 @@ test('failed A creates an input gap then dual retries with B priority and statio
   run('for(const n of cards[0].targets)judgeMidi(n)');assert.equal(run('isCorrect(cards[0])'),true);
   assert.equal(run('cards[0].practicePassed'),false);
   run('judgeMidi(1)');assert.equal(run('elements[0].dataset.feedback'),'wrong');
+  assert.equal(run('cards[1].wrong'),true);assert.equal(run('elements[1].dataset.feedback'),'waiting');
+  run('for(const n of cards[0].targets)judgeMidi(n)');
+  assert.equal(run('elements[0].dataset.feedback'),'correct');
+  assert.equal(run('elements[1].dataset.feedback'),'waiting');
+  assert.equal(run('elapsed'),3);
   run('for(const n of cards[1].targets)judgeMidi(n)');assert.equal(run('cards[0].practicePassed'),true);assert.equal(run('isCorrect(cards[1])'),true);
   run('now+=90;render(now)');assert.ok(Math.abs(run('Number(elements[0].style.opacity)')-.5)<1e-8);
   assert.equal(run('elements[0].style.transform'),'translateY(264px)');assert.ok(run('elapsed')>3);

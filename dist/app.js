@@ -2,7 +2,7 @@ import {stages,names,qualities,curriculum,selectable,supportsPractice,currentPro
 import {BUILD_REVISION} from './build.js';
 import {Scheduler,cleanLevels} from './scheduler.js';
 import {VERSION,TOTAL_SECONDS,normalizeBpm,createRun,calculateScore,cleanResults} from './scoring.js';
-import {activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,applyPracticeInput,updatePracticeState,isCorrect,canSettle} from './judgment.js';
+import {activeQuestionIndex,prepareAttempt,stampBoundaries,attackTargets,targetForNote,applyAttack,applyPracticeInput,updatePracticeState,practiceBlockedIndex,isCorrect,canSettle} from './judgment.js';
 import {motionStep,stopProgress,labelGeometry,metronomeBeats,EPSILON} from './performance.js';
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
@@ -540,12 +540,14 @@ function paintScene(){
  if(!started||finished||mode==='free')return;
  syncCards();
  const height=$('falling').clientHeight,zoneHeight=$('performance-frost').clientHeight;
+ const blocked=mode==='practice'?practiceBlockedIndex(cards):-1;
  cards.forEach((card,index)=>{
   const el=elements[index],geometry=labelGeometry(index,elapsed,height,zoneHeight);
   const opacity=card.fadeAt===undefined?1:Math.max(0,1-(sessionSeconds-card.fadeAt)/.18);
   el.hidden=geometry.hidden||opacity<=0;
   el.dataset.landed=String(geometry.landed);
-  el.dataset.feedback=card.feedback||'waiting';
+  // During dual retries, only A shows errors; B stays neutral until it unlocks.
+  el.dataset.feedback=blocked>=0&&index===blocked+1?'waiting':card.feedback||'waiting';
   el.style.opacity=String(opacity);el.style.transform=`translateY(${geometry.y}px)`;
  });
 }
