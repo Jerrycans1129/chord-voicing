@@ -1,3 +1,4 @@
+import {ChordRecognizer,supportsLearning,referenceNotes,learningChordName} from './learning.js';
 import {stages,names,qualities,curriculum,selectable,supportsPractice,currentProgress} from './theory.js';
 import {BUILD_REVISION} from './build.js';
 import {Scheduler,cleanLevels} from './scheduler.js';
@@ -16,6 +17,7 @@ let expandedTop=stages[stageIndex].projectId;
 let expandedQuality=stages[stageIndex].id.startsWith('quality-')?stages[stageIndex].id:stages[stageIndex].parent?.startsWith('quality-')?stages[stageIndex].parent:null;
 let scheduler,settled=0,run=createRun();
 let mode='challenge';
+let learningActive=false,learningState=null,recognizer=null;
 let bpm=120;
 const practiceSettings={metronomeOn:true,bpm:90};
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
@@ -136,7 +138,7 @@ function paintMidi(){
  const sustained=new Set([...midiPedals.values()].flatMap(channels=>[...channels.values()].flatMap(state=>[...state.notes])));
  for(const [note,key] of midiKeys){key.dataset.midiPressed=String(held.has(note));key.dataset.midiSustained=String(sustained.has(note)&&!held.has(note));}
 }
-function clearMidi(){midiHeld.clear();midiPedals.clear();paintMidi();}
+function clearMidi(){midiHeld.clear();midiPedals.clear();recognizer?.reset();paintMidi();}
 function receiveMidi(id,event){
  if(document.hidden||!midiInputs.has(id))return;
  const data=event.data;
@@ -160,6 +162,15 @@ function receiveMidi(id,event){
  paintMidi();
 }
 function judgeMidi(note){
+ if(learningActive){
+  if($('settings-dialog').open)return;
+  const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
+  const match=recognizer.attack(note,held,learningState.pc);
+  if(match&&(match.pc!==learningState.pc||match.inv!==learningState.inv)){
+   Object.assign(learningState,match,{spelling:Math.floor(Math.random()*names[match.pc].length)});paintLearning();
+  }
+  return;
+ }
  if(!running)return;
  advance(performance.now());
  if(!running||mode==='free')return;
@@ -181,7 +192,7 @@ function judgeMidi(note){
 function syncMidiInputs(){
  const connected=new Map([...midiAccess.inputs.values()].filter(input=>input.state==='connected').map(input=>[input.id,input]));
  for(const [id,input] of midiInputs){
-  if(connected.get(id)!==input){if(running)advance(performance.now());input.onmidimessage=null;midiInputs.delete(id);midiHeld.delete(id);midiPedals.delete(id);const active=cards[activeQuestionIndex(cards,sessionSeconds)];if(active)active.assisted=true;}
+  if(connected.get(id)!==input){if(running)advance(performance.now());input.onmidimessage=null;midiInputs.delete(id);recognizer?.reset();midiHeld.delete(id);midiPedals.delete(id);const active=cards[activeQuestionIndex(cards,sessionSeconds)];if(active)active.assisted=true;}
  }
  for(const [id,input] of connected){
   if(midiInputs.has(id))continue;
@@ -256,6 +267,7 @@ function updateRoute(){
  }
  $('overlay-action').disabled=stageIndex<0||!selectable(stages[stageIndex],results);
  $('practice-action').hidden=!supportsPractice(stages[stageIndex]);
+ $('free-action').hidden=!supportsLearning(stages[stageIndex]);
  scheduleRouteLayout();
 }
 // Keep the inversion group centered directly beneath its chord while scrolling.
@@ -379,6 +391,8 @@ function hidePauseControls(){
  for(const dot of answerDots.values())dot.hidden=true;
 }
 function openSettings(){
+ if(learningActive)recognizer.reset();
+ $('settings-dialog').dataset.learning=String(learningActive);
  if(running||$('settings-dialog').open||(mode==='challenge'&&started&&!finished))return;
  updateMetronome();updateTempoControls();
  $('tempo-setting').hidden=mode==='free';
@@ -386,6 +400,7 @@ function openSettings(){
 }
 
 function showHome(){
+ learningActive=false;recognizer?.reset();$('learning').hidden=true;$('instrument').dataset.learning='false';
  $('practice-count-in').hidden=true;
  $('pause-screen').hidden=true;updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('settings-toggle').hidden=false;updateRoute();
 }
@@ -634,7 +649,48 @@ function startMode(nextMode){
 $('pause-screen').addEventListener('click',e=>e.stopPropagation());
 $('pause-resume').addEventListener('click',e=>{e.stopPropagation();play();});
 $('pause-settings').addEventListener('click',e=>{e.stopPropagation();openSettings();});
-$('free-action').addEventListener('click',e=>{e.stopPropagation();startMode('free');});
+
+function startLearning(){
+ const stage=stages[stageIndex];if(!supportsLearning(stage))return;
+ mode='free';reset();
+ const q=stage.combos[0].q;
+ learningState={q,pc:0,spelling:0,inv:stage.children?0:stage.combos[0].inv};
+ recognizer=new ChordRecognizer(q);learningActive=true;keyboardBlurOn=false;updateKeyboardBlur();
+ $('instrument').dataset.learning='true';$('overlay').hidden=true;$('learning').hidden=false;$('settings-toggle').hidden=true;
+ $('learning-title').textContent=qualities[q].name+'和弦';
+ const buttons=[];
+ const whiteColumns=[1,3,5,7,9,11,13],blackColumns={1:2,3:4,6:8,8:10,10:12};
+ names.forEach((spellings,pc)=>spellings.forEach((name,spelling)=>{
+  const button=document.createElement('button');button.className='learning-chord';button.textContent=name+qualities[q].suffix;button.dataset.long=String(button.textContent.length>7);
+  button.style.gridColumn=String(blackColumns[pc]??whiteColumns[[0,2,4,5,7,9,11].indexOf(pc)]);
+  button.style.gridRow=String(blackColumns[pc]?spelling+1:3);
+  button.dataset.pc=String(pc);button.dataset.spelling=String(spelling);
+  button.addEventListener('click',()=>{Object.assign(learningState,{pc,spelling});recognizer.reset();paintLearning();});buttons.push(button);
+ }));
+ $('learning-chords').replaceChildren(...buttons);
+ const size=qualities[q].intervals.length;
+ $('learning-positions').replaceChildren(...Array.from({length:size},(_,position)=>{
+  const button=document.createElement('button');button.className='learning-position';
+  const inv=(size-position)%size;button.dataset.inv=String(inv);
+  const location=position===0?'在左':position===size-1?'在右':size===3?'居中':`从左第${position+1}位`;
+  button.setAttribute('aria-label',`根音${location}（${inv===0?'原位':'第'+inv+'转位'}）`);
+  button.addEventListener('click',()=>{learningState.inv=inv;recognizer.reset();paintLearning();});return button;
+ }));paintLearning();
+}
+function paintLearning(){
+ if(!learningActive)return;
+ const {q,pc,spelling,inv}=learningState;
+ for(const button of $('learning-chords').children)button.setAttribute('aria-pressed',String(Number(button.dataset.pc)===pc));
+ for(const button of $('learning-positions').children)button.setAttribute('aria-pressed',String(Number(button.dataset.inv)===inv));
+ $('learning-name').textContent=inv===0?'原位':`第${['零','一','二','三','四'][inv]}转位`;
+ const pitches=referenceNotes(q,pc,inv);
+ for(const [note,dot] of answerDots){dot.hidden=!pitches.includes(note);dot.dataset.root=String(note%12===pc);}
+}
+$('learning').addEventListener('click',e=>e.stopPropagation());
+$('learning-back').addEventListener('click',()=>reset());
+$('learning-midi').addEventListener('click',()=>openSettings());
+
+$('free-action').addEventListener('click',e=>{e.stopPropagation();startLearning();});
 $('pause-exit').addEventListener('click',e=>{e.stopPropagation();complete();});
 $('practice-action').addEventListener('click',e=>{e.stopPropagation();startMode('practice');});
 $('overlay-action').addEventListener('click',e=>{e.stopPropagation();startMode('challenge');});
@@ -652,6 +708,7 @@ document.addEventListener('click',()=>{
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();clearMidi();}});
 const portrait=matchMedia('(orientation: portrait) and (max-width: 1100px) and (any-pointer: coarse)');portrait.addEventListener('change',e=>{if(e.matches)pause();});
 document.addEventListener('keydown',e=>{
+ if(learningActive)return;
  if($('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return;
  if(e.code==='Space'&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement?.tagName)){e.preventDefault();play();}
 });

@@ -7,10 +7,15 @@
 <div class="home-content"><nav id="route" aria-label="训练路线">
 <svg id="route-branches" aria-hidden="true"><path id="branch-top"/><path id="branch-quality"/></svg>
 <div id="route-top" class="route-row" aria-label="训练项目"></div>
-<div id="route-surface"><div class="route-heading"><button id="practice-action" class="primary" type="button" aria-label="训练模式" hidden>训练</button><button id="overlay-action" class="primary" type="button" aria-label="闯关模式">闯关</button><button id="free-action" class="primary" type="button">自由弹奏</button></div>
+<div id="route-surface"><div class="route-heading"><button id="practice-action" class="primary" type="button" aria-label="训练模式" hidden>训练</button><button id="overlay-action" class="primary" type="button" aria-label="闯关模式">闯关</button><button id="free-action" class="primary" type="button">和弦学习</button></div>
 <div id="route-second" class="route-row" aria-label="训练内容"></div>
 <div id="route-details"><div id="route-third" class="route-row" aria-label="根音位置"></div></div>
 </div></nav></div>
+</section>
+<section id="learning" hidden aria-label="和弦学习">
+<header class="learning-header"><button id="learning-back" class="learning-back">‹ 返回</button><h2 id="learning-title"></h2><button id="learning-midi" class="learning-back" aria-label="MIDI 连接设置">⚙</button></header>
+<div id="learning-chords" role="group" aria-label="和弦根音"></div>
+<div class="learning-answer"><span id="learning-name" aria-live="polite"></span><div id="learning-positions" role="group" aria-label="根音位置"></div></div>
 </section>
 <button id="settings-toggle" class="secondary" type="button" aria-label="打开训练设置" title="训练设置"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m9 3-.6 2.2-2 .9-2-.6-2 3.5 1.5 1.6v2.8L2.4 15l2 3.5 2-.6 2 .9L9 21h4l.6-2.2 2-.9 2 .6 2-3.5-1.5-1.6v-2.8l1.5-1.6-2-3.5-2 .6-2-.9L13 3Z"/><circle cx="11" cy="12" r="3"/></svg></button>
 <div id="practice-count-in" hidden aria-live="off" aria-label="预备拍"></div>

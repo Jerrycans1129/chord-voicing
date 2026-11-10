@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
+import * as learning from '../dist/learning.js';
 import * as theory from '../dist/theory.js';
 import {BUILD_REVISION} from '../dist/build.js';
 import {Scheduler,cleanLevels} from '../dist/scheduler.js';
@@ -10,9 +11,9 @@ import * as judgment from '../dist/judgment.js';
 import * as performance from '../dist/performance.js';
 function session(extras={},connected=true){
  const nodes=new Map(),documentHandlers={},alerts=[];
- const element=()=>({open:false,click(){this.clicked=true;},showModal(){this.open=true;},close(){this.open=false;},style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(){},children:[],append(...items){this.children.push(...items);},replaceChildren(...items){this.children=[...items];},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},queries:new Map(),querySelector(selector){if(!this.queries.has(selector))this.queries.set(selector,element());return this.queries.get(selector);},scrollLeft:0,scrollIntoView(){},setPointerCapture(){},hasPointerCapture(){return false;},releasePointerCapture(){}});
+ const element=()=>({open:false,click(){this.clicked=true;},showModal(){this.open=true;},close(){this.open=false;},style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(key,value){this.attributes??={};this.attributes[key]=value;},children:[],append(...items){this.children.push(...items);},replaceChildren(...items){this.children=[...items];},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},queries:new Map(),querySelector(selector){if(!this.queries.has(selector))this.queries.set(selector,element());return this.queries.get(selector);},scrollLeft:0,scrollIntoView(){},setPointerCapture(){},hasPointerCapture(){return false;},releasePointerCapture(){}});
  const get=id=>{if(!nodes.has(id)){const node=element();if(id==='performance-frost')node.clientHeight=96;nodes.set(id,node);}return nodes.get(id);};
- const context=vm.createContext({alert:message=>alerts.push(message),...theory,BUILD_REVISION,Scheduler,cleanLevels,...scoring,...judgment,...performance,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
+ const context=vm.createContext({alert:message=>alerts.push(message),...theory,...learning,BUILD_REVISION,Scheduler,cleanLevels,...scoring,...judgment,...performance,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
  // Legacy timeline fixtures use 90 BPM; mode entry tests exercise production defaults.
  vm.runInContext('bpm=90',context);
@@ -527,21 +528,31 @@ test('practice manual pause clears partial attacks but preserves solved passage'
  assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
 });
 
-test('free play has no questions or scoring and uses the shared pause controls',async()=>{
- const {run,nodes,send,documentHandlers}=midiSession();await run('connectMidi()');
- nodes.get('free-action').handlers.click({stopPropagation(){}});
- assert.equal(run('mode'),'free');assert.equal(nodes.get('training-name').textContent,'自由弹奏');
+test('learning replaces free play, works without MIDI and keeps answers after release and errors',async()=>{
+ const {run,nodes,send}=midiSession();await run('connectMidi()');
+ run("selectNode('quality-5');startLearning()");
+ assert.equal(run('learningActive'),true);assert.equal(run('running'),false);
  assert.equal(nodes.get('instrument').dataset.midiFeedback,'true');
- assert.equal(run('cards.length'),0);assert.equal(run('keyboardBlurOn'),false);
- send([0x90,60,100]);assert.equal(run('midiKeys.get(60).dataset.midiPressed'),'true');
- run('now=3600000;render(now)');assert.equal(run('running'),true);assert.equal(run('cards.length'),0);
- documentHandlers.click();assert.equal(run('running'),false);assert.equal(nodes.get('pause-screen').hidden,false);
- nodes.get('pause-settings').handlers.click({stopPropagation(){}});assert.equal(nodes.get('settings-dialog').open,true);
- nodes.get('settings-close').handlers.click({stopPropagation(){}});assert.equal(run('running'),false);
- nodes.get('pause-resume').handlers.click({stopPropagation(){}});assert.equal(run('running'),true);
- run('pause()');nodes.get('pause-exit').handlers.click({stopPropagation(){}});
+ for(const n of [51,55,58,60]){send([0x90,n,100]);send([0x80,n,0]);}
+ assert.equal(run('learningState.pc'),0);assert.equal(run('learningState.inv'),1);
+ assert.equal(nodes.get('learning-name').textContent,'第一转位');
+ assert.equal(run('[...answerDots.values()].filter(d=>!d.hidden).length'),4);
+ send([0x90,61,100]);assert.equal(run('midiKeys.get(61).dataset.midiPressed'),'true');
+ assert.equal(run('learningState.inv'),1);
+ run('now=3600000;render(now)');assert.equal(run('learningState.inv'),1);
+ nodes.get('learning-back').handlers.click();assert.equal(run('learningActive'),false);
  assert.equal(nodes.get('overlay').hidden,false);assert.equal(run('Object.keys(results).length'),0);
- assert.equal(nodes.get('result-dialog').open,false);
+ const offline=session({},false);offline.run("selectNode('chord-0-2');startLearning()");
+ assert.equal(offline.run('learningState.inv'),2);assert.equal(offline.nodes.get('midi-warning').open,false);
+});
+test('learning entry is hidden for notes and comprehensive levels and manual choice resets recognition',()=>{
+ const {run,nodes}=session({},false);
+ for(const id of ['notes-two','notes-all','level-2']){run(`selectNode('${id}');startLearning()`);assert.equal(run('learningActive'),false);assert.equal(nodes.get('free-action').hidden,true);}
+ run("selectNode('quality-0');startLearning();judgeMidi(60);judgeMidi(64)");
+ nodes.get('learning-positions').children[1].handlers.click();
+ assert.equal(run('learningState.inv'),2);
+ run('judgeMidi(67)');assert.equal(run('learningState.inv'),2);
+ assert.equal(run('recognizer.candidates[0].hits.size'),1);
 });
 test('every single-note stage shares full-window practice and bottom retry behavior',()=>{
  for(const id of ['notes-two','notes-three','notes-black','notes-white','notes-all']){
@@ -803,4 +814,28 @@ test('opening count-in survives pause and a practice tempo change without replay
  nodes.get('bpm-increase').handlers.click({stopPropagation(){}});
  run('now+=60000;play()');assert.equal(nodes.get('practice-count-in').textContent,'2');
  run('now+=60000/bpm;render(now)');assert.equal(nodes.get('practice-count-in').textContent,'1');
+});
+
+test('learning ignores transport shortcuts and clears input on visibility loss',()=>{
+ const {run,nodes,documentHandlers}=session({},false);
+ run("selectNode('quality-0');startLearning();judgeMidi(60)");
+ documentHandlers.keydown({code:'Space'});
+ assert.equal(run('running'),false);assert.equal(nodes.get('midi-warning').open,false);
+ run('document.hidden=true');documentHandlers.visibilitychange();
+ assert.equal(run('recognizer.candidates[0].hits.size'),0);assert.equal(run('learningActive'),true);
+});
+
+test('learning selects both enharmonic labels and shows inversion only',()=>{
+ const {run,nodes}=session({},false);run("selectNode('quality-5');startLearning()");
+ const buttons=nodes.get('learning-chords').children;
+ buttons.find(b=>b.dataset.pc==='1'&&b.dataset.spelling==='0').handlers.click();
+ assert.equal(buttons.filter(b=>b.attributes['aria-pressed']==='true').length,2);
+ assert.ok(buttons.filter(b=>b.attributes['aria-pressed']==='true').every(b=>b.dataset.pc==='1'));
+ assert.equal(nodes.get('learning-name').textContent,'原位');
+ nodes.get('learning-positions').children[3].handlers.click();
+ assert.equal(nodes.get('learning-name').textContent,'第一转位');
+ run('judgeMidi(49);judgeMidi(53);judgeMidi(56);judgeMidi(58)');
+ assert.equal(run('learningState.pc'),10);
+ assert.equal(buttons.filter(b=>b.attributes['aria-pressed']==='true').length,2);
+ assert.ok(buttons.filter(b=>b.attributes['aria-pressed']==='true').every(b=>b.dataset.pc==='10'));
 });
