@@ -139,30 +139,22 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 #practice-count-in{position:absolute;inset:0;z-index:0;display:grid;place-items:center;pointer-events:none;font-size:clamp(64px,min(16vw,24vh),144px);font-weight:300;line-height:1;letter-spacing:.06em;color:rgb(180 202 170 / .26);text-shadow:none;font-variant-numeric:tabular-nums}
 /* Learning is independent of the timed training and challenge sessions. */
 .instrument[data-learning="true"]{--key-h:24vh}
-#learning{position:absolute;inset:0 0 var(--key-h);z-index:4;background:#172321;--learning-inset:clamp(12px,3vw,48px);--answer-height:10vh}
+#learning{position:absolute;inset:0 0 var(--key-h);z-index:4;background:#172321;--learning-inset:clamp(12px,3vw,48px);--label-height:6.5vh}
 .learning-header{position:absolute;top:2vh;left:var(--learning-inset);right:var(--learning-inset);display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px}
 .learning-header h2{margin:0;font-size:clamp(20px,3vw,36px);font-weight:600}
 .learning-back{background:none;color:#e5eae4;padding:4px 8px;min-height:36px;font-size:clamp(16px,2vw,24px)}
 /* iPad landscape: compact three-row cluster, with breathing room above and below. */
-#learning-chords{position:absolute;left:var(--learning-inset);right:var(--learning-inset);bottom:calc(var(--answer-height) + 12vh);display:grid;grid-template-columns:repeat(13,minmax(0,1fr));grid-template-rows:repeat(3,6.5vh);gap:1.6vh 0;align-items:center;padding:0 3.2%}
+#learning-chords{position:absolute;left:var(--learning-inset);right:var(--learning-inset);bottom:calc(22vh - var(--label-height));display:grid;grid-template-columns:repeat(13,minmax(0,1fr));grid-template-rows:repeat(3,var(--label-height));gap:1.6vh 0;align-items:center;padding:0 3.2%}
 .learning-chord{justify-self:center;width:176%;height:100%;min-height:0;padding:2px;border:1px solid #879e80;background:#1a2b24;color:#e5eae4;border-radius:10px;font-size:clamp(14px,2.5vw,30px);font-weight:600;white-space:nowrap}
 .learning-chord[aria-pressed="true"]{background:#c9ed9d;color:#152318;border-color:#d7f4aa}
-.learning-answer{position:absolute;bottom:0;left:0;right:0;height:var(--answer-height);display:flex;align-items:center;border:0;border-top:1px solid #879e80;border-radius:0;padding:0 var(--learning-inset);gap:clamp(10px,3vw,40px)}
-#learning-name{width:32%;flex-shrink:0;font-size:clamp(20px,3vw,36px);font-weight:600;white-space:nowrap;padding-right:8px}
-#learning-positions{position:relative;display:flex;justify-content:space-around;align-items:center;flex:1;isolation:isolate}
-#learning-positions::before{content:'';position:absolute;left:8%;right:8%;height:2px;background:#728572;z-index:-1}
-.learning-position{min-height:44px;width:clamp(44px,5vw,64px);height:clamp(44px,5vw,64px);padding:8px;background:none;border-radius:50%;display:grid;place-items:center}
-.learning-position::after{content:'';width:100%;height:100%;border-radius:50%;background:#bff17e}
-.learning-position[aria-pressed="true"]::after{background:#ffca68;box-shadow:0 0 0 7px #ffca6826}
 .answer-dot[data-root="true"]{background:#ffca68;box-shadow:0 0 0 2px #66552e,0 0 9px #ffca6866}
 .instrument[data-learning="true"] #lanes,.instrument[data-learning="true"] #strike{display:none}
 @media(max-height:450px){
  .instrument[data-learning="true"]{--key-h:clamp(80px,27vh,120px)}
- #learning{--answer-height:50px}
+
  .learning-header{top:5px}.learning-header h2{font-size:21px}
- #learning-chords{top:48px;bottom:calc(var(--answer-height) + 14px);grid-template-rows:repeat(3,minmax(0,1fr));gap:5px 0}
+ #learning-chords{top:48px;bottom:64px;transform:translateY(min(64px,calc((100% - 10px)/3)));grid-template-rows:repeat(3,minmax(0,1fr));gap:5px 0}
  .learning-chord{font-size:clamp(13px,2.4vw,21px);border-radius:7px}
- #learning-name{font-size:25px}.learning-position{width:44px;height:44px}
 }
 .learning-chord[data-long="true"]{font-size:clamp(12px,1.75vw,24px)}
 #settings-dialog[data-learning="true"] .switch-row{display:none}

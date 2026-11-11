@@ -1,4 +1,4 @@
-import {ChordRecognizer,supportsLearning,referenceNotes,learningChordName} from './learning.js';
+import {ChordRecognizer,supportsLearning} from './learning.js';
 import {stages,names,qualities,curriculum,selectable,supportsPractice,currentProgress} from './theory.js';
 import {BUILD_REVISION} from './build.js';
 import {Scheduler,cleanLevels} from './scheduler.js';
@@ -668,23 +668,18 @@ function startLearning(){
   button.addEventListener('click',()=>{Object.assign(learningState,{pc,spelling});recognizer.reset();paintLearning();});buttons.push(button);
  }));
  $('learning-chords').replaceChildren(...buttons);
- const size=qualities[q].intervals.length;
- $('learning-positions').replaceChildren(...Array.from({length:size},(_,position)=>{
-  const button=document.createElement('button');button.className='learning-position';
-  const inv=(size-position)%size;button.dataset.inv=String(inv);
-  const location=position===0?'在左':position===size-1?'在右':size===3?'居中':`从左第${position+1}位`;
-  button.setAttribute('aria-label',`根音${location}（${inv===0?'原位':'第'+inv+'转位'}）`);
-  button.addEventListener('click',()=>{learningState.inv=inv;recognizer.reset();paintLearning();});return button;
- }));paintLearning();
+ paintLearning();
 }
 function paintLearning(){
  if(!learningActive)return;
- const {q,pc,spelling,inv}=learningState;
+ const {q,pc}=learningState;
  for(const button of $('learning-chords').children)button.setAttribute('aria-pressed',String(Number(button.dataset.pc)===pc));
- for(const button of $('learning-positions').children)button.setAttribute('aria-pressed',String(Number(button.dataset.inv)===inv));
- $('learning-name').textContent=inv===0?'原位':`第${['零','一','二','三','四'][inv]}转位`;
- const pitches=referenceNotes(q,pc,inv);
- for(const [note,dot] of answerDots){dot.hidden=!pitches.includes(note);dot.dataset.root=String(note%12===pc);}
+ const tones=new Set(qualities[q].intervals.map(interval=>(pc+interval)%12));
+ for(const [note,dot] of answerDots){
+  const pitchClass=note%12;
+  dot.hidden=!tones.has(pitchClass);
+  dot.dataset.root=String(pitchClass===pc);
+ }
 }
 $('learning').addEventListener('click',e=>e.stopPropagation());
 $('learning-back').addEventListener('click',()=>reset());

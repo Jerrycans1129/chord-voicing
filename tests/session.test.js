@@ -535,8 +535,8 @@ test('learning replaces free play, works without MIDI and keeps answers after re
  assert.equal(nodes.get('instrument').dataset.midiFeedback,'true');
  for(const n of [51,55,58,60]){send([0x90,n,100]);send([0x80,n,0]);}
  assert.equal(run('learningState.pc'),0);assert.equal(run('learningState.inv'),1);
- assert.equal(nodes.get('learning-name').textContent,'第一转位');
- assert.equal(run('[...answerDots.values()].filter(d=>!d.hidden).length'),4);
+ assert.deepEqual(Array.from(run('[...answerDots].filter(([,d])=>!d.hidden).map(([n])=>n)')),[48,51,55,58,60,63,67,70,72,75,79,82,84]);
+ assert.equal(run('answerDots.get(84).dataset.root'),'true');
  send([0x90,61,100]);assert.equal(run('midiKeys.get(61).dataset.midiPressed'),'true');
  assert.equal(run('learningState.inv'),1);
  run('now=3600000;render(now)');assert.equal(run('learningState.inv'),1);
@@ -549,9 +549,8 @@ test('learning entry is hidden for notes and comprehensive levels and manual cho
  const {run,nodes}=session({},false);
  for(const id of ['notes-two','notes-all','level-2']){run(`selectNode('${id}');startLearning()`);assert.equal(run('learningActive'),false);assert.equal(nodes.get('free-action').hidden,true);}
  run("selectNode('quality-0');startLearning();judgeMidi(60);judgeMidi(64)");
- nodes.get('learning-positions').children[1].handlers.click();
- assert.equal(run('learningState.inv'),2);
- run('judgeMidi(67)');assert.equal(run('learningState.inv'),2);
+ nodes.get('learning-chords').children.find(b=>b.dataset.pc==='2').handlers.click();
+ run('judgeMidi(67)');assert.equal(run('learningState.pc'),2);
  assert.equal(run('recognizer.candidates[0].hits.size'),1);
 });
 test('every single-note stage shares full-window practice and bottom retry behavior',()=>{
@@ -825,15 +824,14 @@ test('learning ignores transport shortcuts and clears input on visibility loss',
  assert.equal(run('recognizer.candidates[0].hits.size'),0);assert.equal(run('learningActive'),true);
 });
 
-test('learning selects both enharmonic labels and shows inversion only',()=>{
+test('learning selects both enharmonic labels and marks their tones across the keyboard',()=>{
  const {run,nodes}=session({},false);run("selectNode('quality-5');startLearning()");
  const buttons=nodes.get('learning-chords').children;
  buttons.find(b=>b.dataset.pc==='1'&&b.dataset.spelling==='0').handlers.click();
  assert.equal(buttons.filter(b=>b.attributes['aria-pressed']==='true').length,2);
  assert.ok(buttons.filter(b=>b.attributes['aria-pressed']==='true').every(b=>b.dataset.pc==='1'));
- assert.equal(nodes.get('learning-name').textContent,'原位');
- nodes.get('learning-positions').children[3].handlers.click();
- assert.equal(nodes.get('learning-name').textContent,'第一转位');
+ assert.equal(run('answerDots.get(84).hidden'),true);
+ assert.ok(run('[49,61,73].every(n=>!answerDots.get(n).hidden&&answerDots.get(n).dataset.root==="true")'));
  run('judgeMidi(49);judgeMidi(53);judgeMidi(56);judgeMidi(58)');
  assert.equal(run('learningState.pc'),10);
  assert.equal(buttons.filter(b=>b.attributes['aria-pressed']==='true').length,2);
