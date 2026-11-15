@@ -1,5 +1,5 @@
 import {notes} from './theory.js';
-import {earlySeconds,EARLY_BARS,EPSILON} from './performance.js';
+import {earlySeconds,EARLY_BARS,BEATS_PER_LABEL,EPSILON} from './performance.js';
 export const JUDGMENT_POLICY='early-thirty-second-note';
 const EPS=1e-9;
 export function prepareAttempt(card){return {...card,targets:card.kind==='note'?[card.root]:notes(card.root,card.q,card.inv),hits:new Set(),wrong:false,assisted:false,ended:false};}
@@ -10,6 +10,10 @@ export function stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm,ad
  const boundaryAt=boundary=>Math.max(fromSeconds,fromSeconds+(boundary-fromProgress)*period-advanceSeconds);
  cards.forEach((card,i)=>{
   if(card.startAt===undefined&&toProgress+advanceSeconds/period+EPS>=i+2)card.startAt=boundaryAt(i+2);
+  if(card.firstBeatCorrect===undefined&&toProgress+EPS>=i+2+1/BEATS_PER_LABEL){
+   card.firstBeatCorrect=isCorrect(card);
+   if(!card.firstBeatCorrect)card.feedback='wrong';
+  }
   if(card.endAt===undefined&&toProgress+advanceSeconds/period+EPS>=i+3)card.endAt=boundaryAt(i+3);
  });
 }
@@ -25,18 +29,11 @@ export function targetForNote(card,note){
  // The bass root is exact. Every other chord tone is octave-independent.
  return card.targets.find(pitch=>pitch===card.root?note===pitch:note%12===pitch%12);
 }
-export function applyAttack(card,note){
- if(card.ended)return;
- const target=targetForNote(card,note);
- if(card.targets.includes(target))card.hits.add(target);
- else card.wrong=true;
- card.feedback=card.wrong?'wrong':card.targets.every(n=>card.hits.has(n))?'correct':undefined;
-}
 export function isCorrect(card){return !card.wrong&&card.targets.every(n=>card.hits.has(n));}
 export function canSettle(card,seconds){return !card.ended&&card.endAt!==undefined&&seconds+EPS>=card.endAt;}
 
-// Training errors are recoverable; the latest complete attempt determines color.
-export function applyPracticeAttack(card,note,held=[]){
+export function applyAttack(card,note,held=[]){
+ if(card.ended)return;
  const target=targetForNote(card,note);
  if(target===undefined){card.hits.clear();card.wrong=true;card.feedback='wrong';return;}
  card.hits.add(target);
@@ -81,7 +78,7 @@ export function applyPracticeInput(cards,progress,seconds,note,held=[]){
  const blocked=practiceBlockedIndex(cards);
  for(const index of practiceAttackTargets(cards,progress,seconds)){
   const card=cards[index];if(!card)continue;
-  applyPracticeAttack(card,note,held);
+  applyAttack(card,note,held);
   if(blocked>=0&&index===blocked&&isCorrect(card)){
    card.retryBeats=0;card.fadeAt=seconds;card.feedback='wrong';
    return;

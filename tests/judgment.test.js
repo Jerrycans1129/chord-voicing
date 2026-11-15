@@ -2,9 +2,10 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {prepareAttempt,stampBoundaries,attackTargets,applyAttack,isCorrect,canSettle,activeQuestionIndex} from '../dist/judgment.js';
 import {earlySeconds} from '../dist/performance.js';
 function pair(){return [prepareAttempt({kind:'chord',root:60,q:0,inv:0}),prepareAttempt({kind:'chord',root:57,q:1,inv:0})];}
-test('arpeggios accumulate every target; later wrong notes are sticky',()=>{
+test('arpeggios accumulate every target and a wrong note requires a fresh complete answer',()=>{
  const [c]=pair();assert.equal(isCorrect(c),false);applyAttack(c,67);applyAttack(c,60);applyAttack(c,60);assert.equal(isCorrect(c),false);
  applyAttack(c,64);assert.equal(isCorrect(c),true);applyAttack(c,61);assert.equal(isCorrect(c),false);assert.equal(c.feedback,'wrong');applyAttack(c,64);assert.equal(c.feedback,'wrong');
+ applyAttack(c,60);applyAttack(c,67);assert.equal(c.feedback,'correct');
 });
 test('visual boundaries switch once, including at every practice tempo',()=>{
  for(const bpm of [90,91,120,137,180])for(const delta of [-.181,-.001,0,.001,.18]){

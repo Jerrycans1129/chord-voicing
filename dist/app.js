@@ -174,15 +174,15 @@ function judgeMidi(note){
  if(!running)return;
  advance(performance.now());
  if(!running||mode==='free')return;
+ const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
  if(mode==='practice'){
-  const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
   const blocked=practiceBlockedIndex(cards),wasRecovering=blocked>=0&&cards[blocked].retryBeats!==undefined;
   applyPracticeInput(cards,elapsed,sessionSeconds,note,held);
   if(blocked>=0&&!wasRecovering&&cards[blocked].retryBeats!==undefined){
    stopMetronome();lastAudioBeat=-1;nextAudioBeat=null;scheduleMetronome();
   }
  }else for(const index of attackTargets(cards,sessionSeconds).indices){
-  const card=cards[index];applyAttack(card,note);
+  const card=cards[index];applyAttack(card,note,held);
   if(card.wrong&&!card.errorRecorded){card.errorRecorded=true;scheduler.record(card.id,'wrong');}
  }
 
@@ -512,7 +512,11 @@ function complete(){
 function settleCard(card){
  if(card.ended)return;
  card.ended=true;run.total++;
- if(isCorrect(card)){run.correct++;if(!card.assisted)scheduler.record(card.id,'correct');return;}
+ if(isCorrect(card)){
+  run.correct+=card.firstBeatCorrect===false ? 0.5 : 1;
+  if(!card.assisted&&!card.errorRecorded&&card.firstBeatCorrect!==false)scheduler.record(card.id,'correct');
+  return;
+ }
  card.feedback='wrong';
  if(!card.errorRecorded){card.errorRecorded=true;scheduler.record(card.id,'wrong');}
 

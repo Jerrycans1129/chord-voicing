@@ -31,10 +31,10 @@ const noteChildren=[
  {id:'notes-white',kind:'note',name:'7个白键',pcs:[0,2,4,5,7,9,11]}
 ];
 const chordChildren=qualities.map((quality,q)=>{
- if(quality.freeOctaves)return {id:`quality-${q}`,name:quality.name,combos:[{q,inv:0}]};
+ if(quality.freeOctaves)return {id:`quality-${q}`,kind:'quality',name:quality.name,combos:[{q,inv:0}]};
  const order=Array.from({length:quality.intervals.length-1},(_,i)=>i+1).concat(0);
  const children=order.map(inv=>({id:`chord-${q}-${inv}`,name:voicingLabel(q,inv),combos:[{q,inv}]}));
- return {id:`quality-${q}`,name:quality.name,children,combos:children.flatMap(s=>s.combos),mixed:true};
+ return {id:`quality-${q}`,kind:'quality',name:quality.name,children,combos:children.flatMap(s=>s.combos),mixed:true};
 });
 const coreTriads=[0,1],coreSevenths=[4,5,6],colors=[2,3,8,7,9,10];
 const core=[...coreTriads,...coreSevenths];

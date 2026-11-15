@@ -377,7 +377,7 @@ test('challenge settles before B touches and fades in place only after bottom co
  run('now=8190;render(now)');assert.equal(run('elements[0].hidden'),true);
 });
 
-test('challenge errors remain sticky until the next early window and never affect the previous card',()=>{
+test('challenge errors left uncorrected persist until the next early window and never affect the previous card',()=>{
  const {run}=session();run('play();now=5500;for(const n of cards[0].targets)judgeMidi(n);now=7900;judgeMidi(1);now=7950;render(now)');
  assert.equal(run('run.correct'),0);assert.equal(run('cards[0].feedback'),'wrong');
  run('judgeMidi(1)');assert.equal(run('cards[1].wrong'),true);assert.equal(run('run.total'),1);
@@ -465,7 +465,7 @@ test('silent practice passes the entry line then freezes indefinitely at the bot
 });
 
 test('practice correct answers can become wrong and recover during the full measure',()=>{
- const {run}=session();run("startMode('practice');now=6000;render(now);cards[0].targets=[60,64,67];for(const n of cards[0].targets)judgeMidi(n)");
+ const {run}=session();run("startMode('practice');now=5800;render(now);cards[0].targets=[60,64,67];for(const n of cards[0].targets)judgeMidi(n)");
  assert.equal(run('isCorrect(cards[0])'),true);
  run('judgeMidi(1)');assert.equal(run('elements[0].dataset.feedback'),'wrong');
  run('judgeMidi(60);judgeMidi(64)');assert.equal(run('isCorrect(cards[0])'),false);
@@ -475,7 +475,7 @@ test('practice correct answers can become wrong and recover during the full meas
 
 test('failed A retries once, fades red and releases B after a full count-in',()=>{
  for(const bpm of [40,90,137,180]){
-  const {run}=session();run(`startMode('practice');bpm=${bpm};now=2.5*240000/bpm;render(now);cards[0].targets=[60,64,67];cards[1].targets=[62,65,69];judgeMidi(60);now=(3-1/32)*240000/bpm;render(now)`);
+  const {run}=session();run(`startMode('practice');bpm=${bpm};now=2.1*240000/bpm;render(now);cards[0].targets=[60,64,67];cards[1].targets=[62,65,69];judgeMidi(60);now=(3-1/32)*240000/bpm;render(now)`);
   run('for(const n of cards[0].targets)judgeMidi(n);for(const n of cards[1].targets)judgeMidi(n)');
   assert.equal(run('cards[0].hits.size'),1);assert.equal(run('cards[1].hits.size'),0);
   run('now=3*240000/bpm;render(now);for(const n of cards[1].targets)judgeMidi(n)');
@@ -513,7 +513,7 @@ test('both modes share early input ownership and uninterrupted motion when pract
  }
 });
 test('practice recognition requires fresh attacks and ignores sustained notes',async()=>{
- const {run,send}=midiSession();await run('connectMidi()');run("startMode('practice');now=6000;render(now);cards[0].targets=[60,64,67]");
+ const {run,send}=midiSession();await run('connectMidi()');run("startMode('practice');now=5800;render(now);cards[0].targets=[60,64,67]");
  send([0x90,61,100]);for(const n of [60,64,67])send([0x90,n,100]);
  assert.equal(run('isCorrect(cards[0])'),false);
  send([0x80,61,0]);send([0x90,67,100]);assert.equal(run('isCorrect(cards[0])'),false);
@@ -521,9 +521,9 @@ test('practice recognition requires fresh attacks and ignores sustained notes',a
  send([0x90,61,100]);assert.equal(run('isCorrect(cards[0])'),false);
 });
 test('practice manual pause clears partial attacks but preserves solved passage',()=>{
- const {run,nodes}=session();run("startMode('practice');now=6000;render(now);judgeMidi(cards[0].targets[0]);pause()");
+ const {run,nodes}=session();run("startMode('practice');now=5800;render(now);judgeMidi(cards[0].targets[0]);pause()");
  assert.equal(nodes.get('instrument').dataset.paused,'true');assert.equal(run('cards[0].hits.size'),0);
- run('play();for(const n of cards[0].targets)judgeMidi(n);pause();now=60000;render(now)');assert.equal(run('elapsed'),2.25);
+ run('play();for(const n of cards[0].targets)judgeMidi(n);pause();now=60000;render(now)');assert.ok(Math.abs(run('elapsed')-2.175)<1e-8);
  run('play();now+=1000;render(now)');assert.ok(run('elapsed')>2);assert.equal(run('isCorrect(cards[0])'),true);
  assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
 });
@@ -542,12 +542,13 @@ test('learning replaces free play, works without MIDI and keeps answers after re
  run('now=3600000;render(now)');assert.equal(run('learningState.inv'),1);
  nodes.get('learning-back').handlers.click();assert.equal(run('learningActive'),false);
  assert.equal(nodes.get('overlay').hidden,false);assert.equal(run('Object.keys(results).length'),0);
- const offline=session({},false);offline.run("selectNode('chord-0-2');startLearning()");
- assert.equal(offline.run('learningState.inv'),2);assert.equal(offline.nodes.get('midi-warning').open,false);
+ const offline=session({},false);offline.run("selectNode('quality-0')");
+ assert.equal(offline.nodes.get('free-action').hidden,false);offline.run('startLearning()');
+ assert.equal(offline.run('learningActive'),true);assert.equal(offline.nodes.get('midi-warning').open,false);
 });
-test('learning entry is hidden for notes and comprehensive levels and manual choice resets recognition',()=>{
+test('learning entry is hidden for voicings, notes and comprehensive levels and manual choice resets recognition',()=>{
  const {run,nodes}=session({},false);
- for(const id of ['notes-two','notes-all','level-2']){run(`selectNode('${id}');startLearning()`);assert.equal(run('learningActive'),false);assert.equal(nodes.get('free-action').hidden,true);}
+ for(const id of ['chord-0-0','chord-0-2','notes-two','notes-all','level-2']){run(`selectNode('${id}');startLearning()`);assert.equal(run('learningActive'),false);assert.equal(nodes.get('free-action').hidden,true);}
  run("selectNode('quality-0');startLearning();judgeMidi(60);judgeMidi(64)");
  nodes.get('learning-chords').children.find(b=>b.dataset.pc==='2').handlers.click();
  run('judgeMidi(67)');assert.equal(run('learningState.pc'),2);
@@ -601,7 +602,7 @@ test('practice tempo buttons step by ten, clamp at both ends and preserve the ch
  run("complete();$('result-dialog').close();startMode('practice')");assert.equal(run('bpm'),170);
 });
 test('tempo changes preserve committed practice boundaries and correctly stamp future ones',()=>{
- const {run,nodes}=session();run("startMode('practice');now=6000;pause();const start=cards[0].startAt;for(const n of cards[0].targets)cards[0].hits.add(n)");
+ const {run,nodes}=session();run("startMode('practice');now=5900;render(now);for(const n of cards[0].targets)judgeMidi(n);now=6000;pause();const start=cards[0].startAt");
  for(let i=0;i<9;i++)nodes.get('bpm-increase').handlers.click({stopPropagation(){}});
  run('play();now=7000;render(now)');
  assert.equal(run('cards[0].startAt'),run('start'));
@@ -710,15 +711,16 @@ test('outro pauses, follows tempo changes, and resets on retry',()=>{
 });
 
 
-test('unplayed notes and incomplete chords turn red at window close before bottom contact',()=>{
+test('unplayed notes and incomplete chords turn red at the end of beat one when still incomplete',()=>{
  for(const mode of ['challenge','practice'])for(const kind of ['note','silent-chord','partial-chord'])for(const tempo of [90,137,180]){
   const {run}=session();
   if(kind==='note')run("selectNode('notes-two')");
-  run(`startMode('${mode}');bpm=${tempo};now=2.5*240000/bpm;render(now)`);
+  run(`startMode('${mode}');bpm=${tempo};now=2*240000/bpm;render(now)`);
   if(kind==='partial-chord')run('judgeMidi(cards[0].targets[0])');
-  run('now=(3-1/32)*240000/bpm-1;render(now)');
+  run('now=2.25*240000/bpm-1;render(now)');
   assert.equal(run('elements[0].dataset.feedback'),'waiting');
   run('now+=1;render(now)');
+  assert.equal(run('isCorrect(cards[0])'),false);
   assert.equal(run('elements[0].dataset.feedback'),'wrong');
   assert.equal(run('elements[0].hidden'),false);
   assert.ok(run('elapsed')<3);
@@ -738,6 +740,27 @@ test('unplayed notes and incomplete chords turn red at window close before botto
  }
 });
 
+
+test('both checkpoints determine challenge credit and practice passage',()=>{
+ for(const mode of ['challenge','practice'])for(const early of [false,true])for(const final of [false,true]){
+  const {run}=session();
+  run(`startMode('${mode}');bpm=120;now=3937.5;render(now);cards[0].targets=[60,64];judgeMidi(60)`);
+  if(early)run('now=4499;judgeMidi(64)');
+  run('now=4500;render(now)');
+  assert.equal(run('elements[0].dataset.feedback'),early?'correct':'wrong');
+  run('judgeMidi(64)');
+  assert.equal(run('elements[0].dataset.feedback'),'correct');
+  run('judgeMidi(61);judgeMidi(60)');
+  assert.equal(run('elements[0].dataset.feedback'),'wrong');
+  if(final)run('now=5937;judgeMidi(64)');
+  run('now=5937.5;judgeMidi(64)');
+  assert.equal(run('isCorrect(cards[0])'),final);
+  if(mode==='challenge'){
+   assert.equal(run('run.total'),1);
+   assert.equal(run('run.correct'),final?(early?1:.5):0);
+  }else assert.equal(run('cards[0].practicePassed'),final);
+ }
+});
 
 test('successive recoveries survive delayed frames and give B a fresh full window',()=>{
  const {run}=session();run("startMode('practice');now=20000;render(now)");
