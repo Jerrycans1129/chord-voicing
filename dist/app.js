@@ -56,8 +56,8 @@ $('instrument').dataset.phone=String(phoneLayout);
 let keyboardBlurOn=true;
 function updateKeyboardBlur(){
  $('instrument').dataset.running=String(running);
- $('instrument').dataset.midiFeedback=String(mode!=='practice');
- $('instrument').dataset.performance=String(mode!=='free'&&started&&!finished);
+ $('instrument').dataset.midiFeedback=String(learningActive||mode!=='practice');
+ $('instrument').dataset.performance=String(!learningActive&&mode!=='free'&&started&&!finished);
  $('instrument').dataset.challenge=String(mode==='challenge'&&started&&!finished);
  $('instrument').dataset.paused=String(mode!=='free'&&started&&!finished&&!running);
  $('instrument').dataset.hideKeys=String(phoneLayout&&keyboardBlurOn);
@@ -165,7 +165,7 @@ function judgeMidi(note){
  if(learningActive){
   if($('settings-dialog').open)return;
   const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
-  const match=recognizer.attack(note,held,learningState.pc);
+  const match=recognizer ? recognizer.attack(note,held,learningState.pc) : {pc:note%12,inv:0};
   if(match&&(match.pc!==learningState.pc||match.inv!==learningState.inv)){
    Object.assign(learningState,match,{spelling:Math.floor(Math.random()*names[match.pc].length)});paintLearning();
   }
@@ -391,16 +391,19 @@ function hidePauseControls(){
  for(const dot of answerDots.values())dot.hidden=true;
 }
 function openSettings(){
- if(learningActive)recognizer.reset();
- $('settings-dialog').dataset.learning=String(learningActive);
+ recognizer?.reset();
+ $('settings-dialog').dataset.learning=String(learningActive&&mode==='free');
  if(running||$('settings-dialog').open||(mode==='challenge'&&started&&!finished))return;
  updateMetronome();updateTempoControls();
  $('tempo-setting').hidden=mode==='free';
  $('settings-dialog').showModal();
 }
 
+function closeLearning(){
+ learningActive=false;recognizer=null;learningState=null;$('learning').hidden=true;$('instrument').dataset.learning='false';
+}
 function showHome(){
- learningActive=false;recognizer?.reset();$('learning').hidden=true;$('instrument').dataset.learning='false';
+ closeLearning();
  $('practice-count-in').hidden=true;
  $('pause-screen').hidden=true;updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('settings-toggle').hidden=false;updateRoute();
 }
@@ -420,7 +423,7 @@ function syncCards(){
  while(elapsed+EPSILON>=cards.length&&canReachLine(cards.length))appendCard();
 }
 function updateTrainingHeader(){
- $('training-header').hidden=!started||finished;
+ $('training-header').hidden=learningActive||!started||finished;
  const stage=stages[stageIndex];
  const parent=nodeById.get(stage?.parent);
  $('training-name').textContent=mode==='free'?'自由弹奏':stage?(parent&&!parent.project?`${parent.name}-${stage.name}`:stage.name.replace(/\n/g,'')):'';
@@ -470,7 +473,14 @@ function pauseSession(){
  running=false;strikeFlashAt=-Infinity;updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;
  $('pause-settings').hidden=mode==='challenge';
- hidePauseControls();$('pause-screen').hidden=false;
+ hidePauseControls();$('pause-screen').hidden=mode==='practice';
+ if(mode==='practice'){
+  const blocked=practiceBlockedIndex(cards);
+  let index=activeQuestionIndex(cards,sessionSeconds);
+  if(blocked>=0)index=cards[blocked].retryBeats===undefined?blocked:blocked+1;
+  const card=cards[Math.max(0,index)];
+  openLearning(card.q,card.pc,card.inv??0,names[card.pc].indexOf(card.name));
+ }
  paintScene();
 }
 function canStartTraining(){
@@ -482,6 +492,7 @@ function play(){
  if(running){pause();return;}
  if(!canStartTraining())return;
  if(finished)reset();
+ if(learningActive)closeLearning();
  keyboardBlurOn=mode==='challenge';
  $('pause-screen').hidden=true;
  run.started=true;started=true;running=true;
@@ -657,19 +668,23 @@ $('pause-settings').addEventListener('click',e=>{e.stopPropagation();openSetting
 function startLearning(){
  const stage=stages[stageIndex];if(!supportsLearning(stage))return;
  mode='free';reset();
- const q=stage.combos[0].q;
- learningState={q,pc:0,spelling:0,inv:stage.children?0:stage.combos[0].inv};
- recognizer=new ChordRecognizer(q);learningActive=true;keyboardBlurOn=false;updateKeyboardBlur();
+ openLearning(stage.combos[0].q,0,0,0);
+}
+function openLearning(q,pc,inv,spelling){
+ learningState={q,pc,inv,spelling};
+ recognizer=q===undefined?null:new ChordRecognizer(q);learningActive=true;keyboardBlurOn=false;updateKeyboardBlur();
  $('instrument').dataset.learning='true';$('overlay').hidden=true;$('learning').hidden=false;$('settings-toggle').hidden=true;
- $('learning-title').textContent=qualities[q].name+'和弦';
+ $('learning-title').textContent=q===undefined?'单音':qualities[q].name+'和弦';
+ $('learning-back').textContent=mode==='practice'?'退出训练':'‹ 返回';
+ $('learning-midi').setAttribute('aria-label',mode==='practice'?'训练设置':'MIDI 连接设置');
  const buttons=[];
  const whiteColumns=[1,3,5,7,9,11,13],blackColumns={1:2,3:4,6:8,8:10,10:12};
  names.forEach((spellings,pc)=>spellings.forEach((name,spelling)=>{
-  const button=document.createElement('button');button.className='learning-chord';button.textContent=name+qualities[q].suffix;button.dataset.long=String(button.textContent.length>7);
+  const button=document.createElement('button');button.className='learning-chord';button.textContent=name+(qualities[q]?.suffix??'');button.dataset.long=String(button.textContent.length>7);
   button.style.gridColumn=String(blackColumns[pc]??whiteColumns[[0,2,4,5,7,9,11].indexOf(pc)]);
   button.style.gridRow=String(blackColumns[pc]?spelling+1:3);
   button.dataset.pc=String(pc);button.dataset.spelling=String(spelling);
-  button.addEventListener('click',()=>{Object.assign(learningState,{pc,spelling});recognizer.reset();paintLearning();});buttons.push(button);
+  button.addEventListener('click',()=>{Object.assign(learningState,{pc,spelling});recognizer?.reset();paintLearning();});buttons.push(button);
  }));
  $('learning-chords').replaceChildren(...buttons);
  paintLearning();
@@ -678,15 +693,18 @@ function paintLearning(){
  if(!learningActive)return;
  const {q,pc}=learningState;
  for(const button of $('learning-chords').children)button.setAttribute('aria-pressed',String(Number(button.dataset.pc)===pc));
- const tones=new Set(qualities[q].intervals.map(interval=>(pc+interval)%12));
+ const tones=new Set((qualities[q]?.intervals??[0]).map(interval=>(pc+interval)%12));
  for(const [note,dot] of answerDots){
   const pitchClass=note%12;
   dot.hidden=!tones.has(pitchClass);
   dot.dataset.root=String(pitchClass===pc);
  }
 }
-$('learning').addEventListener('click',e=>e.stopPropagation());
-$('learning-back').addEventListener('click',()=>reset());
+$('learning').addEventListener('click',e=>{
+ e.stopPropagation();
+ if(learningActive&&mode==='practice'&&!e.target.closest('button')&&!$('settings-dialog').open)play();
+});
+$('learning-back').addEventListener('click',()=>mode==='practice'?complete():reset());
 $('learning-midi').addEventListener('click',()=>openSettings());
 
 $('free-action').addEventListener('click',e=>{e.stopPropagation();startLearning();});
@@ -707,7 +725,7 @@ document.addEventListener('click',()=>{
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();clearMidi();}});
 const portrait=matchMedia('(orientation: portrait) and (max-width: 1100px) and (any-pointer: coarse)');portrait.addEventListener('change',e=>{if(e.matches)pause();});
 document.addEventListener('keydown',e=>{
- if(learningActive)return;
+ if(learningActive&&mode!=='practice')return;
  if($('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return;
  if(e.code==='Space'&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement?.tagName)){e.preventDefault();play();}
 });

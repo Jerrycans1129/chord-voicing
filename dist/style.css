@@ -148,7 +148,7 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 .learning-chord{justify-self:center;width:176%;height:100%;min-height:0;padding:2px;border:1px solid #879e80;background:#1a2b24;color:#e5eae4;border-radius:10px;font-size:clamp(14px,2.5vw,30px);font-weight:600;white-space:nowrap}
 .learning-chord[aria-pressed="true"]{background:#c9ed9d;color:#152318;border-color:#d7f4aa}
 .answer-dot[data-root="true"]{background:#ffca68;box-shadow:0 0 0 2px #66552e,0 0 9px #ffca6866}
-.instrument[data-learning="true"] #lanes,.instrument[data-learning="true"] #strike{display:none}
+.instrument[data-learning="true"] #falling,.instrument[data-learning="true"] #lanes,.instrument[data-learning="true"] #strike{display:none}
 @media(max-height:450px){
  .instrument[data-learning="true"]{--key-h:clamp(80px,27vh,120px)}
 

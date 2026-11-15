@@ -454,7 +454,7 @@ test('practice uses challenge scheduling, cadence and keyboard-free layout witho
   assert.equal(run('cards.length'),3);assert.equal(run('elements[0].style.transform'),'translateY(168px)');
   assert.equal(run('elements[1].style.transform'),'translateY(62px)');
   assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
-  run('pause()');assert.equal(nodes.get('instrument').dataset.midiFeedback,'false');
+  run('pause()');assert.equal(nodes.get('instrument').dataset.midiFeedback,'true');
  }
 });
 test('silent practice passes the entry line then freezes indefinitely at the bottom',()=>{
@@ -859,4 +859,42 @@ test('learning selects both enharmonic labels and marks their tones across the k
  assert.equal(run('learningState.pc'),10);
  assert.equal(buttons.filter(b=>b.attributes['aria-pressed']==='true').length,2);
  assert.ok(buttons.filter(b=>b.attributes['aria-pressed']==='true').every(b=>b.dataset.pc==='10'));
+});
+
+test('practice pause opens the detected chord, isolates exploration and resumes the same card',async()=>{
+ const {run,nodes,send,documentHandlers}=midiSession();
+ await run('connectMidi()');
+ run("selectNode('quality-0');startMode('practice');now=5300;render(now);Object.assign(cards[0],{pc:1,name:'D♭',inv:1})");
+ documentHandlers.click();
+ const selected=()=>nodes.get('learning-chords').children.filter(b=>b.attributes['aria-pressed']==='true');
+ assert.deepEqual(selected().map(b=>b.dataset.pc),['1','1']);
+ assert.equal(run('learningState.inv'),1);
+ assert.equal(nodes.get('learning-back').textContent,'退出训练');
+ assert.equal(nodes.get('pause-screen').hidden,true);
+ const choice=nodes.get('learning-chords').children.find(b=>b.dataset.pc==='2');
+ choice.handlers.click();
+ const pageClick=button=>nodes.get('learning').handlers.click({stopPropagation(){},target:{closest:()=>button}});
+ pageClick(choice);
+ assert.equal(run('answerDots.get(62).hidden'),false);
+ for(const n of [60,64,67]){send([0x90,n,100]);send([0x80,n,0]);}
+ assert.equal(run('learningState.pc'),0);
+ nodes.get('learning-midi').handlers.click();
+ assert.equal(nodes.get('settings-dialog').dataset.learning,'false');
+ assert.equal(nodes.get('tempo-setting').hidden,false);
+ run("now+=60000;render(now);$('settings-dialog').close()");
+ assert.equal(run('sessionSeconds'),5.3);
+ assert.equal(run('cards[0].hits.size'),0);
+ pageClick(null);
+ assert.equal(run('running'),true);
+ assert.equal(nodes.get('learning').hidden,true);
+ assert.equal(run('cards[0].pc'),1);
+ assert.equal(run('[...answerDots.values()].every(dot=>dot.hidden)'),true);
+ documentHandlers.click();nodes.get('learning-back').handlers.click();
+ assert.equal(run('finished'),true);assert.equal(nodes.get('overlay').hidden,false);
+});
+test('single-note practice pause shows and recognizes individual pitch classes',()=>{
+ const {run,nodes}=session();
+ run("selectNode('notes-two');startMode('practice');pause();judgeMidi(61)");
+ assert.equal(nodes.get('learning-title').textContent,'单音');
+ assert.deepEqual(Array.from(run('[...answerDots].filter(([,dot])=>!dot.hidden).map(([n])=>n)')),[49,61,73]);
 });
