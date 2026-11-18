@@ -77,16 +77,26 @@ function stopMetronome(){
  for(const oscillator of clicks){if(oscillator.scheduledAt<=audioContext.currentTime)lastAudioBeat=Math.max(lastAudioBeat,oscillator.scheduledBeat);oscillator.cancelled=true;oscillator.stop();oscillator.disconnect();}
  clicks.clear();nextAudioBeat=null;
 }
+function releaseAudio(){
+ stopMetronome();
+ const context=audioContext;audioContext=null;
+ // iOS can retain a silent/interrupted context after screen lock, even when
+ // resume() resolves. Recreate it inside the next play/toggle user gesture.
+ if(context&&context.state!=='closed')try{void context.close().catch(()=>{});}catch{}
+}
 function unlockAudio(){
  if(!metronomeOn)return;
  try{
   const Audio=globalThis.AudioContext||globalThis.webkitAudioContext;
-  if(!Audio)throw new Error('Audio unavailable');
+  if(!Audio){metronomeOn=false;updateMetronome();return;}
+  if(audioContext&&audioContext.state!=='running')releaseAudio();
   audioContext??=new Audio();
-  audioContext.resume().catch(()=>{
-   metronomeOn=false;stopMetronome();updateMetronome();
+  const context=audioContext;
+  context.resume().catch(()=>{
+   // A late rejection from a discarded context must not stop its replacement.
+   if(audioContext===context)releaseAudio();
   });
- }catch{metronomeOn=false;updateMetronome();}
+ }catch{releaseAudio();}
 }
 function scheduleMetronome(){
  if(!running||!metronomeOn||audioContext?.state!=='running')return;
@@ -106,7 +116,8 @@ function scheduleMetronome(){
   gain.gain.exponentialRampToValueAtTime(.001,time+.055);
   oscillator.connect(gain);gain.connect(audioContext.destination);
   clicks.add(oscillator);
-  oscillator.onended=()=>{if(!oscillator.cancelled&&oscillator.scheduledAt<=audioContext.currentTime)lastAudioBeat=Math.max(lastAudioBeat,beat);clicks.delete(oscillator);oscillator.disconnect();gain.disconnect();};
+  const context=audioContext;
+  oscillator.onended=()=>{if(!oscillator.cancelled&&context===audioContext&&oscillator.scheduledAt<=context.currentTime)lastAudioBeat=Math.max(lastAudioBeat,beat);clicks.delete(oscillator);oscillator.disconnect();gain.disconnect();};
   oscillator.scheduledBeat=beat;oscillator.scheduledAt=time;
   oscillator.start(time);oscillator.stop(time+.06);
  }
@@ -590,7 +601,7 @@ function advance(now){
    }
   }
   const boundary=Math.floor(elapsed+EPSILON);
-  if(boundary>=2&&boundary>Math.floor(fromProgress+EPSILON)&&cards[boundary-2]){
+  if(boundary>=2&&boundary>Math.floor(fromProgress+EPSILON)&&cards[boundary-2]&&elapsed<stopProgress(cards,mode)-EPSILON){
    strikeFlashAt=fromSeconds+(boundary-fromProgress)*240/bpm;
   }
  }
@@ -722,7 +733,9 @@ document.addEventListener('click',()=>{
  if($('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return;
  if(running)pause();
 });
-document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();clearMidi();}});
+function backgroundSession(){pause();clearMidi();releaseAudio();}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)backgroundSession();});
+globalThis.addEventListener?.('pagehide',backgroundSession);
 const portrait=matchMedia('(orientation: portrait) and (max-width: 1100px) and (any-pointer: coarse)');portrait.addEventListener('change',e=>{if(e.matches)pause();});
 document.addEventListener('keydown',e=>{
  if(learningActive&&mode!=='practice')return;

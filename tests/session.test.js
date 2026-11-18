@@ -623,11 +623,57 @@ test('practice can play 100 consecutive early answers without freezing or scorin
  }
 });
 function audioFixture(){
- const events=[];
- const audio={currentTime:0,state:'running',resume(){return Promise.resolve();},destination:{},createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}};},createOscillator(){const oscillator={frequency:{setValueAtTime(value){oscillator.pitch=value;}},connect(){},disconnect(){},stop(){},start(at){events.push({at,oscillator:this});}};return oscillator;}};
- const app=session({AudioContext:function(){return audio;}});
- return {...app,events,audio};
+ const events=[],contexts=[],windowHandlers={};
+ const makeAudio=()=>({currentTime:0,state:'running',resume(){return Promise.resolve();},close(){this.state='closed';return Promise.resolve();},destination:{},createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}};},createOscillator(){const oscillator={frequency:{setValueAtTime(value){oscillator.pitch=value;}},connect(){},disconnect(){},stop(){},start(at){events.push({at,oscillator:this});}};return oscillator;}});
+ const audio=makeAudio();
+ const app=session({AudioContext:function(){const context=contexts.length?makeAudio():audio;contexts.push(context);return context;},addEventListener(type,fn){windowHandlers[type]=fn;}});
+ return {...app,events,audio,contexts,windowHandlers};
 }
+test('paused practice rebuilds audio after a day in the background without advancing training',()=>{
+ for(const event of ['visibilitychange','pagehide']){
+  const {run,audio,contexts,events,documentHandlers,windowHandlers}=audioFixture();
+  run("startMode('practice');now=8000;render(now);pause()");
+  const progress=run('elapsed'),seconds=run('sessionSeconds');
+  run('document.hidden=true');
+  (documentHandlers[event]??windowHandlers[event])();
+  assert.equal(audio.state,'closed');assert.equal(run('audioContext'),null);
+  run('now+=86400000;document.hidden=false');
+  documentHandlers.visibilitychange();
+  assert.equal(contexts.length,1);assert.equal(run('running'),false);
+  run('play()');
+  assert.equal(contexts.length,2);assert.equal(run('elapsed'),progress);assert.equal(run('sessionSeconds'),seconds);
+  events.length=0;run('for(const n of cards[0].targets)judgeMidi(n);scheduleMetronome()');
+  assert.ok(events.length>0);assert.equal(run('metronomeOn'),true);
+ }
+});
+test('resume replaces interrupted, suspended and closed contexts but reuses healthy audio',()=>{
+ for(const state of ['interrupted','suspended','closed','running']){
+  const {run,audio,contexts,events}=audioFixture();
+  run('play();pause()');audio.state=state;
+  // Simulate an old context whose resume would never settle.
+  audio.resume=()=>new Promise(()=>{});
+  run('play();scheduleMetronome()');
+  assert.equal(contexts.length,state==='running'?1:2);assert.ok(events.length>0);
+ }
+});
+test('failed resume preserves preference and late failures cannot discard replacement audio',async()=>{
+ const {run,audio,contexts,documentHandlers}=audioFixture();
+ let reject;audio.resume=()=>new Promise((_,fail)=>{reject=fail;});
+ run('play();document.hidden=true');documentHandlers.visibilitychange();
+ run('document.hidden=false;play()');
+ reject(new Error('Old context interrupted'));await new Promise(setImmediate);
+ assert.equal(run('audioContext'),contexts[1]);assert.equal(run('metronomeOn'),true);
+ contexts[1].resume=()=>Promise.reject(new Error('Interrupted'));
+ run('pause();play()');await new Promise(setImmediate);
+ assert.equal(run('audioContext'),null);assert.equal(run('metronomeOn'),true);
+ run('pause();play();scheduleMetronome()');assert.equal(contexts.length,3);
+});
+test('background recovery preserves a muted metronome and does not create audio on return',()=>{
+ const {run,contexts,documentHandlers}=audioFixture();
+ run("practiceSettings.metronomeOn=false;startMode('practice');document.hidden=true");
+ documentHandlers.visibilitychange();run('document.hidden=false;play()');
+ assert.equal(run('metronomeOn'),false);assert.equal(contexts.length,0);
+});
 test('practice defaults to audible count-in with one accent on release and respects mute',()=>{
  for(const muted of [false,true]){
   const {run,nodes,events,audio}=audioFixture();
@@ -646,6 +692,41 @@ test('practice defaults to audible count-in with one accent on release and respe
   assert.equal(run('cards[0].practicePassed'),true);
   assert.equal(run('elapsed'),3);
   run('render(now)');assert.equal(events.length,before+count.length);
+ }
+});
+test('unresolved practice stops before the next downbeat and line flash, then keeps the full count-in',()=>{
+ for(const tempo of [40,90,137,180]){
+  const {run,events,audio,nodes}=audioFixture();
+  run(`startMode('practice');bpm=${tempo};now=2*240000/bpm;render(now);cards[0].targets=[60];judgeMidi(61)`);
+  assert.ok(Math.abs(run('strikeFlashAt-sessionSeconds'))<1e-9);
+  run('now=2.75*240000/bpm;render(now)');
+  assert.ok(events.some(e=>e.oscillator.scheduledBeat===11));
+  // Include lookahead just before contact: suppressing only the frozen frame
+  // would be too late, because the downbeat could already be queued.
+  run('now=3*240000/bpm-50;render(now);now=3*240000/bpm;render(now)');
+  assert.equal(run('elapsed'),3);
+  assert.equal(nodes.get('strike').style['--strike-flash'],'0');
+  assert.equal(events.some(e=>e.oscillator.scheduledBeat>=12),false);
+  const before=events.length;
+  run('now+=60000;render(now)');
+  assert.equal(events.length,before);assert.equal(run('elapsed'),3);
+  assert.equal(nodes.get('strike').style['--strike-flash'],'0');
+  run('judgeMidi(60);const recoveryAt=now');
+  for(let beat=1;beat<=4;beat++){
+   audio.currentTime+=60/tempo;
+   run(`now=recoveryAt+${beat}*60000/bpm;render(now)`);
+  }
+  assert.deepEqual(events.slice(before).map(e=>e.oscillator.pitch),[1400,1000,1000,1000,1400]);
+  assert.equal(run('cards[0].practicePassed'),true);
+  assert.ok(Math.abs(Number(nodes.get('strike').style['--strike-flash'])-1)<1e-9);
+ }
+});
+test('passed practice answers and challenge still signal the next bar at contact',()=>{
+ for(const mode of ['practice','challenge']){
+  const {run,events,nodes}=audioFixture();
+  run(`startMode('${mode}');now=2*240000/bpm;render(now);cards[0].targets=[60];judgeMidi(60);now=3*240000/bpm;render(now)`);
+  assert.ok(events.some(e=>e.oscillator.scheduledBeat===12));
+  assert.equal(nodes.get('strike').style['--strike-flash'],'1');
  }
 });
 test('count-in pauses, changes tempo by remaining beats, and resets on restart',()=>{

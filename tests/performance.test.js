@@ -21,14 +21,16 @@ test('practice gates at bottom after the early close boundary; passed cards unbl
  cards[0].practicePassed=true;assert.equal(stopProgress(cards,'practice'),4);
  assert.equal(stopProgress(cards,'challenge'),Infinity);
 });
-test('metronome contact accents play once and never schedule beyond a frozen gate',()=>{
- for(let bpm=90;bpm<=180;bpm++){
-  const first=metronomeBeats(1.99,bpm,null,2);
+test('metronome plays contact accents but excludes the downbeat at a frozen gate',()=>{
+ for(let bpm=40;bpm<=180;bpm+=10){
+  const first=metronomeBeats(1.99,bpm,null,3);
   assert.equal(first.events.length,1);assert.equal(first.events[0].beat,8);assert.equal(first.events[0].accent,true);
   for(let frame=0;frame<100;frame++)assert.equal(metronomeBeats(2,bpm,first.nextBeat,2).events.length,0);
   assert.equal(metronomeBeats(2,bpm,first.nextBeat,3).events.length,0);
   const resumed=metronomeBeats(2.25,bpm,first.nextBeat,3);
   assert.equal(resumed.events[0].beat,9);assert.equal(resumed.events[0].accent,false);
-  const next=metronomeBeats(2.99,bpm,12,3);assert.equal(next.events[0].beat,12);assert.equal(next.events[0].accent,true);
+  const next=metronomeBeats(2.99,bpm,12,3);assert.equal(next.events.length,0);
+  assert.equal(metronomeBeats(3,bpm,12,3).events.length,0);
+  const released=metronomeBeats(3,bpm,12,4);assert.equal(released.events[0].beat,12);assert.equal(released.events[0].accent,true);
  }
 });

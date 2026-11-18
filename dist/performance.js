@@ -22,14 +22,14 @@ export function labelGeometry(index,progress,height,zoneHeight){
  const y=phase<2?-LABEL_HEIGHT-8+phase/2*(line+8):line-LABEL_HEIGHT+Math.min(1,phase-2)*zoneHeight;
  return {y,landed:phase>=2,hidden:phase<0};
 }
-// Never schedule past a possible practice freeze. The contact beat itself plays
-// once, even if the sequence remains frozen for many frames.
+// A practice stop is exclusive: its downbeat belongs to the next bar, which
+// cannot begin until the blocked answer is resolved and the count-in finishes.
 export function metronomeBeats(progress,bpm,nextBeat,stop=Infinity,horizon=.12){
  const beat=progress*BEATS_PER_LABEL,period=60/bpm;
  let next=nextBeat??Math.ceil(beat-EPSILON);
  if(next<beat-.1)next=Math.ceil(beat-EPSILON);
  const events=[];
- while((next-beat)*period<horizon&&next<=stop*BEATS_PER_LABEL+EPSILON){
+ while((next-beat)*period<horizon&&next<stop*BEATS_PER_LABEL-EPSILON){
   events.push({beat:next,delay:Math.max(0,(next-beat)*period),accent:next%BEATS_PER_LABEL===0});next++;
  }
  return {events,nextBeat:next};
