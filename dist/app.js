@@ -22,6 +22,8 @@ let bpm=120;
 const practiceSettings={metronomeOn:true,bpm:90};
 let cards=[],elements=[],elapsed=0,previous=0,running=false,started=false,finished=false;
 let sessionSeconds=0,strikeFlashAt=-Infinity,outroBeats=0;
+let practiceCountIn=null,frozenIdleSeconds=0;
+const PRACTICE_IDLE_LIMIT=30;
 const LABEL_FADE_SECONDS=.18;
 const MAX_SECONDS=TOTAL_SECONDS;
 let screenLock=null,screenLockGeneration=0;
@@ -100,8 +102,7 @@ function unlockAudio(){
 }
 function scheduleMetronome(){
  if(!running||!metronomeOn||audioContext?.state!=='running')return;
- const blocked=mode==='practice'?practiceBlockedIndex(cards):-1;
- const recovery=blocked>=0?cards[blocked].retryBeats:undefined;
+ const recovery=practiceCountIn?.beats;
  // The count-in advances audio while the falling labels remain stationary.
  const audioProgress=elapsed+audioBarOffset+(recovery??0)/4;
  const audioStop=recovery===undefined?stopProgress(cards,mode)+audioBarOffset:elapsed+audioBarOffset+1;
@@ -187,10 +188,13 @@ function judgeMidi(note){
  if(!running||mode==='free')return;
  const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
  if(mode==='practice'){
-  const blocked=practiceBlockedIndex(cards),wasRecovering=blocked>=0&&cards[blocked].retryBeats!==undefined;
-  applyPracticeInput(cards,elapsed,sessionSeconds,note,held);
-  if(blocked>=0&&!wasRecovering&&cards[blocked].retryBeats!==undefined){
-   stopMetronome();lastAudioBeat=-1;nextAudioBeat=null;scheduleMetronome();
+  frozenIdleSeconds=0;
+  if(practiceCountIn){
+   const target=cards[practiceCountIn.targetIndex];
+   if(target?.startAt!==undefined)applyAttack(target,note,held);
+  }else{
+   const corrected=applyPracticeInput(cards,elapsed,sessionSeconds,note,held);
+   if(corrected)startPracticeCountIn(corrected);
   }
  }else for(const index of attackTargets(cards,sessionSeconds).indices){
   const card=cards[index];applyAttack(card,note,held);
@@ -469,6 +473,7 @@ function appendCard(){
   $('falling').append(el);elements.push(el);cards.push(card);
 }
 function reset(){
+ practiceCountIn=null;frozenIdleSeconds=0;
  releaseScreenLock();stopMetronome();lastAudioBeat=-1;audioBarOffset=0;
  running=false;started=false;finished=false;$('pause-screen').hidden=true;elapsed=0;previous=0;sessionSeconds=0;outroBeats=0;settled=0;run=createRun();
  scheduler=mode!=='free'&&stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
@@ -486,13 +491,37 @@ function pauseSession(){
  $('pause-settings').hidden=mode==='challenge';
  hidePauseControls();$('pause-screen').hidden=mode==='practice';
  if(mode==='practice'){
-  const blocked=practiceBlockedIndex(cards);
-  let index=activeQuestionIndex(cards,sessionSeconds);
-  if(blocked>=0)index=cards[blocked].retryBeats===undefined?blocked:blocked+1;
-  const card=cards[Math.max(0,index)];
+  const card=cards[practiceReplayIndex()];
   openLearning(card.q,card.pc,card.inv??0,names[card.pc].indexOf(card.name));
  }
  paintScene();
+}
+function practiceReplayIndex(){
+ const blocked=practiceBlockedIndex(cards);
+ if(practiceCountIn)return Math.max(0,practiceCountIn.targetIndex);
+ if(blocked>=0)return blocked;
+ return Math.max(0,Math.floor(elapsed+EPSILON)-2);
+}
+function rewindPractice(){
+ const index=practiceReplayIndex();
+ // Before the first label reaches the zone, replay its current approach bar.
+ elapsed=Math.min(Math.floor(elapsed+EPSILON),index+2);
+ for(const card of cards.slice(index)){
+  card.hits.clear();
+  card.wrong=false;
+  for(const field of ['startAt','endAt','firstBeatCorrect','feedback','practiceClosed','practicePassed','practiceRetryStarted','fadeAt'])delete card[field];
+ }
+ if(index>0){
+  const previousCard=cards[index-1];
+  previousCard.practicePassed=true;
+  previousCard.fadeAt=sessionSeconds-LABEL_FADE_SECONDS;
+ }
+ audioBarOffset=0;
+}
+function startPracticeCountIn(correctedCard=null){
+ // At a bar line, the label entering the performance zone has index elapsed - 2.
+ practiceCountIn={beats:0,targetIndex:Math.round(elapsed)-2,correctedCard};
+ frozenIdleSeconds=0;stopMetronome();lastAudioBeat=-1;scheduleMetronome();
 }
 function canStartTraining(){
  if((mode!=='free'&&!selectable(stages[stageIndex],results))||$('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return false;
@@ -503,13 +532,18 @@ function play(){
  if(running){pause();return;}
  if(!canStartTraining())return;
  if(finished)reset();
+ const resumingPractice=learningActive&&mode==='practice';
+ if(resumingPractice)rewindPractice();
  if(learningActive)closeLearning();
  keyboardBlurOn=mode==='challenge';
  $('pause-screen').hidden=true;
  run.started=true;started=true;running=true;
  syncCards();
- stampSessionBoundaries(elapsed,elapsed,sessionSeconds);settleAnswers();updateTimer();
- hidePauseControls();updateKeyboardBlur();previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;paintScene();
+ if(!resumingPractice)stampSessionBoundaries(elapsed,elapsed,sessionSeconds);
+ settleAnswers();updateTimer();
+ hidePauseControls();updateKeyboardBlur();previous=performance.now();unlockAudio();void keepScreenAwake();$('overlay').hidden=true;
+ if(resumingPractice)startPracticeCountIn();
+ paintScene();
 }
 function complete(){
  if(!started||finished)return;
@@ -564,26 +598,28 @@ function advance(now){
  if(mode==='free'){sessionSeconds+=remaining;updateTimer();return;}
  while(remaining>EPSILON){
   syncCards();
-  const blocked=mode==='practice'?practiceBlockedIndex(cards):-1;
-  const recovery=blocked>=0?cards[blocked]:null;
-  if(recovery?.retryBeats!==undefined){
-   const consumed=Math.min(remaining,(4-recovery.retryBeats)*60/bpm);
-   const before=recovery.retryBeats;
-   recovery.retryBeats=Math.min(4,before+consumed*bpm/60);
-   const next=cards[blocked+1];
-   if(next&&next.startAt===undefined&&recovery.retryBeats>=(4-EARLY_BARS*4)-EPSILON){
+  if(practiceCountIn){
+   const consumed=Math.min(remaining,(4-practiceCountIn.beats)*60/bpm);
+   const before=practiceCountIn.beats;
+   practiceCountIn.beats=Math.min(4,before+consumed*bpm/60);
+   const next=cards[practiceCountIn.targetIndex];
+   if(next&&next.startAt===undefined&&practiceCountIn.beats>=(4-EARLY_BARS*4)-EPSILON){
     next.startAt=sessionSeconds+Math.max(0,(4-EARLY_BARS*4)-before)*60/bpm;
    }
    sessionSeconds+=consumed;remaining=Math.max(0,remaining-consumed);
-   if(recovery.retryBeats>=4-EPSILON){
-    recovery.practicePassed=true;audioBarOffset++;strikeFlashAt=sessionSeconds;
+   if(practiceCountIn.beats>=4-EPSILON){
+    if(practiceCountIn.correctedCard)practiceCountIn.correctedCard.practicePassed=true;
+    practiceCountIn=null;
+    audioBarOffset++;strikeFlashAt=sessionSeconds;
    }
    continue;
   }
   const fromProgress=elapsed,fromSeconds=sessionSeconds;
   const step=motionStep(elapsed,remaining,bpm,stopProgress(cards,mode));
   elapsed=step.progress;
-  const consumed=step.frozen&&step.movingSeconds<=EPSILON?remaining:Math.min(remaining,step.movingSeconds);
+  const waiting=step.frozen&&step.movingSeconds<=EPSILON;
+  const consumed=waiting?Math.min(remaining,PRACTICE_IDLE_LIMIT-frozenIdleSeconds):Math.min(remaining,step.movingSeconds);
+  if(waiting)frozenIdleSeconds+=consumed;
   sessionSeconds+=consumed;remaining=Math.max(0,remaining-consumed);
   syncCards();stampSessionBoundaries(fromProgress,elapsed,fromSeconds);settleAnswers();
   if(mode==='practice')updatePracticeState(cards,elapsed);
@@ -592,6 +628,7 @@ function advance(now){
     card.fadeAt=fromSeconds+Math.max(0,index+3-fromProgress)*240/bpm;
    }
   });
+  if(frozenIdleSeconds>=PRACTICE_IDLE_LIMIT){pauseSession();break;}
   if(mode==='challenge'&&sessionSeconds>=MAX_SECONDS){
    const lastFadeAt=cards.at(-1)?.fadeAt;
    if(lastFadeAt!==undefined){
@@ -613,11 +650,9 @@ function advance(now){
 }
 function paintScene(){
  updateTrainingHeader();
- const recoveryIndex=mode==='practice'?practiceBlockedIndex(cards):-1;
- const retryBeats=recoveryIndex>=0?cards[recoveryIndex].retryBeats:undefined;
  // Opening labels travel for eight beats; cue the final bar before contact.
  const openingBeats=mode!=='free'&&elapsed>=1-EPSILON&&elapsed<2-EPSILON?Math.max(0,(elapsed-1)*4):undefined;
- const cueBeats=retryBeats??openingBeats;
+ const cueBeats=practiceCountIn?.beats??openingBeats;
  const countIn=$('practice-count-in');
  countIn.hidden=!running||finished||cueBeats===undefined||cueBeats>=4-EPSILON;
  if(!countIn.hidden){
@@ -636,7 +671,7 @@ function paintScene(){
   el.hidden=geometry.hidden||opacity<=EPSILON;
   el.dataset.landed=String(geometry.landed);
   // B stays neutral until its early window opens at the end of the count-in.
-  el.dataset.feedback=blocked>=0&&index===blocked+1&&(cards[blocked].retryBeats??0)<(4-EARLY_BARS*4)?'waiting':card.feedback||'waiting';
+  el.dataset.feedback=blocked>=0&&index===blocked+1&&(!practiceCountIn||card.startAt===undefined)?'waiting':card.feedback||'waiting';
   el.style.opacity=String(opacity);el.style.transform=`translateY(${geometry.y}px)`;
  });
 }

@@ -70,8 +70,6 @@ export function practiceAttackTargets(cards,progress,seconds){
  if(blocked<0)return attackTargets(cards,seconds).indices;
  // The small gap before bottom contact deliberately ignores all input.
  if(progress<blocked+3-EPSILON)return [];
- const recovery=cards[blocked].retryBeats;
- if(recovery!==undefined)return recovery>=4-EARLY_BARS*4-EPSILON?[blocked+1]:[];
  return [blocked];
 }
 export function applyPracticeInput(cards,progress,seconds,note,held=[]){
@@ -80,8 +78,8 @@ export function applyPracticeInput(cards,progress,seconds,note,held=[]){
   const card=cards[index];if(!card)continue;
   applyAttack(card,note,held);
   if(blocked>=0&&index===blocked&&isCorrect(card)){
-   card.retryBeats=0;card.fadeAt=seconds;card.feedback='wrong';
-   return;
+   card.fadeAt=seconds;card.feedback='wrong';
+   return card;
   }
  }
 }
