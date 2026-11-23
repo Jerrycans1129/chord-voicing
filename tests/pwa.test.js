@@ -11,7 +11,12 @@ function worker() {
       if (!stores.has(name)) stores.set(name, new Map());
       const data = stores.get(name);
       return {
-        async addAll(paths) { for (const path of paths) data.set(new URL(path, scope).href, {path}); },
+        async addAll(requests) {
+          for (const request of requests) {
+            assert.equal(request.cache, 'reload');
+            data.set(request.url, {url: request.url});
+          }
+        },
         async match(url) { return data.get(url); }
       };
     },
@@ -19,8 +24,8 @@ function worker() {
     async delete(key) { return stores.delete(key); }
   };
   vm.runInNewContext(readFileSync(new URL('../dist/sw.js', import.meta.url), 'utf8'), {
-    self: {registration: {scope}, addEventListener: (type, fn) => handlers[type] = fn},
-    caches, URL, fetch() { throw new Error('offline'); }
+    self: {registration: {scope}, async skipWaiting() { assert.ok(stores.size); }, addEventListener: (type, fn) => handlers[type] = fn},
+    caches, URL, Request, fetch() { throw new Error('offline'); }
   });
   return {handlers, stores, scope};
 }
@@ -51,4 +56,39 @@ test('subdirectory app opens offline; updates only remove this app’s old cache
   assert.ok(stores.has('another-app'));
   assert.ok(!stores.has(`voicing-${scope}-old`));
   handlers.fetch({request: {url: 'https://example.com/other/', method: 'GET'}, respondWith() {assert.fail('unrelated request intercepted');}});
+});
+
+test('returning to the app checks for updates and reload waits for a tap', async () => {
+  const events = {}, button = {hidden: true}, initial = {};
+  let checks = 0, reloads = 0;
+  const document = {
+    visibilityState: 'hidden',
+    getElementById: () => button,
+    addEventListener(type, handler) { events[type] = handler; }
+  };
+  button.addEventListener = (type, handler) => { events[type] = handler; };
+  const workers = {
+    controller: initial,
+    addEventListener(type, handler) { events[type] = handler; },
+    async register(url, options) {
+      assert.equal(options.updateViaCache, 'none');
+      return {async update() { checks++; }};
+    }
+  };
+  vm.runInNewContext(readFileSync(new URL('../dist/pwa.js', import.meta.url), 'utf8'), {
+    navigator: {serviceWorker: workers}, document,
+    window: {isSecureContext: true, location: {reload() { reloads++; }}}
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  events.visibilitychange();
+  assert.equal(checks, 1);
+  document.visibilityState = 'visible';
+  events.visibilitychange();
+  assert.equal(checks, 2);
+  workers.controller = {};
+  events.controllerchange();
+  assert.equal(button.hidden, false);
+  assert.equal(reloads, 0);
+  events.click();
+  assert.equal(reloads, 1);
 });

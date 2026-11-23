@@ -1,12 +1,16 @@
-// Bump this version whenever app assets change. Updates activate after all
-// existing app windows close, so an active training session is not interrupted.
+// The build stamps this cache with the deployed asset fingerprint.
 const CACHE_PREFIX = `voicing-${self.registration.scope}-`;
-const CACHE_NAME = `${CACHE_PREFIX}v23-082f81b-91971f018a54`;
+const CACHE_NAME = `${CACHE_PREFIX}v23-66b775f-55b21281ddee`;
 const ASSETS = ['./', './index.html', './style.css', './app.js', './learning.js', './build.js', './theory.js', './scheduler.js', './scoring.js', './judgment.js', './performance.js',
   './pwa.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 const assetURLs = new Set(ASSETS.map(path => new URL(path, self.registration.scope).href));
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const requests = ASSETS.map(path => new Request(new URL(path, self.registration.scope), {cache: 'reload'}));
+    await cache.addAll(requests);
+    await self.skipWaiting();
+  })());
 });
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys
