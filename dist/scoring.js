@@ -9,9 +9,6 @@ export function starsFor(score){
  return score>=90?3:score>=75?2.5:score>=60?2:score>=40?1.5:score>=20?1:.5;
 }
 export function createRun(){return {started:false,seconds:0,total:0,correct:0};}
-export function recordConditions(run,{seconds=0}){
- if(run.started&&seconds>0)run.seconds=Math.min(TOTAL_SECONDS,run.seconds+seconds);
-}
 export function calculateScore(run){
  if(!run.started)return null;
  const accuracy=run.total>0?run.correct/run.total:0;

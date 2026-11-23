@@ -170,7 +170,7 @@ test('automatic connection waits for an input; manual retry enables training wit
 
 test('repeated dismissed MIDI prompts cannot bypass any start entry or create results',()=>{
  const {run,nodes,documentHandlers,alerts}=session({},false);
- const entries=[()=>run('play()'),()=>nodes.get('overlay-action').handlers.click({stopPropagation(){}}),()=>documentHandlers.keydown({code:'Space',preventDefault(){}})];
+ const entries=[()=>run('play()'),()=>nodes.get('overlay-action').handlers.click({stopPropagation(){}}),()=>nodes.get('practice-action').handlers.click({stopPropagation(){}})];
  for(let i=0;i<30;i++){
   entries[i%entries.length]();
   assert.equal(nodes.get('midi-warning').open,true);
@@ -359,14 +359,15 @@ test('challenge is fixed at 120 BPM and settings stay unavailable until exit',()
  const {run,nodes}=session();
  run("practiceSettings.bpm=40;startMode('challenge');now=6000;pause()");
  assert.equal(run('bpm'),120);
- assert.equal(nodes.get('pause-settings').hidden,true);
+ assert.equal(nodes.get('pause-screen').hidden,false);
  run('openSettings()');assert.equal(nodes.get('settings-dialog').open,false);
  nodes.get('bpm-decrease').handlers.click({stopPropagation(){}});
  assert.equal(run('bpm'),120);assert.equal(run('practiceSettings.bpm'),40);
  nodes.get('metronome').handlers.click({stopPropagation(){}});
  run('now=66000;play()');assert.equal(run('bpm'),120);
  run("complete();$('result-dialog').close();startMode('practice');pause()");
- assert.equal(run('bpm'),40);assert.equal(nodes.get('pause-settings').hidden,false);
+ assert.equal(run('bpm'),40);assert.equal(nodes.get('learning').hidden,false);
+ nodes.get('learning-midi').handlers.click();assert.equal(nodes.get('settings-dialog').open,true);
 });
 test('challenge settles before B touches and fades in place only after bottom contact',()=>{
  const {run}=session();run('play();now=7950;render(now)');
@@ -557,12 +558,12 @@ test('learning replaces free play, works without MIDI and keeps answers after re
  nodes.get('learning-back').handlers.click();assert.equal(run('learningActive'),false);
  assert.equal(nodes.get('overlay').hidden,false);assert.equal(run('Object.keys(results).length'),0);
  const offline=session({},false);offline.run("selectNode('quality-0')");
- assert.equal(offline.nodes.get('free-action').hidden,false);offline.run('startLearning()');
+ assert.equal(offline.nodes.get('learning-action').hidden,false);offline.run('startLearning()');
  assert.equal(offline.run('learningActive'),true);assert.equal(offline.nodes.get('midi-warning').open,false);
 });
 test('learning entry is hidden for voicings, notes and comprehensive levels and manual choice resets recognition',()=>{
  const {run,nodes}=session({},false);
- for(const id of ['chord-0-0','chord-0-2','notes-two','notes-all','level-2']){run(`selectNode('${id}');startLearning()`);assert.equal(run('learningActive'),false);assert.equal(nodes.get('free-action').hidden,true);}
+ for(const id of ['chord-0-0','chord-0-2','notes-two','notes-all','level-2']){run(`selectNode('${id}');startLearning()`);assert.equal(run('learningActive'),false);assert.equal(nodes.get('learning-action').hidden,true);}
  run("selectNode('quality-0');startLearning();judgeMidi(60);judgeMidi(64)");
  nodes.get('learning-chords').children.find(b=>b.dataset.pc==='2').handlers.click();
  run('judgeMidi(67)');assert.equal(run('learningState.pc'),2);
@@ -993,4 +994,33 @@ test('single-note practice pause shows and recognizes individual pitch classes',
  run("selectNode('notes-two');startMode('practice');pause();judgeMidi(61)");
  assert.equal(nodes.get('learning-title').textContent,'单音');
  assert.deepEqual(Array.from(run('[...answerDots].filter(([,dot])=>!dot.hidden).map(([n])=>n)')),[49,61,73]);
+});
+
+test('home space cannot launch a session after leaving chord learning or practice',()=>{
+ for(const connected of [false,true]){
+  const {run,nodes,documentHandlers}=session({},connected);
+  const click=id=>nodes.get(id).handlers.click({stopPropagation(){}});
+  const space=()=>documentHandlers.keydown({code:'Space',preventDefault(){}});
+  const checkHome=()=>{
+   space();
+   assert.equal(nodes.get('overlay').hidden,false);
+   assert.equal(nodes.get('midi-warning').open,false);
+   assert.equal(run('running'),false);
+  };
+  run("selectNode('quality-0');document.activeElement={tagName:'BODY'}");
+  checkHome();
+  click('learning-action');
+  space();
+  assert.equal(run('learningActive'),true);
+  click('learning-back');
+  checkHome();
+  if(connected){
+   run("selectNode('chord-0-0')");
+   click('practice-action');space();
+   assert.equal(run('learningActive'),true);
+   space();assert.equal(run('running'),true);
+   space();click('learning-back');checkHome();
+   click('overlay-action');space();space();assert.equal(run('running'),true);
+  }
+ }
 });

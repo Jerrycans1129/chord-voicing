@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {createRun,recordConditions,calculateScore,starsFor,normalizeBpm,cleanResults,VERSION} from '../dist/scoring.js';
+import {createRun,calculateScore,starsFor,normalizeBpm,cleanResults,VERSION} from '../dist/scoring.js';
 const run=(changes={})=>({...createRun(),started:true,seconds:1800,total:100,correct:100,minBpm:90,...changes});
 test('no attempt is blank; an initiated empty attempt is a finite zero-star score',()=>{
  assert.equal(calculateScore(createRun()),null);
@@ -13,8 +13,6 @@ test('half-star thresholds are exact and never round a near miss upward',()=>{
 });
 test('pause and training settings do not reduce fixed challenge scores',()=>{
  for(const changes of [{},{paused:true,shownKeyboard:true},{minBpm:40}])assert.equal(calculateScore(run(changes)).score,100);
- const r=createRun();recordConditions(r,{seconds:100});assert.equal(r.seconds,0);
- r.started=true;recordConditions(r,{seconds:900});recordConditions(r,{paused:true});assert.equal(r.seconds,900);
  assert.equal(calculateScore(run({seconds:900})).stars,1.5);
  assert.equal(calculateScore(run({seconds:1620})).stars,3);
 });

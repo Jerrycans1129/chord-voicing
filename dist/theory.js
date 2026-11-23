@@ -60,7 +60,6 @@ curriculum.forEach(node=>visit(node));
 export function selectable(node,results){return !!node&&!node.project;}
 export function supportsPractice(node){return !!node&&!node.project&&(node.kind==='note'||(!node.comprehensive&&!!node.combos?.length));}
 export function currentProgress(results){const index=stages.findIndex(node=>selectable(node,results)&&results[node.id]?.best.stars!==3);return index<0?stages.length-1:index;}
-export function migrateResults(saved){const migrated={...saved};if(!migrated['quality-0']&&saved?.['mix-0-0'])migrated['quality-0']=saved['mix-0-0'];return migrated;}
 // inv rotates the sorted, close-position pitch classes; root remains the anchor.
 export function notes(root,q,inv){const intervals=qualities[q].intervals;return inv===0?intervals.map(n=>root+n):intervals.slice(inv).map(n=>root+n-12).concat(intervals.slice(0,inv).map(n=>root+n));}
 export function positions(pc,q,inv){if(qualities[q]?.freeOctaves)return [48+pc];return Array.from({length:37},(_,i)=>i+48).filter(root=>root%12===pc&&(q===undefined||notes(root,q,inv).every(n=>n>=48&&n<=84)));}

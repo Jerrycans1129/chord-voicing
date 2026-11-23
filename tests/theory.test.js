@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {stages,curriculum,qualities,trainingItems,notes,positions,selectable,currentProgress,migrateResults} from '../dist/theory.js';
+import {stages,curriculum,qualities,trainingItems,notes,positions,selectable,currentProgress} from '../dist/theory.js';
 const perfect={best:{stars:3}};
 test('all training nodes are open and recommendations follow the tree in postorder',()=>{
  assert.equal(qualities.length,20);
@@ -31,10 +31,6 @@ test('existing voicings and quality indices stay compatible',()=>{
  assert.deepEqual(notes(60,0,0),[60,64,67]);assert.deepEqual(notes(60,0,1),[52,55,60]);assert.deepEqual(notes(60,0,2),[55,60,64]);
  assert.deepEqual([1,2,3,0].map(inv=>notes(60,8,inv)),[[50,52,55,60],[52,55,60,62],[55,60,62,64],[60,62,64,67]]);
  assert.deepEqual(qualities.slice(0,9).map(q=>q.intervals),[[0,4,7],[0,3,7],[0,5,7],[0,2,7],[0,4,7,10],[0,3,7,10],[0,4,7,11],[0,5,7,10],[0,2,4,7]]);
-});
-test('only semantically identical old mixed scores migrate',()=>{
- const saved={'mix-0-0':perfect,'level-3':perfect};const migrated=migrateResults(saved);
- assert.equal(migrated['quality-0'],perfect);assert.equal(migrated['level-3-v2'],undefined);assert.equal(migrated['level-3'],perfect);
 });
 test('comprehensive stages contain exactly their declared qualities',()=>{
  const levels=stages.filter(s=>s.comprehensive&&s.kind!=='note');

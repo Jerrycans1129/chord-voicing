@@ -59,9 +59,9 @@ let keyboardBlurOn=true;
 function updateKeyboardBlur(){
  $('instrument').dataset.running=String(running);
  $('instrument').dataset.midiFeedback=String(learningActive||mode!=='practice');
- $('instrument').dataset.performance=String(!learningActive&&mode!=='free'&&started&&!finished);
+ $('instrument').dataset.performance=String(!learningActive&&started&&!finished);
  $('instrument').dataset.challenge=String(mode==='challenge'&&started&&!finished);
- $('instrument').dataset.paused=String(mode!=='free'&&started&&!finished&&!running);
+ $('instrument').dataset.paused=String(started&&!finished&&!running);
  $('instrument').dataset.hideKeys=String(phoneLayout&&keyboardBlurOn);
  $('keyboard').dataset.obscured=String(running&&keyboardBlurOn&&!phoneLayout);
  $('keyboard-frost').hidden=phoneLayout||!keyboardBlurOn;
@@ -185,7 +185,7 @@ function judgeMidi(note){
  }
  if(!running)return;
  advance(performance.now());
- if(!running||mode==='free')return;
+ if(!running)return;
  const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
  if(mode==='practice'){
   frozenIdleSeconds=0;
@@ -282,13 +282,12 @@ function updateRoute(){
  }
  $('overlay-action').disabled=stageIndex<0||!selectable(stages[stageIndex],results);
  $('practice-action').hidden=!supportsPractice(stages[stageIndex]);
- $('free-action').hidden=!supportsLearning(stages[stageIndex]);
+ $('learning-action').hidden=!supportsLearning(stages[stageIndex]);
  scheduleRouteLayout();
 }
 // Keep the inversion group centered directly beneath its chord while scrolling.
 function drawBranches(){
  const path=$('branch-quality'),parent=stageButtons.get(expandedQuality),row=routeRows[2];
- $('branch-top').setAttribute('d','');
  if(!parent||!row.children.length||row.hidden){path.setAttribute('d','');return;}
  const bounds=$('route').getBoundingClientRect(),clip=routeRows[1].getBoundingClientRect();
  const from=parent.querySelector('.route-dot').getBoundingClientRect();
@@ -405,12 +404,13 @@ function hidePauseControls(){
  $('settings-toggle').hidden=true;
  for(const dot of answerDots.values())dot.hidden=true;
 }
+function inPracticeSession(){return mode==='practice'&&started&&!finished;}
 function openSettings(){
  recognizer?.reset();
- $('settings-dialog').dataset.learning=String(learningActive&&mode==='free');
+ $('settings-dialog').dataset.learning=String(learningActive&&!inPracticeSession());
  if(running||$('settings-dialog').open||(mode==='challenge'&&started&&!finished))return;
  updateMetronome();updateTempoControls();
- $('tempo-setting').hidden=mode==='free';
+ $('tempo-setting').hidden=learningActive&&!inPracticeSession();
  $('settings-dialog').showModal();
 }
 
@@ -429,7 +429,6 @@ function canReachLine(index){
  return sessionSeconds+(index+2-elapsed)*240/bpm<MAX_SECONDS-1e-9;
 }
 function syncCards(){
- if(mode==='free')return;
  // Tempo changes can invalidate only the unlanded tail. Keep settled attempts.
  while(cards.length>settled&&cards.at(-1).startAt===undefined&&cards.length-1+2>elapsed&&!canReachLine(cards.length-1)){
   cards.pop();elements.pop();
@@ -441,7 +440,7 @@ function updateTrainingHeader(){
  $('training-header').hidden=learningActive||!started||finished;
  const stage=stages[stageIndex];
  const parent=nodeById.get(stage?.parent);
- $('training-name').textContent=mode==='free'?'自由弹奏':stage?(parent&&!parent.project?`${parent.name}-${stage.name}`:stage.name.replace(/\n/g,'')):'';
+ $('training-name').textContent=stage?(parent&&!parent.project?`${parent.name}-${stage.name}`:stage.name.replace(/\n/g,'')):'';
 }
 function showResult(result){
  setStars($('result-stars'),result.stars);
@@ -476,7 +475,7 @@ function reset(){
  practiceCountIn=null;frozenIdleSeconds=0;
  releaseScreenLock();stopMetronome();lastAudioBeat=-1;audioBarOffset=0;
  running=false;started=false;finished=false;$('pause-screen').hidden=true;elapsed=0;previous=0;sessionSeconds=0;outroBeats=0;settled=0;run=createRun();
- scheduler=mode!=='free'&&stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
+ scheduler=stageIndex>=0?new Scheduler(stages[stageIndex],{levels}):null;
  updateTrainingHeader();$('result-dialog').close();strikeFlashAt=-Infinity;$('strike').style.setProperty('--strike-flash','0');
  cards=[];elements=[];$('falling').replaceChildren();if(scheduler)appendCard();updateTimer();showHome();
 }
@@ -488,7 +487,6 @@ function pauseSession(){
  if(mode==='practice')for(const card of cards)if(!isCorrect(card))card.hits.clear();
  running=false;strikeFlashAt=-Infinity;updateKeyboardBlur();releaseScreenLock();stopMetronome();
  $('overlay').hidden=true;
- $('pause-settings').hidden=mode==='challenge';
  hidePauseControls();$('pause-screen').hidden=mode==='practice';
  if(mode==='practice'){
   const card=cards[practiceReplayIndex()];
@@ -524,7 +522,7 @@ function startPracticeCountIn(correctedCard=null){
  frozenIdleSeconds=0;stopMetronome();lastAudioBeat=-1;scheduleMetronome();
 }
 function canStartTraining(){
- if((mode!=='free'&&!selectable(stages[stageIndex],results))||$('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return false;
+ if(!selectable(stages[stageIndex],results)||$('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return false;
  if([...midiInputs.values()].some(input=>input.state==='connected'))return true;
  $('midi-warning').showModal();return false;
 }
@@ -532,7 +530,7 @@ function play(){
  if(running){pause();return;}
  if(!canStartTraining())return;
  if(finished)reset();
- const resumingPractice=learningActive&&mode==='practice';
+ const resumingPractice=learningActive&&inPracticeSession();
  if(resumingPractice)rewindPractice();
  if(learningActive)closeLearning();
  keyboardBlurOn=mode==='challenge';
@@ -584,7 +582,6 @@ function settleAnswers(){
  }
 }
 function stampSessionBoundaries(fromProgress,toProgress,fromSeconds){
- if(mode==='free')return;
  const blocked=mode==='practice'?practiceBlockedIndex(cards):-1;
  if(blocked>=0&&fromProgress>=blocked+3-EPSILON)return;
  stampBoundaries(cards,fromProgress,toProgress,fromSeconds,bpm);
@@ -595,7 +592,6 @@ function advance(now){
  if(!running){previous=now;return;}
  let remaining=Math.max(0,(now-previous)/1000);
  previous=now;
- if(mode==='free'){sessionSeconds+=remaining;updateTimer();return;}
  while(remaining>EPSILON){
   syncCards();
   if(practiceCountIn){
@@ -651,7 +647,7 @@ function advance(now){
 function paintScene(){
  updateTrainingHeader();
  // Opening labels travel for eight beats; cue the final bar before contact.
- const openingBeats=mode!=='free'&&elapsed>=1-EPSILON&&elapsed<2-EPSILON?Math.max(0,(elapsed-1)*4):undefined;
+ const openingBeats=elapsed>=1-EPSILON&&elapsed<2-EPSILON?Math.max(0,(elapsed-1)*4):undefined;
  const cueBeats=practiceCountIn?.beats??openingBeats;
  const countIn=$('practice-count-in');
  countIn.hidden=!running||finished||cueBeats===undefined||cueBeats>=4-EPSILON;
@@ -661,7 +657,7 @@ function paintScene(){
  }
  const flash=running&&!finished?Math.max(0,1-(sessionSeconds-strikeFlashAt)/.18):0;
  $('strike').style.setProperty('--strike-flash',String(flash));
- if(!started||finished||mode==='free')return;
+ if(!started||finished)return;
  syncCards();
  const height=$('falling').clientHeight,zoneHeight=$('performance-frost').clientHeight;
  const blocked=mode==='practice'?practiceBlockedIndex(cards):-1;
@@ -709,11 +705,9 @@ function startMode(nextMode){
 }
 $('pause-screen').addEventListener('click',e=>e.stopPropagation());
 $('pause-resume').addEventListener('click',e=>{e.stopPropagation();play();});
-$('pause-settings').addEventListener('click',e=>{e.stopPropagation();openSettings();});
 
 function startLearning(){
- const stage=stages[stageIndex];if(!supportsLearning(stage))return;
- mode='free';reset();
+ const stage=stages[stageIndex];if((started&&!finished)||!supportsLearning(stage))return;
  openLearning(stage.combos[0].q,0,0,0);
 }
 function openLearning(q,pc,inv,spelling){
@@ -721,8 +715,8 @@ function openLearning(q,pc,inv,spelling){
  recognizer=q===undefined?null:new ChordRecognizer(q);learningActive=true;keyboardBlurOn=false;updateKeyboardBlur();
  $('instrument').dataset.learning='true';$('overlay').hidden=true;$('learning').hidden=false;$('settings-toggle').hidden=true;
  $('learning-title').textContent=q===undefined?'单音':qualities[q].name+'和弦';
- $('learning-back').textContent=mode==='practice'?'退出训练':'‹ 返回';
- $('learning-midi').setAttribute('aria-label',mode==='practice'?'训练设置':'MIDI 连接设置');
+ $('learning-back').textContent=inPracticeSession()?'退出训练':'‹ 返回';
+ $('learning-midi').setAttribute('aria-label',inPracticeSession()?'训练设置':'MIDI 连接设置');
  const buttons=[];
  const whiteColumns=[1,3,5,7,9,11,13],blackColumns={1:2,3:4,6:8,8:10,10:12};
  names.forEach((spellings,pc)=>spellings.forEach((name,spelling)=>{
@@ -748,12 +742,12 @@ function paintLearning(){
 }
 $('learning').addEventListener('click',e=>{
  e.stopPropagation();
- if(learningActive&&mode==='practice'&&!e.target.closest('button')&&!$('settings-dialog').open)play();
+ if(learningActive&&inPracticeSession()&&!e.target.closest('button')&&!$('settings-dialog').open)play();
 });
-$('learning-back').addEventListener('click',()=>mode==='practice'?complete():reset());
+$('learning-back').addEventListener('click',()=>inPracticeSession()?complete():showHome());
 $('learning-midi').addEventListener('click',()=>openSettings());
 
-$('free-action').addEventListener('click',e=>{e.stopPropagation();startLearning();});
+$('learning-action').addEventListener('click',e=>{e.stopPropagation();startLearning();});
 $('pause-exit').addEventListener('click',e=>{e.stopPropagation();complete();});
 $('practice-action').addEventListener('click',e=>{e.stopPropagation();startMode('practice');});
 $('overlay-action').addEventListener('click',e=>{e.stopPropagation();startMode('challenge');});
@@ -773,7 +767,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)backgroundS
 globalThis.addEventListener?.('pagehide',backgroundSession);
 const portrait=matchMedia('(orientation: portrait) and (max-width: 1100px) and (any-pointer: coarse)');portrait.addEventListener('change',e=>{if(e.matches)pause();});
 document.addEventListener('keydown',e=>{
- if(learningActive&&mode!=='practice')return;
+ if(!started||finished||e.repeat)return;
  if($('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return;
  if(e.code==='Space'&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement?.tagName)){e.preventDefault();play();}
 });

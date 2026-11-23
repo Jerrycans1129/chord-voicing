@@ -1,6 +1,6 @@
 // The build stamps this cache with the deployed asset fingerprint.
 const CACHE_PREFIX = `voicing-${self.registration.scope}-`;
-const CACHE_NAME = `${CACHE_PREFIX}v23-66b775f-55b21281ddee`;
+const CACHE_NAME = `${CACHE_PREFIX}v23-db6660e-fab122222b6f`;
 const ASSETS = ['./', './index.html', './style.css', './app.js', './learning.js', './build.js', './theory.js', './scheduler.js', './scoring.js', './judgment.js', './performance.js',
   './pwa.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 const assetURLs = new Set(ASSETS.map(path => new URL(path, self.registration.scope).href));

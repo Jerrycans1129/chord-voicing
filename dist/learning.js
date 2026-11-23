@@ -1,4 +1,4 @@
-import {qualities,names,notes} from './theory.js';
+import {qualities} from './theory.js';
 export const supportsLearning=node=>node?.kind==='quality';
 export class ChordRecognizer {
  constructor(q){this.q=q;this.reset();}
@@ -15,20 +15,4 @@ export class ChordRecognizer {
   const inv=qualities[this.q].intervals.findIndex(n=>(c.pc+n)%12===c.bass%12);
   const result={pc:c.pc,inv};this.reset();return result;
  }
-}
-export function referenceNotes(q,pc,inv){
- let root=60+pc,pitches=notes(root,q,inv);
- while(pitches.at(-1)>84){root-=12;pitches=notes(root,q,inv);}
- while(pitches[0]<48){root+=12;pitches=notes(root,q,inv);}
- return pitches;
-}
-const degrees=[[0,2,4],[0,2,4],[0,3,4],[0,1,4],[0,2,4,6],[0,2,4,6],[0,2,4,6],[0,3,4,6],[0,1,2,4],[0,1,2,4],[0,2,4,5],[0,1,2,4,6],[0,1,2,4,6],[0,1,2,4,6],[0,2,4],[0,2,4,6],[0,2,4,6],[0,2,4],[0,2,4,5],[0,2,4,6]];
-export function learningChordName(q,pc,spelling,inv){
- const root=names[pc][spelling]??names[pc][0],symbol=root+qualities[q].suffix;
- if(!inv)return symbol;
- const letters='CDEFGAB',natural=[0,2,4,5,7,9,11];
- const letter=(letters.indexOf(root[0])+degrees[q][inv])%7;
- let offset=((pc+qualities[q].intervals[inv]-natural[letter])%12+12)%12;if(offset>6)offset-=12;
- const bass=letters[letter]+(offset<0?'♭'.repeat(-offset):'♯'.repeat(offset));
- return `${symbol} / ${bass}`;
 }
