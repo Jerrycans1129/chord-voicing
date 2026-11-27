@@ -13,11 +13,13 @@
 </div></nav></div>
 </section>
 <section id="learning" hidden aria-label="和弦学习">
-<header class="learning-header"><button id="learning-back" class="learning-back">‹ 返回</button><button id="learning-settings" class="learning-back">30分钟专注训练</button><h2 id="learning-title"></h2><select id="preview-quality" hidden aria-label="预览和弦"></select><button id="learning-midi" class="learning-back" aria-label="MIDI 连接状态">♫</button></header>
+<header class="learning-header"><button id="learning-back" class="learning-back">‹ 返回</button><button id="learning-settings" class="learning-back">30分钟专注训练</button><button id="learning-midi" aria-label="MIDI 未连接"><span class="mini-piano" aria-hidden="true"><i></i><i></i><i></i><i></i></span></button></header>
+<h2 id="learning-title"></h2>
+<div id="quality-picker" role="group" aria-label="选择和弦类别" hidden><div id="quality-track"></div></div>
 <div id="learning-chords" role="group" aria-label="和弦根音"></div>
 </section>
 <button id="tips-toggle" class="secondary" aria-label="编辑练习提示语" title="编辑练习提示语">✎</button>
-<button id="settings-toggle" class="secondary" aria-label="MIDI 连接状态" title="MIDI 连接状态">♫</button>
+<button id="settings-toggle" class="secondary" aria-label="MIDI 未连接" title="MIDI 连接状态"><span class="mini-piano" aria-hidden="true"><i></i><i></i><i></i><i></i></span></button>
 <div id="practice-count-in" hidden aria-live="off" aria-label="预备拍"></div>
 <div id="performance-frost" aria-hidden="true"></div><div id="pause-screen" hidden role="dialog" aria-modal="true" aria-label="已暂停"><button id="pause-resume" class="primary">继续</button><button id="pause-exit" class="secondary">退出</button></div><div id="strike"></div><div id="keyboard" aria-label="无音名标记的钢琴参照键盘"></div><div id="keyboard-frost" aria-hidden="true" hidden></div>
 </section></main>

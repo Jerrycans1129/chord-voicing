@@ -136,8 +136,17 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 .instrument[data-learning="true"]{--key-h:24vh}
 #learning{position:absolute;inset:0 0 var(--key-h);z-index:4;background:#172321;--learning-inset:clamp(12px,3vw,48px);--label-height:6.5vh}
 .learning-header{position:absolute;top:2vh;left:var(--learning-inset);right:var(--learning-inset);display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px}
-.learning-header h2{margin:0;font-size:clamp(20px,3vw,36px);font-weight:600}
-.learning-back{background:none;color:#e5eae4;padding:4px 8px;min-height:36px;font-size:clamp(16px,2vw,24px)}
+#learning-title,#quality-picker{position:absolute;top:max(45px,22%);left:50%;transform:translateX(-50%);margin:0;text-align:center}
+#learning-title,#quality-track button{font-size:clamp(18px,min(3vw,5vh),36px);font-weight:600}
+#quality-picker{width:min(92%,850px);overflow:hidden;touch-action:pan-y}
+#quality-picker[data-expanded=false]{mask-image:linear-gradient(90deg,transparent,#000 15%,#000 85%,transparent)}
+#quality-track{width:166.6667%;margin-left:-33.3333%;display:flex;align-items:stretch}
+#quality-track button{flex:1 0 20%;min-width:0;padding:4px 2px;background:transparent;color:#ecf4e8;line-height:1.15;touch-action:pan-y}
+#quality-track button:focus-visible{outline-offset:-3px}
+#quality-picker[data-expanded=false] button:not([data-offset="0"]){filter:blur(2px);opacity:.4}
+#quality-picker[data-expanded=true] button{cursor:grab}
+@media(max-width:550px){#quality-track button{font-size:clamp(14px,4vw,20px)}}
+.learning-back{background:#2b3933;color:#e5eae4;border:1px solid #597064;padding:5px 12px;min-height:36px;font-size:clamp(14px,1.6vw,20px)}
 /* iPad landscape: compact three-row cluster, with breathing room above and below. */
 #learning-chords{position:absolute;left:var(--learning-inset);right:var(--learning-inset);bottom:calc(22vh - var(--label-height));display:grid;grid-template-columns:repeat(13,minmax(0,1fr));grid-template-rows:repeat(3,var(--label-height));gap:1.6vh 0;align-items:center;padding:0 3.2%}
 .learning-chord{justify-self:center;width:176%;height:100%;min-height:0;padding:2px;border:1px solid #879e80;background:#1a2b24;color:#e5eae4;border-radius:10px;font-size:clamp(14px,2.5vw,30px);font-weight:600;white-space:nowrap}
@@ -147,18 +156,24 @@ dialog{width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 24px);margin
 @media(max-height:450px){
  .instrument[data-learning="true"]{--key-h:clamp(80px,27vh,120px)}
 
- .learning-header{top:5px}.learning-header h2{font-size:21px}
- #learning-chords{top:48px;bottom:64px;transform:translateY(min(64px,calc((100% - 10px)/3)));grid-template-rows:repeat(3,minmax(0,1fr));gap:5px 0}
+ .learning-header{top:5px}
+ #quality-track button{min-height:32px}
+ #learning-title,#quality-picker{top:48px}
+ #learning-chords{top:86px;bottom:8px;grid-template-rows:repeat(3,minmax(0,1fr));gap:5px 0}
  .learning-chord{font-size:clamp(13px,2.4vw,21px);border-radius:7px}
 }
 .learning-chord[data-long="true"]{font-size:clamp(12px,1.75vw,24px)}
 
 #tips-toggle{position:absolute;top:16px;right:68px;z-index:6;background:transparent;font-size:24px}
-#settings-toggle,#learning-midi{font-size:22px;color:#acb6ae}
-#settings-toggle::after,#learning-midi::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#818b85;margin-left:4px}
-#settings-toggle[data-connected=true]::after,#learning-midi[data-connected=true]::after{background:#bcdf82}
-#settings-toggle{display:flex;align-items:center;justify-content:center}
-.learning-header{justify-content:flex-start}.learning-header h2{margin:auto}.learning-header #learning-midi{margin-left:auto}
+#learning-midi{position:relative;margin-left:auto}
+#settings-toggle,#learning-midi{width:46px;height:40px;min-height:36px;display:grid;place-items:center;padding:6px;background:transparent}
+.mini-piano{display:flex;width:32px;height:23px;overflow:hidden;border:1px solid #14201c;border-radius:3px}
+.mini-piano i{position:relative;flex:1;background:#eef1e8}
+.mini-piano i+i{border-left:1px solid #46554e}
+.mini-piano i+i::before{content:"";position:absolute;left:-3px;top:0;width:5px;height:60%;background:#16211c;border-radius:0 0 1px 1px}
+#settings-toggle::after,#learning-midi::after{content:"";position:absolute;right:3px;bottom:4px;width:9px;height:9px;border:2px solid #172321;border-radius:50%;background:#f47676}
+#settings-toggle[data-connected=true]::after,#learning-midi[data-connected=true]::after{background:#8cda79}
+.learning-header{justify-content:flex-start}
 dialog.full-page[open]{display:flex;flex-direction:column;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;border-radius:0;padding:clamp(12px,3vw,38px);overflow:hidden}
 .full-page header,.free-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.full-page header{justify-content:space-between}.full-page header h2{margin:0}
 .free-tools{margin:10px 0;gap:8px}input,select,textarea{font:inherit;background:#26382f;color:#eef5ea;border:1px solid #607366;border-radius:6px;padding:6px}#tips-text{width:100%;box-sizing:border-box;user-select:text}

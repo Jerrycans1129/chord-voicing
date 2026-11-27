@@ -1,4 +1,4 @@
-import {ChordRecognizer} from './learning.js';
+import {ChordRecognizer,LevelRecognizer} from './learning.js';
 import {stages,names,qualities,curriculum,selectable,supportsPractice,currentProgress,trainingItems} from './theory.js';
 import {BUILD_REVISION} from './build.js';
 import {Scheduler} from './scheduler.js';
@@ -204,9 +204,12 @@ function judgeMidi(note,deviceId){
  if(learningActive){
   if($('settings-dialog').open||$('midi-dialog').open)return;
   const held=[...midiHeld.values()].flatMap(channels=>[...channels.values()].flatMap(keys=>[...keys]));
-  const match=recognizer ? recognizer.attack(note,held,learningState.pc) : {pc:note%12,inv:0};
-  if(match&&(match.pc!==learningState.pc||match.inv!==learningState.inv)){
-   Object.assign(learningState,match,{spelling:Math.floor(Math.random()*names[match.pc].length)});paintLearning();
+  if(recognizer instanceof LevelRecognizer){
+   const match=recognizer.attack(note,held,learningState.pc,learningState.q);
+   // Let closely spaced MIDI attacks settle before displaying a partial chord.
+   recognizer.pending=match?{match,after:performance.now()+55}:null;
+  }else{
+   showLearningMatch(recognizer?recognizer.attack(note,held,learningState.pc):{pc:note%12,inv:0});
   }
   return;
  }
@@ -682,6 +685,10 @@ function paintScene(){
  });
 }
 function render(now){
+ if(recognizer?.pending&&now>=recognizer.pending.after){
+  const {match}=recognizer.pending;recognizer.pending=null;
+  if(!$('settings-dialog').open&&!$('midi-dialog').open)showLearningMatch(match);
+ }
  advance(now);
  scheduleMetronome();
  paintScene();
@@ -725,21 +732,23 @@ function startLearning(stage=stages[stageIndex]){
  openLearning(item.q,item.pc,item.inv??0,names[item.pc].indexOf(item.name));
 }
 function openLearning(q,pc,inv,spelling){
- learningState={q,pc,inv,spelling};
- recognizer=q===undefined?null:new ChordRecognizer(q);learningActive=true;keyboardBlurOn=false;updateKeyboardBlur();
- $('instrument').dataset.learning='true';$('overlay').hidden=true;$('learning').hidden=false;$('settings-toggle').hidden=true;
- $('learning-title').textContent=q===undefined?'单音':qualities[q].name+'和弦';
- $('learning-back').textContent='退出';$('learning-settings').textContent=inPracticeSession()?'训练设置':'30分钟专注训练';$('tips-toggle').hidden=true;
- const available=selection?.items??selection?.combos??[];
+ const stage=sessionStage??selection??stages[stageIndex];
+ const available=stage.items??stage.combos??[];
  const kinds=[...new Set(available.map(i=>i.q))];
- $('preview-quality').hidden=kinds.length<2;
- $('preview-quality').replaceChildren(...kinds.map(index=>option(index,qualities[index].name)));
- $('preview-quality').value=String(q);
+ learningState={q,pc,inv,spelling,kinds,expanded:false};
+ recognizer=q===undefined?null:stage.comprehensive&&kinds.length>1?new LevelRecognizer(kinds):new ChordRecognizer(q);
+ learningActive=true;keyboardBlurOn=false;updateKeyboardBlur();
+ $('instrument').dataset.learning='true';$('overlay').hidden=true;$('learning').hidden=false;$('settings-toggle').hidden=true;
+ $('learning-back').textContent='退出';$('learning-settings').textContent=inPracticeSession()?'训练设置':'30分钟专注训练';$('tips-toggle').hidden=true;
+ $('learning-title').textContent=q===undefined?'单音':qualities[q].name+'和弦';
  $('learning-title').hidden=kinds.length>1;
+ $('quality-picker').hidden=kinds.length<2;
+ qualityDrag=null;skipQualityClick=false;
+ if(kinds.length>1)paintQualityPicker();
  const buttons=[];
  const whiteColumns=[1,3,5,7,9,11,13],blackColumns={1:2,3:4,6:8,8:10,10:12};
  names.forEach((spellings,pc)=>spellings.forEach((name,spelling)=>{
-  const button=document.createElement('button');button.className='learning-chord';button.textContent=name+(qualities[q]?.suffix??'');button.dataset.long=String(button.textContent.length>7);
+  const button=document.createElement('button');button.className='learning-chord';
   button.style.gridColumn=String(blackColumns[pc]??whiteColumns[[0,2,4,5,7,9,11].indexOf(pc)]);
   button.style.gridRow=String(blackColumns[pc]?spelling+1:3);
   button.dataset.pc=String(pc);button.dataset.spelling=String(spelling);
@@ -748,10 +757,24 @@ function openLearning(q,pc,inv,spelling){
  $('learning-chords').replaceChildren(...buttons);
  paintLearning();
 }
+function showLearningMatch(match){
+ if(!match)return;
+ const q=match.q??learningState.q;
+ if(q===learningState.q&&match.pc===learningState.pc&&match.inv===learningState.inv)return;
+ if(q!==learningState.q)changeLearningQuality(q);
+ if(match.pc!==learningState.pc)learningState.spelling=Math.floor(Math.random()*names[match.pc].length);
+ Object.assign(learningState,match);
+ paintLearning();
+}
 function paintLearning(){
  if(!learningActive)return;
  const {q,pc}=learningState;
- for(const button of $('learning-chords').children)button.setAttribute('aria-pressed',String(Number(button.dataset.pc)===pc));
+ for(const button of $('learning-chords').children){
+  const root=Number(button.dataset.pc);
+  button.textContent=names[root][Number(button.dataset.spelling)]+(qualities[q]?.suffix??'');
+  button.dataset.long=String(button.textContent.length>7);
+  button.setAttribute('aria-pressed',String(root===pc));
+ }
  const tones=new Set((qualities[q]?.intervals??[0]).map(interval=>(pc+interval)%12));
  for(const [note,dot] of answerDots){
   const pitchClass=note%12;
@@ -766,7 +789,86 @@ $('learning').addEventListener('click',e=>{
 $('learning-back').addEventListener('click',()=>inPracticeSession()?complete():showHome());
 $('learning-midi').addEventListener('click',openMidi);
 $('learning-settings').addEventListener('click',openSettings);
-$('preview-quality').addEventListener('change',()=>openLearning(Number($('preview-quality').value),learningState.pc,0,learningState.spelling));
+const picker=$('quality-picker'),track=$('quality-track');
+let qualityDrag=null,skipQualityClick=false;
+function qualityAt(offset){
+ const {q,kinds}=learningState;
+ return kinds[(kinds.indexOf(q)+offset+kinds.length*2)%kinds.length];
+}
+function paintQualityPicker(){
+ const {expanded}=learningState;
+ picker.dataset.expanded=String(expanded);
+ track.style.transform='';
+ for(const button of track.children){
+  const offset=Number(button.dataset.offset);
+  button.textContent=qualities[qualityAt(offset)].name+'和弦';
+  button.disabled=offset!==0&&!expanded;
+  button.tabIndex=offset===0?0:-1;
+  if(offset===0)button.setAttribute('aria-expanded',String(expanded));
+ }
+}
+function changeLearningQuality(q,direction,dragOffset=0){
+ const {kinds}=learningState;
+ const distance=kinds.indexOf(q)-kinds.indexOf(learningState.q);
+ const step=direction??Math.sign(Math.abs(distance)>kinds.length/2?-distance:distance);
+ Object.assign(learningState,{q,inv:0});
+ if(!(recognizer instanceof LevelRecognizer))recognizer=new ChordRecognizer(q);
+ qualityDrag=null;
+ paintQualityPicker();
+ if(step&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+  track.animate?.([{transform:`translateX(${step*picker.clientWidth/3+dragOffset}px)`},{transform:'translateX(0)'}],{duration:180,easing:'ease-out'});
+ }
+}
+function selectNeighbor(offset,dragOffset=0){
+ recognizer?.reset();
+ changeLearningQuality(qualityAt(offset),offset,dragOffset);
+ paintLearning();
+}
+for(const offset of [-2,-1,0,1,2]){
+ const button=document.createElement('button');button.type='button';button.dataset.offset=String(offset);
+ button.addEventListener('click',event=>{
+  if(skipQualityClick&&event.detail)return;
+  if(offset===0){learningState.expanded=!learningState.expanded;paintQualityPicker();}
+  else if(learningState.expanded)selectNeighbor(offset);
+ });
+ track.append(button);
+}
+picker.addEventListener('click',event=>event.stopPropagation());
+picker.addEventListener('keydown',event=>{
+ if(learningState.expanded&&['ArrowLeft','ArrowRight'].includes(event.key)){
+  event.preventDefault();selectNeighbor(event.key==='ArrowLeft'?-1:1);
+ }
+});
+picker.addEventListener('pointerdown',event=>{
+ skipQualityClick=false;
+ if(!learningState.expanded||!event.isPrimary||event.button!==0)return;
+ qualityDrag={id:event.pointerId,x:event.clientX};
+});
+picker.addEventListener('pointermove',event=>{
+ if(qualityDrag?.id!==event.pointerId)return;
+ const dx=event.clientX-qualityDrag.x;
+ if(!skipQualityClick&&Math.abs(dx)<6)return;
+ skipQualityClick=true;
+ picker.setPointerCapture(event.pointerId);
+ const limit=picker.clientWidth/3;
+ track.style.transform=`translateX(${Math.max(-limit,Math.min(limit,dx))}px)`;
+});
+function finishQualityDrag(event){
+ if(qualityDrag?.id!==event.pointerId)return;
+ const dx=event.clientX-qualityDrag.x;
+ qualityDrag=null;
+ track.style.transform='';
+ if(event.type==='pointerup'&&skipQualityClick&&Math.abs(dx)>Math.min(32,picker.clientWidth/9)){
+  const limit=picker.clientWidth/3;
+  selectNeighbor(dx<0?1:-1,Math.max(-limit,Math.min(limit,dx)));
+ }
+}
+picker.addEventListener('pointerup',finishQualityDrag);
+picker.addEventListener('pointercancel',finishQualityDrag);
+picker.addEventListener('pointerleave',event=>{
+ if(!picker.hasPointerCapture(event.pointerId))finishQualityDrag(event);
+});
+
 
 $('pause-exit').addEventListener('click',e=>{e.stopPropagation();complete();});
 $('practice-action').addEventListener('click',e=>{e.stopPropagation();startLearning();});

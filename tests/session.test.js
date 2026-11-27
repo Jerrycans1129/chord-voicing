@@ -1035,3 +1035,33 @@ test('filtered lowest selection excludes unplayed items, respects ties and restr
  assert.equal(run('scheduler.items.length'),12);
  assert.ok(run('scheduler.items.every(i=>freeSelection.has(i.id)&&i.q===0)'));
 });
+
+test('mixed learning follows in-scope MIDI and ignores an out-of-scope seventh',async()=>{
+ const {run,nodes,send}=midiSession();await run('connectMidi()');
+ run("selectNode('level-2');startLearning()");
+ const play=notes=>{
+  for(const note of notes)send([0x90,note,100]);
+  run('now+=80;render(now)');
+  for(const note of notes)send([0x80,note,0]);
+ };
+ play([62,65,69]);
+ assert.equal(run('learningState.q'),1);
+ assert.equal(nodes.get('quality-track').children[2].textContent,'小三和弦');
+ const root=nodes.get('learning-chords').children.find(b=>b.dataset.pc==='2');
+ assert.equal(root.textContent,'Dm');assert.equal(root.attributes['aria-pressed'],'true');
+ assert.ok(run('[62,65,69].every(n=>!answerDots.get(n).hidden)'));
+ play([60,64,67,70]);assert.equal(run('learningState.pc'),2);assert.equal(run('learningState.q'),1);
+ play([60,64,67]);assert.equal(run('learningState.q'),0);
+});
+test('mixed learning upgrades a triad to its full seventh and supports manual browsing',async()=>{
+ const {run,nodes,send}=midiSession();await run('connectMidi()');
+ run("selectNode('level-5-v2');startLearning()");
+ for(const n of [60,64,67,71])send([0x90,n,100]);
+ run('now+=80;render(now)');
+ assert.equal(run('learningState.q'),6);
+ const picker=nodes.get('quality-picker'),buttons=nodes.get('quality-track').children;
+ assert.equal(buttons[1].disabled,true);
+ buttons[2].handlers.click({detail:0});assert.equal(buttons[1].disabled,false);
+ picker.handlers.keydown({key:'ArrowRight',preventDefault(){}});
+ assert.equal(run('learningState.q'),0);assert.equal(buttons[2].textContent,'大三和弦');
+});
