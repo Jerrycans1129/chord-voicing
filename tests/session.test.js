@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 import * as learning from '../dist/learning.js';
 import * as theory from '../dist/theory.js';
 import {BUILD_REVISION} from '../dist/build.js';
-import {Scheduler,cleanLevels} from '../dist/scheduler.js';
+import {Scheduler} from '../dist/scheduler.js';
 import * as scoring from '../dist/scoring.js';
 import * as judgment from '../dist/judgment.js';
 import * as performance from '../dist/performance.js';
@@ -13,7 +13,7 @@ function session(extras={},connected=true){
  const nodes=new Map(),documentHandlers={},alerts=[];
  const element=()=>({open:false,click(){this.clicked=true;},showModal(){this.open=true;},close(){this.open=false;},style:{setProperty(key,value){this[key]=value;}},dataset:{},hidden:false,textContent:'',value:'',clientHeight:300,setAttribute(key,value){this.attributes??={};this.attributes[key]=value;},children:[],append(...items){this.children.push(...items);},replaceChildren(...items){this.children=[...items];},handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},queries:new Map(),querySelector(selector){if(!this.queries.has(selector))this.queries.set(selector,element());return this.queries.get(selector);},scrollLeft:0,scrollIntoView(){},setPointerCapture(){},hasPointerCapture(){return false;},releasePointerCapture(){}});
  const get=id=>{if(!nodes.has(id)){const node=element();if(id==='performance-frost')node.clientHeight=96;nodes.set(id,node);}return nodes.get(id);};
- const context=vm.createContext({alert:message=>alerts.push(message),...theory,...learning,BUILD_REVISION,Scheduler,cleanLevels,...scoring,...judgment,...performance,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
+ const context=vm.createContext({alert:message=>alerts.push(message),...theory,...learning,BUILD_REVISION,Scheduler,...scoring,...judgment,...performance,now:0,document:{getElementById:get,createElement:element,addEventListener(type,fn){documentHandlers[type]=fn;}},localStorage:{getItem(key){return key==='voicing-stage'?'0':key==='voicing-bpm'?'60':null;},setItem(){}},performance:{now:()=>context.now},matchMedia:()=>({addEventListener(){}}),requestAnimationFrame(){},...extras});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
  // Legacy timeline fixtures use 90 BPM; mode entry tests exercise production defaults.
  vm.runInContext('bpm=90',context);
@@ -22,9 +22,9 @@ function session(extras={},connected=true){
  return {run:code=>vm.runInContext(code,context),nodes,documentHandlers,alerts};
 }
 test('pause excludes elapsed wall time, tempo changes preserve timer, restart resets',()=>{
- const {run,nodes}=session();run('play();now=10000;pause();now=70000;render(now)');assert.equal(nodes.get('training-time').textContent,'29:50');
- run('bpm=120;play();now=75000;render(now)');assert.equal(nodes.get('training-time').textContent,'29:45');
- run('reset()');assert.equal(nodes.get('training-time').textContent,'30:00');assert.equal(run('elapsed'),0);
+ const {run,nodes}=session();run('play();now=10000;pause();now=70000;render(now)');assert.equal(nodes.get('training-time').textContent,'09:50');
+ run('bpm=120;play();now=75000;render(now)');assert.equal(nodes.get('training-time').textContent,'09:45');
+ run('reset()');assert.equal(nodes.get('training-time').textContent,'10:00');assert.equal(run('elapsed'),0);
 });
 test('screen wake lock is acquired for training and released on pause and completion',async()=>{
  const locks=[];
@@ -61,7 +61,7 @@ test('phone detection preserves tablet and desktop layouts, including desktop-st
   {ua:'',width:400,height:900,touch:0,coarse:false,phone:false}
  ];
  for(const c of cases){
-  const {run,nodes}=session({navigator:{userAgent:c.ua,maxTouchPoints:c.touch},screen:{width:c.width,height:c.height},matchMedia:()=>({matches:c.coarse,addEventListener(){}})});
+  const {run,nodes}=session({navigator:{userAgent:c.ua,maxTouchPoints:c.touch},screen:{width:c.width,height:c.height},matchMedia:query=>({matches:query==='(pointer: coarse)'&&c.coarse,addEventListener(){}})});
   assert.equal(nodes.get('instrument').dataset.phone,String(c.phone),c.ua);
   run('play()');
   assert.equal(nodes.get('keyboard').dataset.obscured,String(!c.phone),c.ua);
@@ -170,7 +170,7 @@ test('automatic connection waits for an input; manual retry enables training wit
 
 test('repeated dismissed MIDI prompts cannot bypass any start entry or create results',()=>{
  const {run,nodes,documentHandlers,alerts}=session({},false);
- const entries=[()=>run('play()'),()=>nodes.get('overlay-action').handlers.click({stopPropagation(){}}),()=>nodes.get('practice-action').handlers.click({stopPropagation(){}})];
+ const entries=[()=>run('play()'),()=>nodes.get('overlay-action').handlers.click({stopPropagation(){}}),()=>{run('startLearning();openSettings()');nodes.get('practice-start').handlers.click();}];
  for(let i=0;i<30;i++){
   entries[i%entries.length]();
   assert.equal(nodes.get('midi-warning').open,true);
@@ -219,9 +219,9 @@ test('navigation keeps the continuous chain and distant leaves remain free',()=>
  const {run,nodes}=session({localStorage:{getItem(){return null;},setItem(){}}});
  assert.equal(run('stageIndex'),0);assert.equal(run('expandedTop'),'project-notes');
  run("selectNode('level-6-v2');play()");assert.ok(run('stageIndex')>=0);assert.equal(run('started'),true);assert.equal(nodes.get('overlay-action').disabled,false);run('complete()');
- run("selectNode('quality-8')");assert.equal(run('expandedQuality'),'quality-8');assert.equal(nodes.get('route-third').children.length,4);
- run("selectNode('chord-8-3');play()");assert.equal(run('started'),true);assert.equal(run('cards[0].targets.length'),4);
- run("complete();selectNode('level-6-v2')");assert.equal(nodes.get('route-second').children.length,30);assert.equal(nodes.get('route-third').hidden,true);
+ run("selectNode('quality-8')");assert.equal(run('stages[stageIndex].combos.length'),4);
+ run("play()");assert.equal(run('started'),true);assert.equal(run('cards[0].targets.length'),4);
+ run("complete();selectNode('level-6-v2')");assert.equal(nodes.get('route-second').children.length,30);assert.equal(nodes.has('route-third'),false);
 });
 test('eligible parent mixes only its own children and receives independent results',()=>{
  const {run,nodes}=session();
@@ -231,26 +231,26 @@ test('eligible parent mixes only its own children and receives independent resul
 });
 test('tail cards must touch strictly before the deadline at every tempo',()=>{
  for(const bpm of [40,60,90,120,140]){
-  const {run}=session();run(`bpm=${bpm};play();now=1780000;render(now)`);
-  for(let ms=1780100;ms<1800000;ms+=100){
+  const {run}=session();run(`bpm=${bpm};play();now=580000;render(now)`);
+  for(let ms=580100;ms<600000;ms+=100){
    run(`now=${ms};render(now)`);
    assert.equal(run('cards.every((c,i)=>sessionSeconds+(i+2-elapsed)*240/bpm<MAX_SECONDS-1e-9)'),true);
   }
-  run('now=1800000;render(now)');assert.equal(run('finished'),false);
-  run('now=1820000;render(now)');assert.equal(run('finished'),true);
+  run('now=600000;render(now)');assert.equal(run('finished'),true);
+  run('now=620000;render(now)');assert.equal(run('finished'),true);
  }
 });
-test('result stars preserve half-star ratings without a numerical score',()=>{
+test('result shows half-star ratings and a numerical score',()=>{
  const {run,nodes}=session();run('showResult({stars:2.5,total:10,correct:8,accuracy:.8,seconds:300,factors:{pause:1,keyboard:1,speed:1,duration:1}})');
  assert.equal(nodes.get('result-stars').children[1].style.width,`${2.5/3*100}%`);
- assert.equal(readFileSync(new URL('../dist/index.html',import.meta.url),'utf8').includes('id="result-score"'),false);
+ assert.equal(readFileSync(new URL('../dist/index.html',import.meta.url),'utf8').includes('id="result-score"'),true);
 });
 
-test('project browsing preserves selected training and expanded inversions',()=>{
- const {run,nodes}=session();run("selectNode('chord-0-1');selectNode('project-colors')");
- assert.equal(run("stages[stageIndex].id"),'chord-0-1');assert.equal(run('expandedQuality'),'quality-0');
+test('project browsing preserves selected training',()=>{
+ const {run,nodes}=session();run("selectNode('quality-0');selectNode('project-colors')");
+ assert.equal(run("stages[stageIndex].id"),'quality-0');
  assert.equal(run('expandedTop'),'project-colors');assert.equal(nodes.get('route-second').children.length,30);
- assert.equal(nodes.get('route-third').children.length,3);
+ assert.equal(nodes.has('route-third'),false);
 });
 test('scroll project tracking uses center and endpoints without selecting training',()=>{
  const {run,nodes}=session();
@@ -260,7 +260,7 @@ test('scroll project tracking uses center and endpoints without selecting traini
  row.scrollLeft=1250;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-colors');
  row.scrollLeft=1800;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-extended');
  row.scrollLeft=0;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-notes');
- assert.equal(run("stages[stageIndex].id"),'chord-0-1');
+ assert.equal(run("stages[stageIndex].id"),'quality-0');
 });
 
 test('programmatic end-of-chain navigation keeps the clicked project highlighted',()=>{
@@ -269,39 +269,36 @@ test('programmatic end-of-chain navigation keeps the clicked project highlighted
  row.getBoundingClientRect=()=>({left:0,right:400,width:400});
  run("selectNode('project-colors');syncProjectFromScroll()");
  assert.equal(run('expandedTop'),'project-colors');
- assert.equal(run("stages[stageIndex].id"),'chord-0-1');
+ assert.equal(run("stages[stageIndex].id"),'quality-0');
 });
 
 test('training header names stages and tracks active time through pause, resume and restart',()=>{
  const {run,nodes}=session();assert.equal(nodes.get('training-header').hidden,true);
- for(const [id,name] of [['chord-10-3','大六和弦-根音左二'],['level-4-v2','Level-4色彩和弦'],['quality-8','加九和弦']]){
+ for(const [id,name] of [['quality-10','大六和弦'],['level-4-v2','Level-4色彩和弦'],['quality-8','加九和弦']]){
   run(`selectNode('${id}');play()`);
   assert.equal(nodes.get('training-name').textContent,name);
   assert.equal(nodes.get('training-header').hidden,false);
   run('complete();reset()');
  }
  run('now=0;play();now=123456;pause()');
- assert.equal(nodes.get('training-time').textContent,'27:57');
+ assert.equal(nodes.get('training-time').textContent,'07:57');
  assert.equal(nodes.get('training-header').hidden,false);
- run('now=500000;render(now)');assert.equal(nodes.get('training-time').textContent,'27:57');
- run('play();now=501000;render(now)');assert.equal(nodes.get('training-time').textContent,'27:56');
+ run('now=500000;render(now)');assert.equal(nodes.get('training-time').textContent,'07:57');
+ run('play();now=501000;render(now)');assert.equal(nodes.get('training-time').textContent,'07:56');
  run('complete()');assert.equal(nodes.get('training-header').hidden,true);
- run('reset();play()');assert.equal(nodes.get('training-time').textContent,'30:00');
+ run('reset();play()');assert.equal(nodes.get('training-time').textContent,'10:00');
 });
 
 
-test('practice availability follows the selected node and challenge remains available',()=>{
- const {run,nodes}=session();
- for(const id of ['level-2','level-6-v2']){
-  run(`selectNode('${id}')`);assert.equal(nodes.get('practice-action').hidden,true);
-  assert.equal(nodes.get('overlay-action').disabled,false);
-  run("startMode('practice')");assert.equal(run('started'),false);
- }
- for(const id of ['notes-two','notes-all','quality-0','chord-10-3','quality-11']){
-  run(`selectNode('${id}')`);assert.equal(nodes.get('practice-action').hidden,false);
+test('practice previews every node before setup and timed play',()=>{
+ for(const id of ['notes-two','notes-all','quality-0','quality-11','level-2','level-6-v2']){
+  const {run,nodes}=session();run(`selectNode('${id}')`);
   nodes.get('practice-action').handlers.click({stopPropagation(){}});
-  assert.equal(run('mode'),'practice');assert.ok(run('Number.isInteger(cards[0].pc)&&cards[0].pc>=0&&cards[0].pc<12'));
-  run('complete()');assert.equal(nodes.get('result-dialog').open,false);
+  assert.equal(run('learningActive'),true);assert.equal(run('started'),false);
+  nodes.get('learning-settings').handlers.click();
+  assert.equal(nodes.get('settings-dialog').open,true);
+  nodes.get('practice-start').handlers.click();
+  assert.equal(run('running'),true);run('pause();complete()');assert.equal(nodes.get('result-dialog').open,true);
  }
 });
 
@@ -331,12 +328,12 @@ test('dragging reverses immediately after reaching the chain edge and capture lo
  surface.handlers.pointermove({pointerId:5,clientX:20,preventDefault(){}});assert.equal(scroll,80);
  surface.handlers.lostpointercapture({pointerId:5,target:surface});
  surface.handlers.pointermove({pointerId:5,clientX:40,preventDefault(){}});assert.equal(scroll,80);
- assert.equal(run('stageIndex'),selected);assert.equal(run('expandedQuality'),'quality-10');
+ assert.equal(run('stageIndex'),selected);assert.equal(run('stages[stageIndex].id'),'quality-10');
 });
 
 
 test('touch capture transferred from a chord or inversion button keeps the drag alive',()=>{
- for(const id of ['quality-10','chord-10-3']){
+ for(const id of ['quality-10','level-2']){
   const {run,nodes}=session(),surface=nodes.get('route-surface'),row=nodes.get('route-second');
   run(`selectNode('${id}')`);
   const button=run(`stageButtons.get('${id}')`),selected=run('stageIndex');
@@ -367,7 +364,7 @@ test('challenge is fixed at 120 BPM and settings stay unavailable until exit',()
  run('now=66000;play()');assert.equal(run('bpm'),120);
  run("complete();$('result-dialog').close();startMode('practice');pause()");
  assert.equal(run('bpm'),40);assert.equal(nodes.get('learning').hidden,false);
- nodes.get('learning-midi').handlers.click();assert.equal(nodes.get('settings-dialog').open,true);
+ nodes.get('learning-settings').handlers.click();assert.equal(nodes.get('settings-dialog').open,true);
 });
 test('challenge settles before B touches and fades in place only after bottom contact',()=>{
  const {run}=session();run('play();now=7950;render(now)');
@@ -380,37 +377,37 @@ test('challenge settles before B touches and fades in place only after bottom co
 
 test('challenge errors left uncorrected persist until the next early window and never affect the previous card',()=>{
  const {run}=session();run('play();now=5500;for(const n of cards[0].targets)judgeMidi(n);now=7900;judgeMidi(1);now=7950;render(now)');
- assert.equal(run('run.correct'),0);assert.equal(run('cards[0].feedback'),'wrong');
+ assert.equal(run('run.correct'),.75);assert.equal(run('cards[0].feedback'),'wrong');
  run('judgeMidi(1)');assert.equal(run('cards[1].wrong'),true);assert.equal(run('run.total'),1);
 });
 
-test('exit settles only the current question, including silence and incomplete chords',()=>{
+test('exit excludes the unfinished question, including silence and incomplete chords',()=>{
  for(const kind of ['silent','partial','correct','wrong']){
   const {run}=session();run('play();now=5500;render(now)');
   if(kind==='partial')run('judgeMidi(cards[0].targets[0])');
   if(kind==='correct'||kind==='wrong')run('for(const n of cards[0].targets)judgeMidi(n)');
   if(kind==='wrong')run('judgeMidi(1)');
-  run('pause();complete()');assert.equal(run('run.total'),1);assert.equal(run('run.correct'),kind==='correct'?1:0);
+  run('pause();complete()');assert.equal(run('run.total'),0);assert.equal(run('run.correct'),0);
  }
 });
 test('repeated errors never terminate challenge early or create a failure score',()=>{
  const {run}=session();run('play();now=100000;render(now)');
  assert.equal(run('finished'),false);assert.ok(run('run.total')>8);
  assert.equal(run("'failed' in run"),false);
- run('now=1800000;render(now)');assert.equal(run('finished'),false);
-  run('now=1820000;render(now)');assert.equal(run('finished'),true);assert.equal(run('run.seconds'),1800);
+ run('now=600000;render(now)');assert.equal(run('finished'),true);
+  run('now=620000;render(now)');assert.equal(run('finished'),true);assert.equal(run('run.seconds'),600);
 });
 
 
 
-test('full thirty minutes with correct MIDI answers finishes and awards three stars',()=>{
- const {run,nodes}=session();run(`play();for(let i=0;i<673;i++){now=(i+2)*240000/90+1;render(now);for(const n of cards[i].targets)judgeMidi(n);}now=1800000;render(now)`);
- assert.equal(run('finished'),false);
- run('now=1810000;render(now)');
- assert.equal(run('finished'),true);assert.equal(run('run.seconds'),1800);
+test('full ten minutes with correct MIDI answers finishes and awards three stars',()=>{
+ const {run,nodes}=session();run(`play();for(let i=0;i<223;i++){now=(i+2)*240000/90+1;render(now);for(const n of cards[i].targets)judgeMidi(n);}now=600000;render(now)`);
+ assert.equal(run('finished'),true);
+ run('now=610000;render(now)');
+ assert.equal(run('finished'),true);assert.equal(run('run.seconds'),600);
  assert.equal(run('calculateScore(run).stars'),3);assert.equal(nodes.get('training-time').textContent,'00:00');
 });
-test('only final best stars persist; performance recording is removed',()=>{
+test('a partial window leaves history untouched and preserves the best rating',()=>{
  const writes=new Map();const {run,nodes}=session({localStorage:{getItem(){return null;},setItem(k,v){writes.set(k,v);}}});
  run('practiceSettings.metronomeOn=false');
  run('play();now=5500;for(const n of cards[0].targets)judgeMidi(n);pause();complete()');
@@ -423,12 +420,12 @@ test('removed mistake block rules leave no shipped UI or score failure branch',(
  for(const file of ['app.js','style.css','index.html','scoring.js'])assert.doesNotMatch(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),/mistakeStacks|mistake-block|run\.failed|堆叠触线/);
 });
 
-test('pausing freezes all cards and ignores MIDI; exit settles the active attempt',()=>{
+test('pausing freezes all cards and ignores MIDI; exit excludes the active attempt',()=>{
  const {run,nodes}=session();run('play();now=6000;pause();const position=elements[0].style.transform');
  run('now=60000;for(const n of cards[0].targets)judgeMidi(n);render(now)');
  assert.equal(run('elements[0].style.transform'),run('position'));assert.equal(run('cards[0].hits.size'),0);
  assert.equal(nodes.get('pause-screen').hidden,false);
- run('complete()');assert.equal(run('run.total'),1);
+ run('complete()');assert.equal(run('run.total'),0);
 });
 
 test('zero-star home ratings are blank and do not replace previously earned stars',()=>{
@@ -462,7 +459,7 @@ test('silent practice opens learning after thirty idle seconds at the bottom',()
  const {run,nodes}=session();run("startMode('practice');now=6000;render(now)");assert.ok(run('elapsed')>2);
  run('now=16000;render(now);const positions=elements.map(e=>e.style.transform);now=7200000;render(now)');
  assert.equal(run('elapsed'),3);assert.equal(run('JSON.stringify(elements.map(e=>e.style.transform))===JSON.stringify(positions)'),true);
- assert.equal(run('learningActive'),true);assert.equal(run('running'),false);assert.equal(nodes.get('training-time').textContent,'00:38');assert.equal(run('run.total'),0);
+ assert.equal(run('learningActive'),true);assert.equal(run('running'),false);assert.equal(nodes.get('training-time').textContent,'29:22');assert.equal(run('run.total'),1);
 });
 
 test('practice correct answers can become wrong and recover during the full measure',()=>{
@@ -558,12 +555,12 @@ test('learning replaces free play, works without MIDI and keeps answers after re
  nodes.get('learning-back').handlers.click();assert.equal(run('learningActive'),false);
  assert.equal(nodes.get('overlay').hidden,false);assert.equal(run('Object.keys(results).length'),0);
  const offline=session({},false);offline.run("selectNode('quality-0')");
- assert.equal(offline.nodes.get('learning-action').hidden,false);offline.run('startLearning()');
+ assert.equal(offline.nodes.get('practice-action').hidden,false);offline.run('startLearning()');
  assert.equal(offline.run('learningActive'),true);assert.equal(offline.nodes.get('midi-warning').open,false);
 });
-test('learning entry is hidden for voicings, notes and comprehensive levels and manual choice resets recognition',()=>{
+test('learning is available for notes and comprehensive levels and manual choice resets recognition',()=>{
  const {run,nodes}=session({},false);
- for(const id of ['chord-0-0','chord-0-2','notes-two','notes-all','level-2']){run(`selectNode('${id}');startLearning()`);assert.equal(run('learningActive'),false);assert.equal(nodes.get('learning-action').hidden,true);}
+ for(const id of ['notes-two','notes-all','level-2']){run(`selectNode('${id}');startLearning()`);assert.equal(run('learningActive'),true);run('showHome()');}
  run("selectNode('quality-0');startLearning();judgeMidi(60);judgeMidi(64)");
  nodes.get('learning-chords').children.find(b=>b.dataset.pc==='2').handlers.click();
  run('judgeMidi(67)');assert.equal(run('learningState.pc'),2);
@@ -575,7 +572,7 @@ test('every single-note stage shares full-window practice and bottom retry behav
   assert.equal(run('elapsed'),3);assert.equal(run('cards.every(c=>c.targets.length===1)'),true);
   run('judgeMidi(cards[0].root)');assert.equal(run('cards[0].practicePassed'),false);
   run('judgeMidi(cards[1].root);now+=240000/bpm+100;render(now);pause()');assert.ok(run('elapsed')>3);
-  assert.equal(nodes.get('instrument').dataset.paused,'true');assert.equal(run('run.total'),0);
+  assert.equal(nodes.get('instrument').dataset.paused,'true');assert.equal(run('run.total'),1);
  }
 });
 
@@ -590,10 +587,10 @@ test('sustain follows each device and channel, clears on reset/disconnect, and d
  send([0xb0,64,127]);send([0x90,64,100]);send([0x80,64,0]);input.state='disconnected';access.onstatechange();
  assert.equal(run('midiKeys.get(64).dataset.midiSustained'),'false');
 });
-test('settings include BPM, metronome, MIDI refresh and close without a timing recorder',()=>{
+test('settings separate BPM and metronome from MIDI without a timing recorder',()=>{
  const html=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');
  const settings=html.split('<dialog id="settings-dialog"')[1].split('</dialog>')[0];
- assert.deepEqual([...settings.matchAll(/<button id="([^"]+)"/g)].map(m=>m[1]),['bpm-decrease','bpm-increase','metronome','midi-connect','settings-close']);
+ assert.deepEqual([...settings.matchAll(/<button id="([^"]+)"/g)].map(m=>m[1]),['bpm-decrease','bpm-increase','metronome','settings-close','practice-start']);
  const app=readFileSync(new URL('../dist/app.js',import.meta.url),'utf8');
  assert.doesNotMatch(app,/recordTimingAttack|createTimingRun|timing-export/);
 });
@@ -613,7 +610,7 @@ test('practice tempo buttons step by ten, clamp at both ends and preserve the ch
  click('bpm-decrease');assert.equal(run('bpm'),170);
  run("$('settings-dialog').close();play();const phase=elapsed;now+=240000/bpm+1000;render(now)");
  assert.ok(Math.abs(run('elapsed-phase')-170/240)<1e-8);
- run("complete();startMode('challenge')");assert.equal(run('bpm'),120);
+ run("complete();$('result-dialog').close();startMode('challenge')");assert.equal(run('bpm'),120);
  run("complete();$('result-dialog').close();startMode('practice')");assert.equal(run('bpm'),170);
 });
 test('resuming after a tempo change opens fresh judgment windows at the new tempo',()=>{
@@ -625,7 +622,7 @@ test('resuming after a tempo change opens fresh judgment windows at the new temp
  assert.equal(run('elapsed'),3);assert.ok(Math.abs(run('sessionSeconds')-(6+2*240/180))<1e-8);
 });
 
-test('practice can play 100 consecutive early answers without freezing or scoring',()=>{
+test('practice can play 100 consecutive early answers without freezing and records closed windows',()=>{
  for(const bpm of [90,180]){
   const {run}=session();run(`startMode('practice');bpm=${bpm};
    for(let i=0;i<100;i++){
@@ -634,7 +631,7 @@ test('practice can play 100 consecutive early answers without freezing or scorin
     now=(i+2.1)*240000/bpm;render(now);
     if(Math.abs(elapsed-(i+2.1))>1e-8)throw Error('Unexpected freeze at '+i);
    }`);
-  assert.equal(run('run.total'),0);assert.equal(run('running'),true);
+  assert.equal(run('run.total'),99);assert.equal(run('running'),true);
  }
 });
 function audioFixture(){
@@ -773,40 +770,19 @@ test('a correct answer followed by a wrong note before close freezes, while part
 });
 
 
-test('challenge waits for the final note or chord fade and then exactly four beats',()=>{
- for(const stage of ['notes-two','triad'])for(const tempo of [90,137,180]){
-  const {run,nodes}=session();
-  if(stage==='notes-two')run("selectNode('notes-two')");
-  run(`bpm=${tempo};play();now=1800000;render(now)`);
-  const count=run('cards.length');
-  run('now+=(cards.length+2-elapsed)*240000/bpm;render(now)');
-  assert.equal(run('finished'),false);
-  assert.equal(run('elements.at(-1).hidden'),false);
-  run('now+=180;render(now)');
-  assert.equal(run('elements.at(-1).hidden'),true);
-  assert.equal(nodes.get('result-dialog').open,false);
-  run('now+=3.99*60000/bpm;render(now)');
-  assert.equal(nodes.get('result-dialog').open,false);
-  run('now+=.01*60000/bpm;render(now)');
-  assert.equal(nodes.get('result-dialog').open,true);
-  assert.equal(run('cards.length'),count);
-  assert.equal(run('run.total'),count);
-  assert.equal(run('run.seconds'),1800);
+test('both modes stop exactly at deadline even inside practice count-in',()=>{
+ for(const mode of ['challenge','practice']){
+  const {run,nodes}=session();run(`startMode('${mode}');sessionSeconds=${mode==='challenge'?599:1799}`);
+  if(mode==='practice')run('startPracticeCountIn()');
+  run('now=999;render(now)');assert.equal(run('running'),true);
+  run('now=1100;render(now)');assert.equal(run('finished'),true);assert.equal(nodes.get('training-time').textContent,'00:00');
  }
 });
-test('outro pauses, follows tempo changes, and resets on retry',()=>{
- const {run,nodes}=session();
- run('play();now=1800180;render(now);now+=60000/bpm;pause()');
- assert.ok(Math.abs(run('outroBeats')-1)<1e-8);
- run('now+=60000;render(now)');
- assert.equal(nodes.get('result-dialog').open,false);
- run('bpm=180;play();now+=2.99*60000/bpm;render(now)');
- assert.equal(nodes.get('result-dialog').open,false);
- run('now+=.01*60000/bpm;render(now)');
- assert.equal(nodes.get('result-dialog').open,true);
- run('reset()');assert.equal(run('outroBeats'),0);
-});
 
+test('a skip counts in the summary only, even after a frozen retry',()=>{
+ const {run}=session();run("startMode('practice');now=8000;render(now);for(const n of cards[0].targets)judgeMidi(n);now=11000;pause();complete()");
+ assert.equal(run('run.total'),1);assert.equal(run('run.correct'),0);assert.equal(run('historyStats(countsFor(cards[0].id)).total'),0);
+});
 
 test('unplayed notes and incomplete chords turn red at the end of beat one when still incomplete',()=>{
  for(const mode of ['challenge','practice'])for(const kind of ['note','silent-chord','partial-chord'])for(const tempo of [90,137,180]){
@@ -854,7 +830,7 @@ test('both checkpoints determine challenge credit and practice passage',()=>{
   assert.equal(run('isCorrect(cards[0])'),final);
   if(mode==='challenge'){
    assert.equal(run('run.total'),1);
-   assert.equal(run('run.correct'),final?(early?1:.5):0);
+   assert.equal(run('run.correct'),final?(early?1:.5):(early?.75:0));
   }else assert.equal(run('cards[0].practicePassed'),final);
  }
 });
@@ -966,7 +942,7 @@ test('practice pause opens the detected chord, isolates exploration and resumes 
  const selected=()=>nodes.get('learning-chords').children.filter(b=>b.attributes['aria-pressed']==='true');
  assert.deepEqual(selected().map(b=>b.dataset.pc),['1','1']);
  assert.equal(run('learningState.inv'),1);
- assert.equal(nodes.get('learning-back').textContent,'退出训练');
+ assert.equal(nodes.get('learning-back').textContent,'退出');
  assert.equal(nodes.get('pause-screen').hidden,true);
  const choice=nodes.get('learning-chords').children.find(b=>b.dataset.pc==='2');
  choice.handlers.click();
@@ -975,9 +951,9 @@ test('practice pause opens the detected chord, isolates exploration and resumes 
  assert.equal(run('answerDots.get(62).hidden'),false);
  for(const n of [60,64,67]){send([0x90,n,100]);send([0x80,n,0]);}
  assert.equal(run('learningState.pc'),0);
- nodes.get('learning-midi').handlers.click();
- assert.equal(nodes.get('settings-dialog').dataset.learning,'false');
- assert.equal(nodes.get('tempo-setting').hidden,false);
+ nodes.get('learning-settings').handlers.click();
+ assert.equal(nodes.get('settings-dialog').open,true);
+ assert.equal(nodes.get('practice-start').hidden,true);
  run("now+=60000;render(now);$('settings-dialog').close()");
  assert.equal(run('sessionSeconds'),5.3);
  assert.equal(run('cards[0].hits.size'),0);
@@ -1009,18 +985,53 @@ test('home space cannot launch a session after leaving chord learning or practic
   };
   run("selectNode('quality-0');document.activeElement={tagName:'BODY'}");
   checkHome();
-  click('learning-action');
+  click('practice-action');
   space();
   assert.equal(run('learningActive'),true);
   click('learning-back');
   checkHome();
   if(connected){
-   run("selectNode('chord-0-0')");
-   click('practice-action');space();
+   run("selectNode('quality-0')");
+   click('practice-action');click('learning-settings');click('practice-start');space();
    assert.equal(run('learningActive'),true);
    space();assert.equal(run('running'),true);
-   space();click('learning-back');checkHome();
+   space();click('learning-back');click('result-home');checkHome();
    click('overlay-action');space();space();assert.equal(run('running'),true);
   }
  }
+});
+
+test('four grades and a skip produce different session and historical averages in both modes',()=>{
+ for(const mode of ['practice','challenge']){
+  const data=new Map();const localStorage={getItem:key=>data.get(key),setItem:(key,v)=>data.set(key,v)};
+  const {run}=session({localStorage});
+  run(`startMode('${mode}');const sample=cards[0];
+   for(const [first,last,attempted] of [[true,true,true],[true,false,true],[false,true,true],[false,false,true],[false,false,false]]){
+    const card=prepareAttempt(sample);card.attempted=attempted;card.firstBeatCorrect=first;
+    if(last)for(const n of card.targets)applyAttack(card,n);
+    settleCard(card);settleCard(card);
+   }`);
+  assert.equal(run('run.correct/run.total'),.45);
+  assert.deepEqual(Array.from(run('countsFor(sample.id)')),[1,1,1,1]);
+  assert.equal(session({localStorage}).run(`historyStats(countsFor('${run('sample.id')}')).accuracy`),.5625);
+ }
+});
+test('migration removes only inversion stars and never clears unrelated records or tips',()=>{
+ const data=new Map([['voicing-stars',JSON.stringify({'quality-0':2,'chord-0-0':3,'notes-all':1})],['voicing-tips','[]']]);
+ const localStorage={getItem:key=>data.get(key),setItem:(key,v)=>data.set(key,v)};
+ const {run}=session({localStorage});
+ assert.deepEqual(JSON.parse(data.get('voicing-stars')),{'quality-0':2,'notes-all':1});
+ assert.equal(run('tips.length'),0);
+});
+test('filtered lowest selection excludes unplayed items, respects ties and restricts the free session',()=>{
+ const data=new Map();const localStorage={getItem:key=>data.get(key),setItem:(key,v)=>data.set(key,v)};
+ const {run,nodes}=session({localStorage});
+ run("catalogue.filter(i=>i.q===0).slice(0,15).forEach((i,n)=>save('voicing-history-'+i.id,[n+1,0,0,0]));");
+ nodes.get('free-action').handlers.click();
+ nodes.get('free-quality').value='0';nodes.get('free-lowest').handlers.click();
+ assert.equal(run('freeSelection.size'),12);
+ assert.equal(run('freeSelection.has(catalogue[0].id)'),false);
+ nodes.get('free-next').handlers.click();nodes.get('learning-settings').handlers.click();nodes.get('practice-start').handlers.click();
+ assert.equal(run('scheduler.items.length'),12);
+ assert.ok(run('scheduler.items.every(i=>freeSelection.has(i.id)&&i.q===0)'));
 });

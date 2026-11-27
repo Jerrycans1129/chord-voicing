@@ -1,5 +1,6 @@
-export const VERSION='0.2.0';
-export const TOTAL_SECONDS=1800;
+export const VERSION='0.3.0';
+export const TOTAL_SECONDS=600;
+export const PRACTICE_SECONDS=1800;
 export function normalizeBpm(value){
  const number=Number(value);
  return Number.isFinite(number)?Math.max(40,Math.min(180,Math.round(number/10)*10)):90;
@@ -23,4 +24,16 @@ export function cleanResults(value,stageIds){
   if(Number.isFinite(stars)&&stars>=0&&stars<=3&&Number.isInteger(stars*2))results[id]={best:{stars}};
  }
  return results;
+}
+
+export const grades=[0,.5,.75,1];
+export function questionScore(first,last){
+ if(first)return last?1:.75;
+ return last?0.5:0;
+}
+export function historyStats(counts){
+ const valid=Array.isArray(counts)&&counts.length===4&&counts.every(n=>Number.isSafeInteger(n)&&n>=0);
+ const total=valid?counts.reduce((sum,n)=>sum+n,0):0;
+ const points=valid?counts.reduce((sum,n,i)=>sum+n*grades[i],0):0;
+ return {total,accuracy:total?points/total:null,weakness:(total-points+2)/(total+4)};
 }

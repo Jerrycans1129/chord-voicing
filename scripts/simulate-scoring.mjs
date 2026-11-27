@@ -8,7 +8,7 @@ for(const seconds of [0,1,60,300,600,900,1620,1800]){
  let previous=-1;
  for(let correct=0;correct<=10000;correct++){
   const result=calculateScore({...createRun(),started:true,seconds,total:10000,correct});
-  const expected=correct/100*seconds/1800;
+  const expected=correct/100*Math.min(seconds,600)/600;
   assert.ok(Math.abs(result.score-expected)<1e-10);assert.ok(result.score>=previous);previous=result.score;
   gridCases++;
  }
@@ -19,6 +19,6 @@ for(let i=-10000;i<=10000;i++){
  stampBoundaries(cards,0,progress,0,90);
  assert.deepEqual(attackTargets(cards,seconds).indices,i<0?[0]:[1]);eventCases++;
 }
-const examples=[['全对完成',1800,100],['全对15分钟退出',900,100],['全对27分钟退出',1620,100],['90%正确率完成',1800,90]].map(([name,seconds,correct])=>({name,...calculateScore({...createRun(),started:true,seconds,total:100,correct})}));
+const examples=[['全对完成',600,100],['全对5分钟退出',300,100],['全对9分钟退出',540,100],['90%正确率完成',600,90]].map(([name,seconds,correct])=>({name,...calculateScore({...createRun(),started:true,seconds,total:100,correct})}));
 const report={gridCases,eventCases,assertions:'passed',examples};
 writeFileSync(new URL('../reports/scoring-simulation.json',import.meta.url),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));

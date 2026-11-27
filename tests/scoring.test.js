@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createRun,calculateScore,starsFor,normalizeBpm,cleanResults,VERSION} from '../dist/scoring.js';
-const run=(changes={})=>({...createRun(),started:true,seconds:1800,total:100,correct:100,minBpm:90,...changes});
+const run=(changes={})=>({...createRun(),started:true,seconds:600,total:100,correct:100,minBpm:90,...changes});
 test('no attempt is blank; an initiated empty attempt is a finite zero-star score',()=>{
  assert.equal(calculateScore(createRun()),null);
  const score=calculateScore(run({seconds:0,total:0,correct:0}));assert.equal(score.score,0);assert.equal(score.stars,0);
@@ -13,8 +13,8 @@ test('half-star thresholds are exact and never round a near miss upward',()=>{
 });
 test('pause and training settings do not reduce fixed challenge scores',()=>{
  for(const changes of [{},{paused:true,shownKeyboard:true},{minBpm:40}])assert.equal(calculateScore(run(changes)).score,100);
- assert.equal(calculateScore(run({seconds:900})).stars,1.5);
- assert.equal(calculateScore(run({seconds:1620})).stars,3);
+ assert.equal(calculateScore(run({seconds:300})).stars,1.5);
+ assert.equal(calculateScore(run({seconds:540})).stars,3);
 });
 test('only finite half-star ratings are restored, with no run parameters',()=>{
  const saved=cleanResults({a:2.5,b:3,c:0,d:4,e:1.2,f:{best:{stars:3}}},['a','b','c','d','e','f']);

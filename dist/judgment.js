@@ -34,6 +34,7 @@ export function canSettle(card,seconds){return !card.ended&&card.endAt!==undefin
 
 export function applyAttack(card,note,held=[]){
  if(card.ended)return;
+ card.attempted=true;
  const target=targetForNote(card,note);
  if(target===undefined){card.hits.clear();card.wrong=true;card.feedback='wrong';return;}
  card.hits.add(target);

@@ -22,8 +22,6 @@ export const qualities=[
  {name:'小六',suffix:'m6',intervals:[0,3,7,9]},
  {name:'小大七',suffix:'m(maj7)',intervals:[0,3,7,11]}
 ];
-export const inversions=['原位','根音在右','根音居中','根音左二'];
-export function voicingLabel(q,inv){return inv===0?'原位':inv===1?'根音在右':qualities[q].intervals.length===3?'根音居中':inv===2?'根音右二':'根音左二';}
 const noteChildren=[
  {id:'notes-two',kind:'note',name:'2个黑键',pcs:[1,3]},
  {id:'notes-three',kind:'note',name:'3个黑键',pcs:[6,8,10]},
@@ -33,8 +31,7 @@ const noteChildren=[
 const chordChildren=qualities.map((quality,q)=>{
  if(quality.freeOctaves)return {id:`quality-${q}`,kind:'quality',name:quality.name,combos:[{q,inv:0}]};
  const order=Array.from({length:quality.intervals.length-1},(_,i)=>i+1).concat(0);
- const children=order.map(inv=>({id:`chord-${q}-${inv}`,name:voicingLabel(q,inv),combos:[{q,inv}]}));
- return {id:`quality-${q}`,kind:'quality',name:quality.name,children,combos:children.flatMap(s=>s.combos),mixed:true};
+ return {id:`quality-${q}`,kind:'quality',name:quality.name,combos:order.map(inv=>({q,inv})),mixed:true};
 });
 const coreTriads=[0,1],coreSevenths=[4,5,6],colors=[2,3,8,7,9,10];
 const core=[...coreTriads,...coreSevenths];
@@ -58,7 +55,7 @@ export const stages=[];
 function visit(node,parent=null,project=node.id){node.parent=parent;node.projectId=project;for(const child of node.children??[])visit(child,node.id,project);if(!node.project)stages.push(node);}
 curriculum.forEach(node=>visit(node));
 export function selectable(node,results){return !!node&&!node.project;}
-export function supportsPractice(node){return !!node&&!node.project&&(node.kind==='note'||(!node.comprehensive&&!!node.combos?.length));}
+export const supportsPractice=node=>!!node&&!node.project;
 export function currentProgress(results){const index=stages.findIndex(node=>selectable(node,results)&&results[node.id]?.best.stars!==3);return index<0?stages.length-1:index;}
 // inv rotates the sorted, close-position pitch classes; root remains the anchor.
 export function notes(root,q,inv){const intervals=qualities[q].intervals;return inv===0?intervals.map(n=>root+n):intervals.slice(inv).map(n=>root+n-12).concat(intervals.slice(0,inv).map(n=>root+n));}

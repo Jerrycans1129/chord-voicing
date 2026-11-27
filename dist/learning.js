@@ -1,5 +1,4 @@
 import {qualities} from './theory.js';
-export const supportsLearning=node=>node?.kind==='quality';
 export class ChordRecognizer {
  constructor(q){this.q=q;this.reset();}
  reset(){this.candidates=Array.from({length:12},(_,pc)=>({pc,tones:new Set(qualities[this.q].intervals.map(n=>(n+pc)%12)),hits:new Set(),bass:Infinity}));}

@@ -5,18 +5,19 @@
 <section id="overlay" aria-label="训练主页">
 <header class="app-heading"><h1>VOICING <span>和弦转位训练</span></h1><span id="version"></span><button id="load-update" class="secondary" type="button" hidden>载入新版</button></header>
 <div class="home-content"><nav id="route" aria-label="训练路线">
-<svg id="route-branches" aria-hidden="true"><path id="branch-quality"/></svg>
+
 <div id="route-top" class="route-row" aria-label="训练项目"></div>
-<div id="route-surface"><div class="route-heading"><button id="practice-action" class="primary" type="button" aria-label="训练模式" hidden>训练</button><button id="overlay-action" class="primary" type="button" aria-label="闯关模式">闯关</button><button id="learning-action" class="primary" type="button">和弦学习</button></div>
+<div id="route-surface"><div class="route-heading"><button id="practice-action" class="primary" type="button" aria-label="训练模式" hidden>训练</button><button id="overlay-action" class="primary" type="button" aria-label="闯关模式">闯关</button><button id="free-action" class="primary" type="button">自由训练</button></div>
 <div id="route-second" class="route-row" aria-label="训练内容"></div>
-<div id="route-details"><div id="route-third" class="route-row" aria-label="根音位置"></div></div>
+
 </div></nav></div>
 </section>
 <section id="learning" hidden aria-label="和弦学习">
-<header class="learning-header"><button id="learning-back" class="learning-back">‹ 返回</button><h2 id="learning-title"></h2><button id="learning-midi" class="learning-back" aria-label="MIDI 连接设置">⚙</button></header>
+<header class="learning-header"><button id="learning-back" class="learning-back">‹ 返回</button><button id="learning-settings" class="learning-back">30分钟专注训练</button><h2 id="learning-title"></h2><select id="preview-quality" hidden aria-label="预览和弦"></select><button id="learning-midi" class="learning-back" aria-label="MIDI 连接状态">♫</button></header>
 <div id="learning-chords" role="group" aria-label="和弦根音"></div>
 </section>
-<button id="settings-toggle" class="secondary" type="button" aria-label="打开训练设置" title="训练设置"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m9 3-.6 2.2-2 .9-2-.6-2 3.5 1.5 1.6v2.8L2.4 15l2 3.5 2-.6 2 .9L9 21h4l.6-2.2 2-.9 2 .6 2-3.5-1.5-1.6v-2.8l1.5-1.6-2-3.5-2 .6-2-.9L13 3Z"/><circle cx="11" cy="12" r="3"/></svg></button>
+<button id="tips-toggle" class="secondary" aria-label="编辑练习提示语" title="编辑练习提示语">✎</button>
+<button id="settings-toggle" class="secondary" aria-label="MIDI 连接状态" title="MIDI 连接状态">♫</button>
 <div id="practice-count-in" hidden aria-live="off" aria-label="预备拍"></div>
 <div id="performance-frost" aria-hidden="true"></div><div id="pause-screen" hidden role="dialog" aria-modal="true" aria-label="已暂停"><button id="pause-resume" class="primary">继续</button><button id="pause-exit" class="secondary">退出</button></div><div id="strike"></div><div id="keyboard" aria-label="无音名标记的钢琴参照键盘"></div><div id="keyboard-frost" aria-hidden="true" hidden></div>
 </section></main>
@@ -25,17 +26,14 @@
 <div class="dialog-content">
 <div id="tempo-setting" class="switch-row"><span id="tempo-label">速度 BPM <small>40–180 · 每次 10</small></span><div class="tempo-stepper" role="group" aria-labelledby="tempo-label"><button id="bpm-decrease" class="secondary" type="button" aria-label="减慢 10 BPM">−</button><output id="bpm" aria-live="polite" aria-atomic="true">90</output><button id="bpm-increase" class="secondary" type="button" aria-label="加快 10 BPM">+</button></div></div>
 <div class="switch-row"><span>节拍器</span><button id="metronome" class="secondary" type="button" aria-label="节拍器" aria-pressed="true">开</button></div>
-<div class="midi-settings"><button id="midi-connect" class="secondary" type="button">刷新 MIDI 设备</button><p id="midi-status" role="status"></p></div>
-</div><div class="dialog-actions"><button id="settings-close" class="primary" type="button" autofocus>关闭</button></div>
-</dialog>
-<dialog id="result-dialog" aria-labelledby="result-title">
-<h2 id="result-title">闯关成绩</h2>
-<div class="dialog-content">
-<div class="result-rating"><span id="result-stars" class="stars"></span></div>
-<dl class="result-details"><div><dt>得分率</dt><dd id="result-accuracy"></dd></div><div><dt>所得题分／已结算题数</dt><dd id="result-count"></dd></div><div><dt>训练时长</dt><dd id="result-duration"></dd></div></dl>
-<p id="result-factors"></p>
-</div><div class="dialog-actions"><button id="result-home" class="secondary" type="button" autofocus>返回首页</button><button id="result-retry" class="primary" type="button">再练一次</button></div>
-</dialog>
+<div id="voicing-options"></div>
+</div><div class="dialog-actions"><button id="settings-close" class="secondary">关闭</button><button id="practice-start" class="primary">开始训练</button></div></dialog>
+<dialog id="midi-dialog"><h2>MIDI</h2><p id="midi-status" role="status"></p><div class="dialog-actions"><button id="midi-connect" class="secondary">刷新 MIDI 设备</button><button id="midi-close" class="primary">关闭</button></div></dialog>
+<dialog id="tips-dialog"><h2>练习提示语</h2><textarea id="tips-text" rows="10" aria-label="练习提示语，每行一条"></textarea><div class="dialog-actions"><button id="tips-close" class="secondary">取消</button><button id="tips-save" class="primary">保存</button></div></dialog>
+<dialog id="free-dialog" class="full-page"><header><h2>自由训练</h2><button id="free-close" class="secondary">返回</button></header><div class="free-tools"><input type="search" id="free-filter" placeholder="搜索和弦" aria-label="搜索和弦"><select id="free-quality" aria-label="和弦类型"></select><select id="free-inv" aria-label="转位"></select><button id="free-lowest" class="secondary">最低 12 项</button><button id="free-next" class="primary">训练</button></div><div class="table-scroll"><table id="free-table"></table></div></dialog>
+<dialog id="result-dialog" class="full-page" aria-labelledby="result-title"><header><h2 id="result-title"></h2><span id="result-stars" class="stars"></span></header><div class="result-body">
+<h3 id="result-node"></h3><dl class="result-details"><div><dt>正确率</dt><dd id="result-accuracy"></dd></div><div><dt>时长</dt><dd id="result-duration"></dd></div><div id="score-row"><dt>得分</dt><dd id="result-score"></dd></div></dl>
+<p id="result-tip"></p><table id="result-items"></table></div><div class="dialog-actions"><button id="result-home" class="secondary" autofocus>返回首页</button><button id="result-retry" class="primary">再练一次</button></div></dialog>
 <dialog id="midi-warning" aria-labelledby="midi-warning-title" aria-describedby="midi-warning-description">
 <h2 id="midi-warning-title">尚未连接 MIDI 设备</h2>
 <p id="midi-warning-description">请先连接 MIDI 设备，再开始训练。</p>

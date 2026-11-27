@@ -6,7 +6,7 @@
     {
       "name": "全对完成",
       "started": true,
-      "seconds": 1800,
+      "seconds": 600,
       "total": 100,
       "correct": 100,
       "accuracy": 1,
@@ -17,9 +17,9 @@
       "stars": 3
     },
     {
-      "name": "全对15分钟退出",
+      "name": "全对5分钟退出",
       "started": true,
-      "seconds": 900,
+      "seconds": 300,
       "total": 100,
       "correct": 100,
       "accuracy": 1,
@@ -30,9 +30,9 @@
       "stars": 1.5
     },
     {
-      "name": "全对27分钟退出",
+      "name": "全对9分钟退出",
       "started": true,
-      "seconds": 1620,
+      "seconds": 540,
       "total": 100,
       "correct": 100,
       "accuracy": 1,
@@ -45,7 +45,7 @@
     {
       "name": "90%正确率完成",
       "started": true,
-      "seconds": 1800,
+      "seconds": 600,
       "total": 100,
       "correct": 90,
       "accuracy": 0.9,
