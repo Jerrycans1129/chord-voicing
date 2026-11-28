@@ -1,5 +1,5 @@
 import {ChordRecognizer,LevelRecognizer} from './learning.js';
-import {stages,names,qualities,curriculum,selectable,supportsPractice,currentProgress,trainingItems} from './theory.js';
+import {stages,names,qualities,curriculum,currentProgress,trainingItems} from './theory.js';
 import {BUILD_REVISION} from './build.js';
 import {Scheduler} from './scheduler.js';
 import {VERSION,TOTAL_SECONDS,PRACTICE_SECONDS,questionScore,historyStats,grades,normalizeBpm,createRun,calculateScore,cleanResults} from './scoring.js';
@@ -8,11 +8,20 @@ import {motionStep,stopProgress,labelGeometry,metronomeBeats,EARLY_BARS,EPSILON}
 const $=id=>document.getElementById(id);
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
-const savedStars=read('voicing-stars',{});
-const results=cleanResults(savedStars,stages.map(s=>s.id));
-if(savedStars&&Object.keys(savedStars).some(id=>/^chord-\d+-\d+$/.test(id))){
- save('voicing-stars',Object.fromEntries(Object.entries(savedStars).filter(([id])=>!/^chord-\d+-\d+$/.test(id))));
+const recordsVersionKey='voicing-records-generation';
+function clearStoredRecords(){
+ // Only keys owned by this app are removed. Tips and the generation marker survive.
+ for(let i=localStorage.length-1;i>=0;i--){
+  const key=localStorage.key(i);
+  if(key.startsWith('voicing-')&&key!==recordsVersionKey&&key!=='voicing-tips')localStorage.removeItem(key);
+ }
 }
+let generation=read(recordsVersionKey,null);
+if(!generation){
+ try{clearStoredRecords();generation='routes-v1';save(recordsVersionKey,generation);}catch{generation='routes-v1';}
+}
+const recordKey=name=>'voicing-'+generation+'-'+name;
+const results=cleanResults(read(recordKey('stars'),{}),stages.filter(s=>s.route==='train').map(s=>s.id));
 const catalogue=stages.filter(stage=>stage.kind==='quality').flatMap(stage=>trainingItems(stage).sort((a,b)=>a.pc-b.pc||names[a.pc].indexOf(a.name)-names[b.pc].indexOf(b.name)||a.inv-b.inv));
 const history=Object.create(null);
 const defaultTips=[
@@ -32,16 +41,17 @@ let selection=null,sessionStage=null;
 const freeSelection=new Set();
 const inversionNames=['原位','第一转位','第二转位','第三转位'];
 function countsFor(id){
- const counts=read('voicing-history-'+id,history[id]);
+ const counts=read(recordKey('history-'+id),history[id]);
  return historyStats(counts).total?counts:[0,0,0,0];
 }
 function remember(id,score){
- const update=()=>{const counts=countsFor(id);counts[grades.indexOf(score)]++;history[id]=counts;save('voicing-history-'+id,counts);};
+ const epoch=generation;
+ const update=()=>{if(read(recordsVersionKey,generation)!==epoch)return;const counts=countsFor(id);counts[grades.indexOf(score)]++;history[id]=counts;save(recordKey('history-'+id),counts);};
  if(globalThis.navigator?.locks)void navigator.locks.request('voicing-history-'+id,update);
  else update();
 }
 let stageIndex=currentProgress(results);
-let expandedTop=stages[stageIndex].projectId;
+let selectedRoute=null;
 let scheduler,settled=0,run=createRun();
 let mode='challenge';
 let learningActive=false,learningState=null,recognizer=null;
@@ -248,7 +258,7 @@ function syncMidiInputs(){
  $('midi-status').textContent=midiInputs.size?`已连接：${[...midiInputs.values()].map(input=>input.name||'MIDI 输入设备').join('、')}`:'已启用 · 未发现 MIDI 输入，请连接键盘';
  for(const id of ['settings-toggle','learning-midi']){
   $(id).dataset.connected=String(midiInputs.size>0);
-  $(id).setAttribute('aria-label',midiInputs.size?'MIDI 已连接':'MIDI 未连接');
+  $(id).setAttribute('aria-label',(id==='settings-toggle'?'系统设置，':'')+(midiInputs.size?'MIDI 已连接':'MIDI 未连接'));
  }
  paintMidi();
 }
@@ -276,7 +286,7 @@ $('midi-warning-close').addEventListener('click',event=>{event.stopPropagation()
 $('midi-warning-connect').addEventListener('click',event=>{event.stopPropagation();void connectMidi();});
 void connectMidi();
 paintMidi();
-const routeNodes=[],stageButtons=new Map();
+const stageButtons=new Map();
 function setStars(element,value){
  element.replaceChildren();element.setAttribute('role','img');element.setAttribute('aria-label',value===undefined?'':`${value} 星`);
  if(value===undefined)return;
@@ -284,144 +294,94 @@ function setStars(element,value){
  const fill=document.createElement('span');fill.className='stars-fill';fill.textContent='★★★';fill.setAttribute('aria-hidden','true');fill.style.width=`${value/3*100}%`;
  element.append(base,fill);
 }
-const nodeById=new Map([...stages,...curriculum].map(n=>[n.id,n]));
-const routeRows=[$('route-top'),$('route-second')];
-for(const stage of nodeById.values()){
- const node=document.createElement('button');node.type='button';node.className='route-node';node.dataset.id=stage.id;node.dataset.comprehensive=String(!!stage.comprehensive);
- const label=document.createElement('span');label.className='route-name';label.textContent=stage.name;
- const dot=document.createElement('span');dot.className='route-dot';dot.append(label);
- const stars=document.createElement('span');stars.className='stars';node.append(dot,stars);
- node.addEventListener('click',()=>selectNode(stage.id));
- if(!stage.project)routeNodes[stages.indexOf(stage)]=node;
- stageButtons.set(stage.id,node);
+const surface=$('route-surface');
+for(const phase of curriculum){
+ const group=document.createElement('div');group.className='route-phase';
+ for(const route of ['learn','train']){
+  const row=document.createElement('div');row.className='phase-row '+route;
+  for(const stage of phase[route]){
+   const button=document.createElement('button');button.type='button';button.className='route-node';
+   button.dataset.id=stage.id;button.dataset.comprehensive=String(!!stage.comprehensive);
+   const dot=document.createElement('span');dot.className='route-dot';
+   const label=document.createElement('span');label.className='route-name';label.textContent=stage.name;
+   dot.append(label);button.append(dot);
+   if(route==='train'){const stars=document.createElement('span');stars.className='stars';button.append(stars);}
+   button.addEventListener('click',()=>selectNode(stage.id));
+   stageButtons.set(stage.id,button);row.append(button);
+  }
+  group.append(row);
+ }
+ surface.append(group);
 }
 function updateRoute(){
- const rows=[curriculum,curriculum.flatMap(n=>n.children)];
- rows.forEach((nodes,i)=>{
-  const buttons=nodes.map(n=>stageButtons.get(n.id)),existing=Array.from(routeRows[i].children);
-  if(existing.length!==buttons.length||buttons.some((button,j)=>button!==existing[j])){
-   routeRows[i].replaceChildren(...buttons);
-   if(!matchMedia('(prefers-reduced-motion: reduce)').matches)buttons.forEach((button,j)=>button.animate?.([{opacity:0},{opacity:1}],{duration:360,delay:Math.min(j*22,132),easing:'cubic-bezier(.2,.7,.2,1)',fill:'backwards'}));
-  }
-  routeRows[i].hidden=!nodes.length;
- });
- for(const [id,node] of stageButtons){
-  const stage=nodeById.get(id),selected=stages[stageIndex]?.id===id;
-  node.setAttribute('aria-current',stage.project?(id===expandedTop?'location':'false'):(selected?'step':'false'));
-  node.dataset.expanded=String(stage.children? id===expandedTop:false);
-
-  node.dataset.recommended=String(stages[currentProgress(results)]?.id===id);
-  node.setAttribute('aria-label',`${stage.name}${node.dataset.recommended==='true'?' · 推荐练习':''}`);
-  setStars(node.querySelector('.stars'),results[id]?.best.stars||undefined);
+ const recommended=stages[currentProgress(results)];
+ for(const stage of stages){
+  const button=stageButtons.get(stage.id);
+  button.setAttribute('aria-current',selectedRoute&&stage===stages[stageIndex]?'step':'false');
+  button.dataset.recommended=String(stage===recommended);
+  button.setAttribute('aria-label',stage.name+(stage===recommended?' · 推荐练习':''));
+  if(stage.route==='train')setStars(button.querySelector('.stars'),results[stage.id]?.best.stars);
  }
- $('overlay-action').disabled=stageIndex<0||!selectable(stages[stageIndex],results);
- $('practice-action').hidden=!supportsPractice(stages[stageIndex]);
- scheduleRouteLayout();
-}
-let routeLayoutPending=false;
-function scheduleRouteLayout(){
- if(routeLayoutPending)return;
- routeLayoutPending=true;
- requestAnimationFrame(()=>{routeLayoutPending=false;syncProjectFromScroll();});
-}
-for(const row of routeRows)row.addEventListener('scroll',scheduleRouteLayout,{passive:true});
-globalThis.addEventListener?.('resize',scheduleRouteLayout);
-if(typeof ResizeObserver!=='undefined')new ResizeObserver(scheduleRouteLayout).observe($('route'));
-let programmaticScrollLeft=null;
-function revealProject(){stageButtons.get(expandedTop)?.scrollIntoView?.({block:'nearest',inline:'nearest'});}
-function focusCurrentStage(){revealProject();routeNodes[stageIndex]?.scrollIntoView?.({block:'nearest',inline:'center'});programmaticScrollLeft=routeRows[1].scrollLeft;}
-function syncProjectFromScroll(){
- const row=routeRows[1];
- if(programmaticScrollLeft!==null&&Math.abs(row.scrollLeft-programmaticScrollLeft)<1)return;
- programmaticScrollLeft=null;
- const bounds=row.getBoundingClientRect();
- if(!bounds.width)return;
- const children=Array.from(row.children);
- let closest;
- if(row.scrollLeft<=1)closest=children[0];
- else if(row.scrollLeft+row.clientWidth>=row.scrollWidth-1)closest=children.at(-1);
- else closest=children.reduce((best,node)=>{
-  const rect=node.getBoundingClientRect(),distance=Math.abs((rect.left+rect.right-bounds.left-bounds.right)/2);
-  return !best||distance<best.distance?{node,distance}:best;
- },null)?.node;
- const project=nodeById.get(closest?.dataset.id)?.projectId;
- if(project&&project!==expandedTop){
-  expandedTop=project;
-  for(const item of curriculum){
-   const button=stageButtons.get(item.id),active=item.id===project;
-   button.setAttribute('aria-current',active?'location':'false');button.dataset.expanded=String(active);
-  }
-  revealProject();
+ for(const [id,route] of [['learn-action','learn'],['practice-action','train']]){
+  $(id).disabled=route!==selectedRoute;
+  $(id).setAttribute('aria-pressed',String(route===selectedRoute));
  }
 }
+function focusCurrentStage(){stageButtons.get(stages[stageIndex].id).scrollIntoView?.({block:'nearest',inline:'center'});}
 function selectNode(id){
  if(started&&!finished)return;
- const stage=nodeById.get(id);if(!stage)return;
- if(stage.project){
-  expandedTop=id;updateRoute();revealProject();
-  stageButtons.get(stage.children[0].id)?.scrollIntoView?.({block:'nearest',inline:'center'});
-  programmaticScrollLeft=routeRows[1].scrollLeft;
-  return;
- }
- expandedTop=stage.projectId;
- stageIndex=selectable(stage,results)?stages.indexOf(stage):-1;
+ const index=stages.findIndex(stage=>stage.id===id);
+ if(index<0)return;
+ stageIndex=index;selectedRoute=stages[index].route;
  selection=null;sessionStage=null;mode='challenge';reset();focusCurrentStage();
- if(stageIndex<0)stageButtons.get(id)?.scrollIntoView?.({block:'nearest',inline:'center'});
- programmaticScrollLeft=routeRows[1].scrollLeft;
 }
-function selectStage(index){if(stages[index])selectNode(stages[index].id);}
 $('version').textContent=`v${VERSION}+${BUILD_REVISION}`;
 // Capture horizontal gestures across the content surface after a real drag.
 let routeDrag=null,suppressRouteClick=false;
-for(const route of [routeRows[0],$('route-surface')]){
-const scrollRow=route===routeRows[0]?route:routeRows[1];
-route.addEventListener('pointerdown',e=>{
+surface.addEventListener('pointerdown',e=>{
  suppressRouteClick=false;
  if(e.pointerType==='mouse'&&e.button!==0)return;
- if(route===routeRows[0]&&e.pointerType!=='mouse')return;
- const coordinate=route===routeRows[0]?e.clientY:e.clientX;
+ const coordinate=e.clientX;
  routeDrag={id:e.pointerId,x:coordinate,last:coordinate,moved:false};
 });
-route.addEventListener('pointermove',e=>{
+surface.addEventListener('pointermove',e=>{
  if(!routeDrag||routeDrag.id!==e.pointerId)return;
- const coordinate=route===routeRows[0]?e.clientY:e.clientX;
+ const coordinate=e.clientX;
  const dx=coordinate-routeDrag.x;
- if(!routeDrag.moved&&Math.abs(dx)>6){routeDrag.moved=true;route.setPointerCapture(e.pointerId);route.dataset.dragging='true';}
+ if(!routeDrag.moved&&Math.abs(dx)>6){routeDrag.moved=true;surface.setPointerCapture(e.pointerId);surface.dataset.dragging='true';}
  if(routeDrag.moved){
   e.preventDefault();
   const delta=routeDrag.last-coordinate;
-  if(route===routeRows[0])scrollRow.scrollTop+=delta;
-  else{scrollRow.scrollLeft+=delta;programmaticScrollLeft=null;}
+  surface.scrollLeft+=delta;
   routeDrag.last=coordinate;
  }
 });
 function endRouteDrag(e){
  if(!routeDrag||routeDrag.id!==e.pointerId)return;
- suppressRouteClick=routeDrag.moved;routeDrag=null;route.dataset.dragging='false';
- if(route.hasPointerCapture(e.pointerId))route.releasePointerCapture(e.pointerId);
+ suppressRouteClick=routeDrag.moved;routeDrag=null;surface.dataset.dragging='false';
+ if(surface.hasPointerCapture(e.pointerId))surface.releasePointerCapture(e.pointerId);
 }
-route.addEventListener('pointerup',endRouteDrag);route.addEventListener('pointercancel',endRouteDrag);
-route.addEventListener('lostpointercapture',e=>{
+surface.addEventListener('pointerup',endRouteDrag);surface.addEventListener('pointercancel',endRouteDrag);
+surface.addEventListener('lostpointercapture',e=>{
  // Ignore a child button's implicit capture being transferred to this surface.
- if(e.target===route)endRouteDrag(e);
+ if(e.target===surface)endRouteDrag(e);
 });
-route.addEventListener('click',e=>{if(suppressRouteClick&&e.detail!==0){e.preventDefault();e.stopPropagation();suppressRouteClick=false;}},true);
-}
-$('route-surface').addEventListener('wheel',e=>{
+surface.addEventListener('click',e=>{if(suppressRouteClick&&e.detail!==0){e.preventDefault();e.stopPropagation();suppressRouteClick=false;}},true);
+surface.addEventListener('wheel',e=>{
  if(e.ctrlKey)return;
  const delta=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;
  if(!delta)return;
- e.preventDefault();programmaticScrollLeft=null;routeRows[1].scrollLeft+=delta*(e.deltaMode===1?16:e.deltaMode===2?routeRows[1].clientWidth:1);
+ e.preventDefault();surface.scrollLeft+=delta*(e.deltaMode===1?16:e.deltaMode===2?surface.clientWidth:1);
 },{passive:false});
 document.addEventListener('dragstart',e=>e.preventDefault());
 function hidePauseControls(){
- $('tips-toggle').hidden=true;$('settings-toggle').hidden=true;
+ $('free-action').hidden=true;$('settings-toggle').hidden=true;
  for(const dot of answerDots.values())dot.hidden=true;
 }
 function inPracticeSession(){return mode==='practice'&&started&&!finished;}
 function openSettings(){
  if(running||$('settings-dialog').open||(mode==='challenge'&&started&&!finished))return;
- recognizer?.reset();renderOptions();
+ recognizer?.reset();
  updateMetronome();updateTempoControls();
  $('practice-start').hidden=inPracticeSession();
  $('settings-dialog').showModal();
@@ -433,7 +393,7 @@ function closeLearning(){
 function showHome(){
  closeLearning();
  $('practice-count-in').hidden=true;
- $('pause-screen').hidden=true;updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('settings-toggle').hidden=false;$('tips-toggle').hidden=false;updateRoute();
+ $('pause-screen').hidden=true;updateKeyboardBlur();hidePauseControls();$('overlay').hidden=false;$('settings-toggle').hidden=false;$('free-action').hidden=false;updateRoute();
 }
 // A card at index i touches the line at musical progress i + 2.
 function canReachLine(index){
@@ -452,8 +412,7 @@ function syncCards(){
 function updateTrainingHeader(){
  $('training-header').hidden=learningActive||!started||finished;
  const stage=sessionStage??stages[stageIndex];
- const parent=nodeById.get(stage?.parent);
- $('training-name').textContent=stage?(parent&&!parent.project?`${parent.name}-${stage.name}`:stage.name.replace(/\n/g,'')):'';
+ $('training-name').textContent=stage?.name.replace(/\n/g,'')??'';
 }
 function showResult(result){
  const challenge=mode==='challenge';
@@ -553,7 +512,7 @@ function startPracticeCountIn(correctedCard=null){
  frozenIdleSeconds=0;stopMetronome();lastAudioBeat=-1;scheduleMetronome();
 }
 function canStartTraining(){
- if(portrait.matches||!selectable(stages[stageIndex],results)||$('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return false;
+ if(portrait.matches||$('midi-warning').open||$('settings-dialog').open||$('result-dialog').open)return false;
  if([...midiInputs.values()].some(input=>input.state==='connected'))return true;
  $('midi-warning').showModal();return false;
 }
@@ -579,11 +538,11 @@ function complete(){
  running=false;finished=true;releaseScreenLock();stopMetronome();
  run.seconds=sessionSeconds;
  const result=calculateScore(run);
- if(mode==='challenge'){
-  const id=stages[stageIndex].id;
-  const saved=read('voicing-stars',{});
+ if(mode==='challenge'&&(sessionStage??stages[stageIndex]).route==='train'&&read(recordsVersionKey,generation)===generation){
+  const id=(sessionStage??stages[stageIndex]).id;
+  const saved=read(recordKey('stars'),{});
   const best=Math.max(result.stars,Number(saved?.[id])||0,results[id]?.best.stars||0);
-  results[id]={best:{stars:best}};save('voicing-stars',{...saved,[id]:best});
+  results[id]={best:{stars:best}};save(recordKey('stars'),{...saved,[id]:best});
  }
  if($('settings-dialog').open)$('settings-dialog').close();
  elements.forEach(el=>{el.hidden=true;});updateTrainingHeader();
@@ -713,9 +672,9 @@ $('metronome').addEventListener('click',e=>{
 });
 function startMode(nextMode){
  if(started&&!finished)return;
- if(nextMode==='practice'&&!supportsPractice(stages[stageIndex]))return;
+ if(nextMode==='challenge'&&(selection??stages[stageIndex]).route!=='train')return;
  if(!canStartTraining())return;
- sessionStage=nextMode==='practice'?(selection??stages[stageIndex]):stages[stageIndex];
+ sessionStage=selection??stages[stageIndex];
  mode=nextMode;
  if(mode!=='challenge'){bpm=practiceSettings.bpm;keyboardBlurOn=false;metronomeOn=practiceSettings.metronomeOn;}
  else{bpm=120;keyboardBlurOn=true;metronomeOn=true;}
@@ -726,21 +685,28 @@ $('pause-resume').addEventListener('click',e=>{e.stopPropagation();play();});
 
 function startLearning(stage=stages[stageIndex]){
  if(started&&!finished)return;
- selection={...stage,combos:stage.combos?.slice()};sessionStage=null;mode='practice';
+ selection=stage;sessionStage=null;mode='practice';
  started=false;finished=false;bpm=practiceSettings.bpm;metronomeOn=practiceSettings.metronomeOn;
  const item=(stage.items??trainingItems(stage))[0];
  openLearning(item.q,item.pc,item.inv??0,names[item.pc].indexOf(item.name));
 }
 function openLearning(q,pc,inv,spelling){
  const stage=sessionStage??selection??stages[stageIndex];
- const available=stage.items??stage.combos??[];
- const kinds=[...new Set(available.map(i=>i.q))];
- learningState={q,pc,inv,spelling,kinds,expanded:false};
- recognizer=q===undefined?null:stage.comprehensive&&kinds.length>1?new LevelRecognizer(kinds):new ChordRecognizer(q);
+ const pool=trainingItems(stage);
+ const poolQualities=new Set(pool.map(item=>item.q));
+ // Free practice keeps its category browser independent of the selected exercise cells.
+ const previewItems=stage.route?pool:catalogue.filter(item=>poolQualities.has(item.q));
+ const browseRoute=stage.route==='learn'&&q!==undefined&&!inPracticeSession();
+ const kinds=browseRoute?stages.filter(s=>s.kind==='quality').map(s=>s.combos[0].q):
+  [...new Set(previewItems.filter(item=>item.kind==='chord').map(item=>item.q))];
+ learningState={q,pc,inv,spelling,kinds,previewItems,browseRoute,expanded:false};
+ recognizer=q===undefined?null:stage.route==='train'&&kinds.length>1?new LevelRecognizer(kinds):new ChordRecognizer(q);
+ $('preview-node').textContent=stage.route==='train'?stage.name.replace(/\n/g,' '):'';
+ $('overlay-action').hidden=stage.route!=='train'||inPracticeSession();
  learningActive=true;keyboardBlurOn=false;updateKeyboardBlur();
  $('instrument').dataset.learning='true';$('overlay').hidden=true;$('learning').hidden=false;$('settings-toggle').hidden=true;
- $('learning-back').textContent='退出';$('learning-settings').textContent=inPracticeSession()?'训练设置':'30分钟专注训练';$('tips-toggle').hidden=true;
- $('learning-title').textContent=q===undefined?'单音':qualities[q].name+'和弦';
+ $('learning-back').textContent='退出';$('learning-settings').textContent=inPracticeSession()?'训练设置':'30分钟专注训练';$('free-action').hidden=true;
+ $('learning-title').textContent=q===undefined?'单音识别':qualities[q].name+'和弦';
  $('learning-title').hidden=kinds.length>1;
  $('quality-picker').hidden=kinds.length<2;
  qualityDrag=null;skipQualityClick=false;
@@ -760,6 +726,7 @@ function openLearning(q,pc,inv,spelling){
 function showLearningMatch(match){
  if(!match)return;
  const q=match.q??learningState.q;
+ if(!learningState.previewItems.some(item=>item.pc===match.pc&&item.q===q))return;
  if(q===learningState.q&&match.pc===learningState.pc&&match.inv===learningState.inv)return;
  if(q!==learningState.q)changeLearningQuality(q);
  if(match.pc!==learningState.pc)learningState.spelling=Math.floor(Math.random()*names[match.pc].length);
@@ -772,6 +739,7 @@ function paintLearning(){
  for(const button of $('learning-chords').children){
   const root=Number(button.dataset.pc);
   button.textContent=names[root][Number(button.dataset.spelling)]+(qualities[q]?.suffix??'');
+  button.hidden=!learningState.previewItems.some(item=>item.q===q&&item.name===names[root][Number(button.dataset.spelling)]);
   button.dataset.long=String(button.textContent.length>7);
   button.setAttribute('aria-pressed',String(root===pc));
  }
@@ -811,7 +779,13 @@ function changeLearningQuality(q,direction,dragOffset=0){
  const {kinds}=learningState;
  const distance=kinds.indexOf(q)-kinds.indexOf(learningState.q);
  const step=direction??Math.sign(Math.abs(distance)>kinds.length/2?-distance:distance);
- Object.assign(learningState,{q,inv:0});
+ if(learningState.browseRoute){
+  stageIndex=stages.findIndex(stage=>stage.kind==='quality'&&stage.combos[0].q===q);
+  selection=stages[stageIndex];learningState.previewItems=trainingItems(selection);
+ }
+ const candidates=learningState.previewItems.filter(item=>item.q===q);
+ const root=candidates.find(item=>item.pc===learningState.pc)??candidates[0];
+ Object.assign(learningState,{q,inv:0,pc:root.pc,spelling:names[root.pc].indexOf(root.name)});
  if(!(recognizer instanceof LevelRecognizer))recognizer=new ChordRecognizer(q);
  qualityDrag=null;
  paintQualityPicker();
@@ -871,9 +845,10 @@ picker.addEventListener('pointerleave',event=>{
 
 
 $('pause-exit').addEventListener('click',e=>{e.stopPropagation();complete();});
+$('learn-action').addEventListener('click',e=>{e.stopPropagation();startLearning();});
 $('practice-action').addEventListener('click',e=>{e.stopPropagation();startLearning();});
 $('overlay-action').addEventListener('click',e=>{e.stopPropagation();startMode('challenge');});
-$('settings-toggle').addEventListener('click',e=>{e.stopPropagation();openMidi();});
+$('settings-toggle').addEventListener('click',e=>{e.stopPropagation();$('system-dialog').showModal();});
 $('settings-dialog').addEventListener('click',e=>e.stopPropagation());
 $('settings-close').addEventListener('click',e=>{e.stopPropagation();$('settings-dialog').close();});
 $('result-dialog').addEventListener('click',e=>e.stopPropagation());
@@ -900,25 +875,6 @@ function option(value,text){
  const el=document.createElement('option');el.value=String(value);el.textContent=text;return el;
 }
 function openMidi(){if(!$('midi-dialog').open)$('midi-dialog').showModal();}
-function renderOptions(){
- const host=$('voicing-options');host.replaceChildren();
- const stage=stages[stageIndex];
- $('practice-start').disabled=false;
- if(!selection||selection.items||stage.kind!=='quality')return;
- for(const combo of stage.combos.slice().sort((a,b)=>a.inv-b.inv)){
-  const item={...combo,kind:'chord',freeOctaves:qualities[combo.q].freeOctaves,label:names[learningState?.pc??0][learningState?.spelling??0]+qualities[combo.q].suffix};
-  const chosen=selection.combos.some(c=>c.inv===combo.inv);
-  const button=document.createElement('button');button.className='item-choice';button.append(itemLabel(item));
-  if(!item.freeOctaves){const caption=document.createElement('small');caption.textContent=inversionNames[item.inv];button.append(caption);}
-  button.setAttribute('aria-pressed',String(chosen));button.disabled=inPracticeSession()||item.freeOctaves;
-  button.addEventListener('click',()=>{
-   selection.combos=chosen?selection.combos.filter(c=>c.inv!==combo.inv):[...selection.combos,combo];
-   renderOptions();
-  });
-  host.append(button);
- }
- $('practice-start').disabled=!selection.combos.length;
-}
 function filteredItems(){
  const query=$('free-filter').value.trim().replace(/^([A-Ga-g])b/, '$1♭').replaceAll('#','♯').toLowerCase();
  const quality=$('free-quality').value,inv=$('free-inv').value;
@@ -976,6 +932,18 @@ function setupPracticeControls(){
  });
  $('free-close').addEventListener('click',()=>$('free-dialog').close());
  $('midi-close').addEventListener('click',()=>$('midi-dialog').close());
+ $('system-close').addEventListener('click',()=>$('system-dialog').close());
+ $('system-midi').addEventListener('click',openMidi);
+ $('reset-records').addEventListener('click',()=>$('reset-dialog').showModal());
+ $('reset-cancel').addEventListener('click',()=>$('reset-dialog').close());
+ $('reset-confirm').addEventListener('click',()=>{
+  generation='routes-'+Date.now();save(recordsVersionKey,generation);
+  try{clearStoredRecords();}catch{/* Browser storage may be unavailable. Reset in-memory progress too. */}
+  for(const cache of [results,history])for(const key of Object.keys(cache))delete cache[key];
+  freeSelection.clear();selectedRoute=null;selection=null;sessionStage=null;
+  stageIndex=currentProgress(results);mode='challenge';
+  $('reset-dialog').close();$('system-dialog').close();reset();focusCurrentStage();
+ });
  $('tips-toggle').addEventListener('click',()=>{$('tips-text').value=tips.join('\n');$('tips-dialog').showModal();});
  $('tips-close').addEventListener('click',()=>$('tips-dialog').close());
  $('tips-save').addEventListener('click',()=>{
@@ -986,4 +954,7 @@ function setupPracticeControls(){
   $('settings-dialog').close();startMode('practice');
  });
 }
+globalThis.addEventListener?.('storage',event=>{
+ if(event.key===recordsVersionKey&&event.newValue!==JSON.stringify(generation))location.reload();
+});
 setupPracticeControls();reset();focusCurrentStage();requestAnimationFrame(render);

@@ -17,7 +17,7 @@ function session(extras={},connected=true){
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
  // Legacy timeline fixtures use 90 BPM; mode entry tests exercise production defaults.
  vm.runInContext('bpm=90',context);
- if(!extras.localStorage)vm.runInContext('selectStage(5)',context);
+ if(!extras.localStorage)vm.runInContext("selectNode('level-2')",context);
  if(connected)vm.runInContext("midiInputs.set('fixture',{state:'connected'})",context);
  return {run:code=>vm.runInContext(code,context),nodes,documentHandlers,alerts};
 }
@@ -184,8 +184,8 @@ test('repeated dismissed MIDI prompts cannot bypass any start entry or create re
 test('mouse drag scrolls without selecting; click and keyboard activation still select',()=>{
  const {run,nodes}=session();const route=nodes.get('route-surface');
  route.handlers.pointerdown({pointerType:'mouse',button:0,pointerId:1,clientX:300});route.handlers.pointermove({pointerId:1,clientX:100,preventDefault(){}});route.handlers.pointerup({pointerId:1});
- assert.equal(nodes.get('route-second').scrollLeft,200);let prevented=false;route.handlers.click({detail:1,preventDefault(){prevented=true;},stopPropagation(){}});assert.equal(prevented,true);
- run('routeNodes[1].handlers.click()');assert.equal(run('stageIndex'),1);
+ assert.equal(nodes.get('route-surface').scrollLeft,200);let prevented=false;route.handlers.click({detail:1,preventDefault(){prevented=true;},stopPropagation(){}});assert.equal(prevented,true);
+ run("stageButtons.get('notes-two').handlers.click()");assert.equal(run('stageIndex'),1);
 });
 
 test('empty MIDI discovery never authorizes startup',()=>{
@@ -215,19 +215,17 @@ test('disconnect blocks every resume entry until a device reconnects',async()=>{
  run('play()');assert.equal(run('running'),true);
 });
 
-test('navigation keeps the continuous chain and distant leaves remain free',()=>{
+test('startup recommends only a training node without selecting either route',()=>{
  const {run,nodes}=session({localStorage:{getItem(){return null;},setItem(){}}});
- assert.equal(run('stageIndex'),0);assert.equal(run('expandedTop'),'project-notes');
- run("selectNode('level-6-v2');play()");assert.ok(run('stageIndex')>=0);assert.equal(run('started'),true);assert.equal(nodes.get('overlay-action').disabled,false);run('complete()');
- run("selectNode('quality-8')");assert.equal(run('stages[stageIndex].combos.length'),4);
- run("play()");assert.equal(run('started'),true);assert.equal(run('cards[0].targets.length'),4);
- run("complete();selectNode('level-6-v2')");assert.equal(nodes.get('route-second').children.length,30);assert.equal(nodes.has('route-third'),false);
-});
-test('eligible parent mixes only its own children and receives independent results',()=>{
- const {run,nodes}=session();
- run("for(const child of curriculum[0].children.slice(0,4))results[child.id]={best:{stars:3}};selectNode('notes-all')");
- assert.equal(nodes.get('overlay-action').disabled,false);assert.equal(run('scheduler.items.length'),17);
- run('play();complete()');assert.equal(run("results['notes-all'].best.stars"),0);assert.equal(run("results['notes-two'].best.stars"),3);
+ assert.equal(run('stages[stageIndex].id'),'notes-two');
+ for(const id of ['learn-action','practice-action'])assert.equal(nodes.get(id).disabled,true);
+ run("selectNode('quality-8');startLearning();startMode('challenge')");
+ assert.equal(run('started'),false);assert.equal(nodes.get('overlay-action').hidden,true);
+ assert.equal(nodes.get('learn-action').disabled,false);
+ run("showHome();selectNode('notes-all');startLearning();startMode('challenge')");
+ assert.equal(run('scheduler.items.length'),17);
+ run('complete()');assert.equal(run("results['notes-all'].best.stars"),0);
+ assert.equal(run("results['quality-8']"),undefined);
 });
 test('tail cards must touch strictly before the deadline at every tempo',()=>{
  for(const bpm of [40,60,90,120,140]){
@@ -244,32 +242,6 @@ test('result shows half-star ratings and a numerical score',()=>{
  const {run,nodes}=session();run('showResult({stars:2.5,total:10,correct:8,accuracy:.8,seconds:300,factors:{pause:1,keyboard:1,speed:1,duration:1}})');
  assert.equal(nodes.get('result-stars').children[1].style.width,`${2.5/3*100}%`);
  assert.equal(readFileSync(new URL('../dist/index.html',import.meta.url),'utf8').includes('id="result-score"'),true);
-});
-
-test('project browsing preserves selected training',()=>{
- const {run,nodes}=session();run("selectNode('quality-0');selectNode('project-colors')");
- assert.equal(run("stages[stageIndex].id"),'quality-0');
- assert.equal(run('expandedTop'),'project-colors');assert.equal(nodes.get('route-second').children.length,30);
- assert.equal(nodes.has('route-third'),false);
-});
-test('scroll project tracking uses center and endpoints without selecting training',()=>{
- const {run,nodes}=session();
- const row=nodes.get('route-second');row.clientWidth=400;row.scrollWidth=2200;
- row.getBoundingClientRect=()=>({left:0,right:400,width:400});
- row.children.forEach((node,i)=>{node.getBoundingClientRect=()=>({left:i*120-row.scrollLeft,right:i*120+100-row.scrollLeft});});
- row.scrollLeft=1250;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-colors');
- row.scrollLeft=1800;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-extended');
- row.scrollLeft=0;run('syncProjectFromScroll()');assert.equal(run('expandedTop'),'project-notes');
- assert.equal(run("stages[stageIndex].id"),'quality-0');
-});
-
-test('programmatic end-of-chain navigation keeps the clicked project highlighted',()=>{
- const {run,nodes}=session();
- const row=nodes.get('route-second');row.scrollLeft=1800;row.clientWidth=400;row.scrollWidth=2200;
- row.getBoundingClientRect=()=>({left:0,right:400,width:400});
- run("selectNode('project-colors');syncProjectFromScroll()");
- assert.equal(run('expandedTop'),'project-colors');
- assert.equal(run("stages[stageIndex].id"),'quality-0');
 });
 
 test('training header names stages and tracks active time through pause, resume and restart',()=>{
@@ -293,7 +265,7 @@ test('training header names stages and tracks active time through pause, resume 
 test('practice previews every node before setup and timed play',()=>{
  for(const id of ['notes-two','notes-all','quality-0','quality-11','level-2','level-6-v2']){
   const {run,nodes}=session();run(`selectNode('${id}')`);
-  nodes.get('practice-action').handlers.click({stopPropagation(){}});
+  nodes.get(id.startsWith('quality')?'learn-action':'practice-action').handlers.click({stopPropagation(){}});
   assert.equal(run('learningActive'),true);assert.equal(run('started'),false);
   nodes.get('learning-settings').handlers.click();
   assert.equal(nodes.get('settings-dialog').open,true);
@@ -310,7 +282,7 @@ test('resuming a frozen practice card rewinds to its entry line and excludes pau
 });
 
 test('expanded route surface handles touch dragging and wheel without starting a mode',()=>{
- const {run,nodes}=session(),surface=nodes.get('route-surface'),row=nodes.get('route-second');
+ const {run,nodes}=session(),surface=nodes.get('route-surface'),row=nodes.get('route-surface');
  surface.handlers.pointerdown({pointerType:'touch',pointerId:3,clientX:300});
  surface.handlers.pointermove({pointerId:3,clientX:100,preventDefault(){}});
  surface.handlers.pointerup({pointerId:3});assert.equal(row.scrollLeft,200);
@@ -319,7 +291,7 @@ test('expanded route surface handles touch dragging and wheel without starting a
 });
 
 test('dragging reverses immediately after reaching the chain edge and capture loss cancels movement',()=>{
- const {run,nodes}=session(),surface=nodes.get('route-surface'),row=nodes.get('route-second');
+ const {run,nodes}=session(),surface=nodes.get('route-surface'),row=nodes.get('route-surface');
  let scroll=0;Object.defineProperty(row,'scrollLeft',{get:()=>scroll,set:value=>{scroll=Math.max(0,Math.min(100,value));}});
  run("selectNode('quality-10')");
  const selected=run('stageIndex');
@@ -334,7 +306,7 @@ test('dragging reverses immediately after reaching the chain edge and capture lo
 
 test('touch capture transferred from a chord or inversion button keeps the drag alive',()=>{
  for(const id of ['quality-10','level-2']){
-  const {run,nodes}=session(),surface=nodes.get('route-surface'),row=nodes.get('route-second');
+  const {run,nodes}=session(),surface=nodes.get('route-surface'),row=nodes.get('route-surface');
   run(`selectNode('${id}')`);
   const button=run(`stageButtons.get('${id}')`),selected=run('stageIndex');
   surface.handlers.pointerdown({pointerType:'touch',pointerId:8,clientX:300,target:button});
@@ -411,9 +383,9 @@ test('a partial window leaves history untouched and preserves the best rating',(
  const writes=new Map();const {run,nodes}=session({localStorage:{getItem(){return null;},setItem(k,v){writes.set(k,v);}}});
  run('practiceSettings.metronomeOn=false');
  run('play();now=5500;for(const n of cards[0].targets)judgeMidi(n);pause();complete()');
- assert.deepEqual([...writes.keys()],['voicing-stars']);const saved=JSON.parse(writes.get('voicing-stars'));
+ assert.deepEqual([...writes.keys()],[run('recordsVersionKey'),run("recordKey('stars')")]);const saved=JSON.parse(writes.get(run("recordKey('stars')")));
  assert.ok(Object.values(saved).every(x=>typeof x==='number'));
- const restored=session({localStorage:{getItem(k){return k==='voicing-stars'?JSON.stringify(saved):null;},setItem(){}}});
+ const restored=session({localStorage:{getItem(k){return writes.get(k);},setItem(){}}});
  assert.equal(restored.run('bpm'),90);assert.equal(restored.run('typeof timingRuns'),'undefined');
 });
 test('removed mistake block rules leave no shipped UI or score failure branch',()=>{
@@ -567,7 +539,7 @@ test('learning is available for notes and comprehensive levels and manual choice
  assert.equal(run('recognizer.candidates[0].hits.size'),1);
 });
 test('every single-note stage shares full-window practice and bottom retry behavior',()=>{
- for(const id of ['notes-two','notes-three','notes-black','notes-white','notes-all']){
+ for(const id of ['notes-two','notes-three','notes-black','learn-notes','notes-all']){
   const {run,nodes}=session();run(`selectNode('${id}');startMode('practice');now=8000;render(now)`);
   assert.equal(run('elapsed'),3);assert.equal(run('cards.every(c=>c.targets.length===1)'),true);
   run('judgeMidi(cards[0].root)');assert.equal(run('cards[0].practicePassed'),false);
@@ -968,7 +940,7 @@ test('practice pause opens the detected chord, isolates exploration and resumes 
 test('single-note practice pause shows and recognizes individual pitch classes',()=>{
  const {run,nodes}=session();
  run("selectNode('notes-two');startMode('practice');pause();judgeMidi(61)");
- assert.equal(nodes.get('learning-title').textContent,'单音');
+ assert.equal(nodes.get('learning-title').textContent,'单音识别');
  assert.deepEqual(Array.from(run('[...answerDots].filter(([,dot])=>!dot.hidden).map(([n])=>n)')),[49,61,73]);
 });
 
@@ -985,18 +957,18 @@ test('home space cannot launch a session after leaving chord learning or practic
   };
   run("selectNode('quality-0');document.activeElement={tagName:'BODY'}");
   checkHome();
-  click('practice-action');
+  click('learn-action');
   space();
   assert.equal(run('learningActive'),true);
   click('learning-back');
   checkHome();
   if(connected){
    run("selectNode('quality-0')");
-   click('practice-action');click('learning-settings');click('practice-start');space();
+   click('learn-action');click('learning-settings');click('practice-start');space();
    assert.equal(run('learningActive'),true);
    space();assert.equal(run('running'),true);
    space();click('learning-back');click('result-home');checkHome();
-   click('overlay-action');space();space();assert.equal(run('running'),true);
+   run("selectNode('level-2');startLearning()");click('overlay-action');space();space();assert.equal(run('running'),true);
   }
  }
 });
@@ -1016,17 +988,26 @@ test('four grades and a skip produce different session and historical averages i
   assert.equal(session({localStorage}).run(`historyStats(countsFor('${run('sample.id')}')).accuracy`),.5625);
  }
 });
-test('migration removes only inversion stars and never clears unrelated records or tips',()=>{
- const data=new Map([['voicing-stars',JSON.stringify({'quality-0':2,'chord-0-0':3,'notes-all':1})],['voicing-tips','[]']]);
- const localStorage={getItem:key=>data.get(key),setItem:(key,v)=>data.set(key,v)};
- const {run}=session({localStorage});
- assert.deepEqual(JSON.parse(data.get('voicing-stars')),{'quality-0':2,'notes-all':1});
- assert.equal(run('tips.length'),0);
+test('upgrade and confirmed reset clear records once and preserve custom tips',()=>{
+ const data=new Map([['voicing-stars','{"notes-two":3}'],['voicing-history-note:C','[4,0,0,0]'],['voicing-tips','["慢练"]'],['unrelated','keep']]);
+ const localStorage={get length(){return data.size;},key:i=>[...data.keys()][i],getItem:key=>data.get(key),setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
+ const {run,nodes}=session({localStorage});
+ assert.equal(data.has('voicing-stars'),false);assert.equal(data.has('voicing-history-note:C'),false);
+ run("remember('note:C',1);save(recordKey('stars'),{'notes-two':3})");
+ const reload=session({localStorage});
+ assert.equal(reload.run("stages[stageIndex].id"),'notes-three');
+ assert.equal(reload.run("historyStats(countsFor('note:C')).total"),1);
+ nodes.get('reset-records').handlers.click();nodes.get('reset-cancel').handlers.click();
+ assert.equal(run("historyStats(countsFor('note:C')).total"),1);
+ nodes.get('reset-records').handlers.click();nodes.get('reset-confirm').handlers.click();
+ assert.equal(run("historyStats(countsFor('note:C')).total"),0);
+ assert.equal(session({localStorage}).run('stages[stageIndex].id'),'notes-two');
+ assert.equal(data.get('voicing-tips'),'["慢练"]');assert.equal(data.get('unrelated'),'keep');
 });
 test('filtered lowest selection excludes unplayed items, respects ties and restricts the free session',()=>{
  const data=new Map();const localStorage={getItem:key=>data.get(key),setItem:(key,v)=>data.set(key,v)};
  const {run,nodes}=session({localStorage});
- run("catalogue.filter(i=>i.q===0).slice(0,15).forEach((i,n)=>save('voicing-history-'+i.id,[n+1,0,0,0]));");
+ run("catalogue.filter(i=>i.q===0).slice(0,15).forEach((i,n)=>save(recordKey('history-'+i.id),[n+1,0,0,0]));");
  nodes.get('free-action').handlers.click();
  nodes.get('free-quality').value='0';nodes.get('free-lowest').handlers.click();
  assert.equal(run('freeSelection.size'),12);
@@ -1064,4 +1045,34 @@ test('mixed learning upgrades a triad to its full seventh and supports manual br
  buttons[2].handlers.click({detail:0});assert.equal(buttons[1].disabled,false);
  picker.handlers.keydown({key:'ArrowRight',preventDefault(){}});
  assert.equal(run('learningState.q'),0);assert.equal(buttons[2].textContent,'大三和弦');
+});
+test('learning title changes the focus pool while MIDI stays on the selected quality',()=>{
+ const {run,nodes}=session();
+ run("selectNode('quality-0');startLearning();judgeMidi(60);judgeMidi(63);judgeMidi(67)");
+ assert.equal(run('learningState.q'),0);
+ assert.equal(run('learningState.kinds.length'),20);
+ run('selectNeighbor(1)');
+ assert.equal(run('selection.id'),'quality-1');
+ assert.equal(nodes.get('overlay-action').hidden,true);
+ run("startMode('practice')");
+ assert.equal(run('scheduler.items.length'),51);
+ assert.ok(run('scheduler.items.every(i=>i.q===1)'));
+});
+test('shape preview accepts every inversion only for listed names and fixes both session pools',async()=>{
+ for(const mode of ['practice','challenge']){
+  const {run,nodes,send}=midiSession();await run('connectMidi()');
+  run("selectNode('triads-white');startLearning()");
+  const play=notes=>{
+   for(const note of notes)send([144,note,100]);
+   run('now+=80;render(now)');
+   for(const note of notes)send([128,note,0]);
+  };
+  play([62,66,69]);assert.equal(run('learningState.pc'),2);assert.equal(run('learningState.inv'),0);
+  const roots=nodes.get('learning-chords').children.filter(b=>!b.hidden).map(b=>b.textContent);
+  assert.deepEqual(roots,['D','E','A']);
+  play([62,65,69]);play([60,64,67]);assert.equal(run('learningState.pc'),2);assert.equal(run('learningState.q'),0);
+  assert.equal(nodes.get('overlay-action').hidden,false);
+  run(`startMode('${mode}')`);
+  assert.equal(run('scheduler.items.length'),12);assert.ok(run('scheduler.items.every(i=>i.inv!==0)'));
+ }
 });

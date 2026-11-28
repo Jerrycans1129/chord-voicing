@@ -8,6 +8,7 @@ function seeded(seed){
 }
 const runs=[];
 for(const seed of [42,123456,20261101])for(const stage of stages)for(const practice of [false,true]){
+ if(!practice&&stage.route==='learn')continue;
  const items=trainingItems(stage);
  const history=practice?Object.fromEntries(items.map((item,i)=>[item.id,i%2?[10,0,0,0]:[0,0,0,10]])):null;
  const s=new Scheduler(stage,{history,rng:seeded(seed)}),outcome=seeded(seed+1);

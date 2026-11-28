@@ -1,7 +1,14 @@
 {
   "assertions": "passed",
-  "totalGenerated": 3600000,
+  "totalGenerated": 2940000,
   "runs": [
+    {
+      "stage": "learn-notes",
+      "seed": 42,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
     {
       "stage": "notes-two",
       "seed": 42,
@@ -45,20 +52,6 @@
       "reviews": 6000
     },
     {
-      "stage": "notes-white",
-      "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "notes-white",
-      "seed": 42,
-      "mode": "practice",
-      "cards": 20000,
-      "reviews": 6000
-    },
-    {
       "stage": "notes-all",
       "seed": 42,
       "mode": "challenge",
@@ -75,13 +68,6 @@
     {
       "stage": "quality-0",
       "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-0",
-      "seed": 42,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
@@ -89,12 +75,75 @@
     {
       "stage": "quality-1",
       "seed": 42,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-uniform",
+      "seed": 42,
       "mode": "challenge",
       "cards": 20000,
       "reviews": 5998
     },
     {
-      "stage": "quality-1",
+      "stage": "triads-uniform",
+      "seed": 42,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-root",
+      "seed": 42,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-root",
+      "seed": 42,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-white",
+      "seed": 42,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-white",
+      "seed": 42,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-black",
+      "seed": 42,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-black",
+      "seed": 42,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-b",
+      "seed": 42,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-b",
       "seed": 42,
       "mode": "practice",
       "cards": 20000,
@@ -117,13 +166,6 @@
     {
       "stage": "quality-4",
       "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-4",
-      "seed": 42,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
@@ -131,23 +173,9 @@
     {
       "stage": "quality-5",
       "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-5",
-      "seed": 42,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-6",
-      "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-6",
@@ -173,23 +201,9 @@
     {
       "stage": "quality-2",
       "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-2",
-      "seed": 42,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-3",
-      "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-3",
@@ -201,23 +215,9 @@
     {
       "stage": "quality-8",
       "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-8",
-      "seed": 42,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-7",
-      "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-7",
@@ -229,23 +229,9 @@
     {
       "stage": "quality-9",
       "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-9",
-      "seed": 42,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-10",
-      "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-10",
@@ -299,23 +285,9 @@
     {
       "stage": "quality-11",
       "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-11",
-      "seed": 42,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-12",
-      "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-12",
@@ -327,23 +299,9 @@
     {
       "stage": "quality-13",
       "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-13",
-      "seed": 42,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-14",
-      "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-14",
@@ -355,23 +313,9 @@
     {
       "stage": "quality-15",
       "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-15",
-      "seed": 42,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-16",
-      "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-16",
@@ -383,23 +327,9 @@
     {
       "stage": "quality-17",
       "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-17",
-      "seed": 42,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-18",
-      "seed": 42,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-18",
@@ -411,13 +341,13 @@
     {
       "stage": "quality-19",
       "seed": 42,
-      "mode": "challenge",
+      "mode": "practice",
       "cards": 20000,
-      "reviews": 5998
+      "reviews": 6000
     },
     {
-      "stage": "quality-19",
-      "seed": 42,
+      "stage": "learn-notes",
+      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
@@ -465,20 +395,6 @@
       "reviews": 6000
     },
     {
-      "stage": "notes-white",
-      "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "notes-white",
-      "seed": 123456,
-      "mode": "practice",
-      "cards": 20000,
-      "reviews": 6000
-    },
-    {
       "stage": "notes-all",
       "seed": 123456,
       "mode": "challenge",
@@ -495,13 +411,6 @@
     {
       "stage": "quality-0",
       "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-0",
-      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
@@ -509,12 +418,75 @@
     {
       "stage": "quality-1",
       "seed": 123456,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-uniform",
+      "seed": 123456,
       "mode": "challenge",
       "cards": 20000,
       "reviews": 5998
     },
     {
-      "stage": "quality-1",
+      "stage": "triads-uniform",
+      "seed": 123456,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-root",
+      "seed": 123456,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-root",
+      "seed": 123456,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-white",
+      "seed": 123456,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-white",
+      "seed": 123456,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-black",
+      "seed": 123456,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-black",
+      "seed": 123456,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-b",
+      "seed": 123456,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-b",
       "seed": 123456,
       "mode": "practice",
       "cards": 20000,
@@ -537,13 +509,6 @@
     {
       "stage": "quality-4",
       "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-4",
-      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
@@ -551,23 +516,9 @@
     {
       "stage": "quality-5",
       "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-5",
-      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-6",
-      "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-6",
@@ -593,23 +544,9 @@
     {
       "stage": "quality-2",
       "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-2",
-      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-3",
-      "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-3",
@@ -621,23 +558,9 @@
     {
       "stage": "quality-8",
       "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-8",
-      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-7",
-      "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-7",
@@ -649,23 +572,9 @@
     {
       "stage": "quality-9",
       "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-9",
-      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-10",
-      "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-10",
@@ -719,23 +628,9 @@
     {
       "stage": "quality-11",
       "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-11",
-      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-12",
-      "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-12",
@@ -747,23 +642,9 @@
     {
       "stage": "quality-13",
       "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-13",
-      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-14",
-      "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-14",
@@ -775,23 +656,9 @@
     {
       "stage": "quality-15",
       "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-15",
-      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-16",
-      "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-16",
@@ -803,23 +670,9 @@
     {
       "stage": "quality-17",
       "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-17",
-      "seed": 123456,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-18",
-      "seed": 123456,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-18",
@@ -831,13 +684,13 @@
     {
       "stage": "quality-19",
       "seed": 123456,
-      "mode": "challenge",
+      "mode": "practice",
       "cards": 20000,
-      "reviews": 5998
+      "reviews": 6000
     },
     {
-      "stage": "quality-19",
-      "seed": 123456,
+      "stage": "learn-notes",
+      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
@@ -885,20 +738,6 @@
       "reviews": 6000
     },
     {
-      "stage": "notes-white",
-      "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5996
-    },
-    {
-      "stage": "notes-white",
-      "seed": 20261101,
-      "mode": "practice",
-      "cards": 20000,
-      "reviews": 6000
-    },
-    {
       "stage": "notes-all",
       "seed": 20261101,
       "mode": "challenge",
@@ -915,13 +754,6 @@
     {
       "stage": "quality-0",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-0",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
@@ -929,12 +761,75 @@
     {
       "stage": "quality-1",
       "seed": 20261101,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-uniform",
+      "seed": 20261101,
       "mode": "challenge",
       "cards": 20000,
       "reviews": 5998
     },
     {
-      "stage": "quality-1",
+      "stage": "triads-uniform",
+      "seed": 20261101,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-root",
+      "seed": 20261101,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-root",
+      "seed": 20261101,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-white",
+      "seed": 20261101,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-white",
+      "seed": 20261101,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-black",
+      "seed": 20261101,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-black",
+      "seed": 20261101,
+      "mode": "practice",
+      "cards": 20000,
+      "reviews": 6000
+    },
+    {
+      "stage": "triads-b",
+      "seed": 20261101,
+      "mode": "challenge",
+      "cards": 20000,
+      "reviews": 5998
+    },
+    {
+      "stage": "triads-b",
       "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
@@ -957,13 +852,6 @@
     {
       "stage": "quality-4",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-4",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
@@ -971,23 +859,9 @@
     {
       "stage": "quality-5",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-5",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-6",
-      "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-6",
@@ -1013,23 +887,9 @@
     {
       "stage": "quality-2",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-2",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-3",
-      "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-3",
@@ -1041,23 +901,9 @@
     {
       "stage": "quality-8",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-8",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-7",
-      "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-7",
@@ -1069,23 +915,9 @@
     {
       "stage": "quality-9",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-9",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-10",
-      "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-10",
@@ -1139,23 +971,9 @@
     {
       "stage": "quality-11",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-11",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-12",
-      "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-12",
@@ -1167,23 +985,9 @@
     {
       "stage": "quality-13",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-13",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-14",
-      "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-14",
@@ -1195,23 +999,9 @@
     {
       "stage": "quality-15",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-15",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-16",
-      "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-16",
@@ -1223,13 +1013,6 @@
     {
       "stage": "quality-17",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-17",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
@@ -1237,23 +1020,9 @@
     {
       "stage": "quality-18",
       "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
-    },
-    {
-      "stage": "quality-18",
-      "seed": 20261101,
       "mode": "practice",
       "cards": 20000,
       "reviews": 6000
-    },
-    {
-      "stage": "quality-19",
-      "seed": 20261101,
-      "mode": "challenge",
-      "cards": 20000,
-      "reviews": 5998
     },
     {
       "stage": "quality-19",

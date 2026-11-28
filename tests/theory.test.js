@@ -1,18 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {stages,curriculum,qualities,trainingItems,notes,positions,selectable,currentProgress} from '../dist/theory.js';
+import {stages,curriculum,qualities,trainingItems,notes,positions,currentProgress} from '../dist/theory.js';
 const perfect={best:{stars:3}};
-test('all training nodes are open and recommendations follow the tree in postorder',()=>{
+test('only training nodes contribute to recommendations, in route order',()=>{
  assert.equal(qualities.length,20);
- assert.deepEqual(curriculum.map(p=>p.children.length),[5,7,7,2,9]);
+ assert.deepEqual(curriculum.map(p=>[p.learn.length,p.train.length]),[[1,4],[2,6],[3,1],[6,1],[0,2],[9,0]]);
  const results={};
- for(let i=0;i<stages.length;i++){
-  assert.equal(currentProgress(results),i);
-  assert.equal(selectable(stages[i],{}),true);
-  results[stages[i].id]=perfect;
+ const training=stages.filter(s=>s.route==='train');
+ for(const stage of training){
+  assert.equal(stages[currentProgress(results)],stage);
+  results[stage.id]=perfect;
  }
- assert.ok(curriculum.every(p=>!selectable(p,{})));
- assert.equal(currentProgress(results),stages.length-1);
+ assert.equal(stages[currentProgress(results)],training.at(-1));
+});
+test('five shape pools partition Level-2 by spelling and by physical voicing',()=>{
+ const groups=curriculum[1].train.slice(0,5).map(trainingItems);
+ assert.deepEqual(groups.map(items=>items.length),[30,18,12,24,18]);
+ assert.deepEqual(groups.map(items=>new Set(items.map(i=>[i.pc,i.q,i.inv].join())).size),[24,12,12,12,12]);
+ assert.deepEqual(groups.flat().map(i=>i.id).sort(),trainingItems(curriculum[1].train.at(-1)).map(i=>i.id).sort());
 });
 test('all voicings are sorted, unique, close-position and fit C3–C6 for every spelling',()=>{
  for(const stage of stages){

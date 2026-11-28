@@ -1,4 +1,4 @@
-export const VERSION='0.3.0';
+export const VERSION='0.4.0';
 export const TOTAL_SECONDS=600;
 export const PRACTICE_SECONDS=1800;
 export function normalizeBpm(value){
